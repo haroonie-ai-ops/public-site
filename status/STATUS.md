@@ -1,17 +1,31 @@
 # Workstream Status — haroonie.ai Public Website
 
-Last updated: 2026-09-10 by Engineer (Wave 1 complete)
+Last updated: 2026-09-10 by Tester (Wave 1 independent review complete)
 
 ## Lifecycle position
 
-Requirements → Planning → Implementation → **[Engineering self-test done —
-Independent QA review next]** → Remediation → Regression → Acceptance →
+Requirements → Planning → Implementation → Engineering self-test →
+Independent QA review → **[Remediation next]** → Regression → Acceptance →
 Delivery
 
 REQ-001 is Approved. PLAN-001 (execution waves) is drafted. Wave 1
-(Foundation) is implemented and self-tested; awaiting independent Tester
-review before it can be marked Accepted per CLAUDE.md's completion
-definition — implementation existing is not the same as done.
+(Foundation) is implemented, self-tested, and has now had independent Tester
+review. **Not yet Accepted** — see `status/QA-001-wave1-tester-review.md`
+for full findings. Two issues require remediation before acceptance:
+
+1. **High severity:** `npm test` as configured is not actually reproducible
+   outside the Engineer's own session — it only passed because a leftover
+   background dev-server daemon happened to be listening already. On a
+   genuinely clean environment (any CI runner) it fails with `Error: Process
+   from config.webServer exited early.` Root cause and one-line fix are
+   documented in QA-001. **This would have silently broken Wave 3's CI gate
+   on day one** had it not been caught here.
+2. **Medium severity:** default branch is `master`; REQ-001 R-1.1 requires
+   `main`. Cheap to fix now, before a GitHub remote exists (E3); expensive
+   after.
+
+A third, low-severity test-coverage gap and a fourth informational note for
+Wave 4 are also recorded in QA-001 but do not block acceptance.
 
 ## Wave 1 — engineering self-test evidence
 
@@ -36,7 +50,7 @@ only so a future local run isn't confused by a stale global Node version.
 | Wave | Description | Status | Blocked by |
 |---|---|---|---|
 | 0 | Owner actions | Open | Owner |
-| 1 | Foundation (scaffold, toolchain, Playwright harness) | **Implemented, self-tested — pending Tester review** | Nothing |
+| 1 | Foundation (scaffold, toolchain, Playwright harness) | **Reviewed — remediation required (QA-001, 2 findings)** | Nothing |
 | 2 | Pages, content, SEO plumbing | Not started | Wave 1 acceptance |
 | 3 | CI/CD pipeline | Not started | Wave 1; verification blocked on E3, E5 |
 | 4 | Domain and hosting configuration | Not started | Blocked on E1, E2 |
@@ -61,10 +75,9 @@ already-granted REQ-001 approval.
 
 ## Recommended immediate next step
 
-Hand off Wave 1 to `@tester` for independent QA review against REQ-001's
-acceptance criteria before it is marked Accepted — the Engineer's own test
-run above is self-test evidence, not independent sign-off, per CLAUDE.md's
-delivery lifecycle.
+Hand back to `@engineer` for remediation of QA-001 Findings 1–3, then a
+regression pass (re-run the full suite from a clean clone, not the working
+directory) before Wave 1 is marked Accepted.
 
 In parallel, the owner can action E3+E5 (unlocks Wave 3) and E1+E2 (unlocks
 Wave 4) — see PLAN-001 §6.
