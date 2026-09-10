@@ -1,42 +1,55 @@
 # Workstream Status — haroonie.ai Public Website
 
-Last updated: 2026-09-10 by Tester (Wave 1 independent review complete)
+Last updated: 2026-09-10 by Engineer (Wave 1 remediation complete)
 
 ## Lifecycle position
 
 Requirements → Planning → Implementation → Engineering self-test →
-Independent QA review → **[Remediation next]** → Regression → Acceptance →
+Independent QA review → Remediation → **[Regression / Acceptance next]** →
 Delivery
 
 REQ-001 is Approved. PLAN-001 (execution waves) is drafted. Wave 1
-(Foundation) is implemented, self-tested, and has now had independent Tester
-review. **Not yet Accepted** — see `status/QA-001-wave1-tester-review.md`
-for full findings. Two issues require remediation before acceptance:
+(Foundation) has been implemented, self-tested, independently reviewed
+(QA-001), and remediated. All findings addressed:
 
-1. **High severity:** `npm test` as configured is not actually reproducible
-   outside the Engineer's own session — it only passed because a leftover
-   background dev-server daemon happened to be listening already. On a
-   genuinely clean environment (any CI runner) it fails with `Error: Process
-   from config.webServer exited early.` Root cause and one-line fix are
-   documented in QA-001. **This would have silently broken Wave 3's CI gate
-   on day one** had it not been caught here.
-2. **Medium severity:** default branch is `master`; REQ-001 R-1.1 requires
-   `main`. Cheap to fix now, before a GitHub remote exists (E3); expensive
-   after.
+1. **High severity, fixed:** `npm test` was not actually reproducible
+   outside the Engineer's original session — it only passed because a
+   leftover background dev-server daemon happened to already be listening.
+   Root cause: Astro 7.2+ auto-backgrounds `astro dev` for AI-agent
+   environments, which broke Playwright's `webServer` contract. Fixed by
+   setting `ASTRO_DEV_BACKGROUND=0` on the `webServer`'s own `env` in
+   `playwright.config.ts`. Re-verified from a fresh clone with no env var
+   manually exported and the port confirmed empty beforehand: 47 passed, 1
+   skipped, 0 failed.
+2. **Medium severity, fixed:** default branch renamed `master` → `main`
+   (`git branch -m`), done before any GitHub remote exists.
+3. **Low severity, fixed:** nav test now checks all six routes instead of
+   only `/`.
+4. **Informational (Wave 4 scope):** no action required yet — logged for
+   when hosting/domain configuration starts.
 
-A third, low-severity test-coverage gap and a fourth informational note for
-Wave 4 are also recorded in QA-001 but do not block acceptance.
+Full detail and re-verification evidence:
+`status/QA-001-wave1-tester-review.md` (Remediation Report section). One
+honest open note there, not a blocker: a config-load-time error appeared in
+this sandbox's nested Temp scratch-clone path specifically (never in the
+actual project directory, and observed identically by both the Engineer and
+the Tester independently) — flagged in case it resurfaces once real CI
+exists, not asserted as resolved.
 
-## Wave 1 — engineering self-test evidence
+Wave 1 is ready for a Tester regression pass before being marked Accepted.
 
-- `npm run typecheck` (astro check): 0 errors, 0 warnings
+## Wave 1 — verification evidence (post-remediation)
+
+- `npm run typecheck` (astro check): 0 errors, 0 warnings — fresh clone
 - `npm run build`: 7/7 routes generated (`/`, `/services/`, `/about/`,
-  `/contact/`, `/privacy/`, `/terms/`, `/404.html`)
-- `npm test` (Playwright, Chromium + Firefox + WebKit): 32 passed, 1 skipped
-  (documented WebKit platform behaviour, see `tests/smoke.spec.ts`), 0 failed
+  `/contact/`, `/privacy/`, `/terms/`, `/404.html`) — fresh clone, `npm ci`
+- `npm test` (Playwright, Chromium + Firefox + WebKit): **47 passed, 1
+  skipped** (documented WebKit tab-order behaviour), 0 failed — verified
+  with no pre-existing daemon and no manually exported env vars
 - Secret scan of tracked files: none found; `.env*` gitignored
-- 4 commits on `master`: governance/spec docs, Astro scaffold + Node 24 LTS
-  pin, shared layout + route stubs, Playwright harness
+- 7 commits on `main` (renamed from `master`): governance/spec docs, Astro
+  scaffold + Node 24 LTS pin, shared layout + route stubs, Playwright
+  harness, QA-001 review, remediation fixes
 
 Known environment note for whoever runs this next: this machine's default
 `node` on PATH is v17.3.0 (nvm-windows' `nvm use` requires elevated
@@ -50,7 +63,7 @@ only so a future local run isn't confused by a stale global Node version.
 | Wave | Description | Status | Blocked by |
 |---|---|---|---|
 | 0 | Owner actions | Open | Owner |
-| 1 | Foundation (scaffold, toolchain, Playwright harness) | **Reviewed — remediation required (QA-001, 2 findings)** | Nothing |
+| 1 | Foundation (scaffold, toolchain, Playwright harness) | **Remediated — pending Tester regression sign-off** | Nothing |
 | 2 | Pages, content, SEO plumbing | Not started | Wave 1 acceptance |
 | 3 | CI/CD pipeline | Not started | Wave 1; verification blocked on E3, E5 |
 | 4 | Domain and hosting configuration | Not started | Blocked on E1, E2 |
@@ -75,9 +88,9 @@ already-granted REQ-001 approval.
 
 ## Recommended immediate next step
 
-Hand back to `@engineer` for remediation of QA-001 Findings 1–3, then a
-regression pass (re-run the full suite from a clean clone, not the working
-directory) before Wave 1 is marked Accepted.
+Hand to `@tester` for a regression pass against QA-001's fixes (not a full
+re-review — confirm the four findings are actually resolved and nothing else
+broke), then mark Wave 1 Accepted.
 
 In parallel, the owner can action E3+E5 (unlocks Wave 3) and E1+E2 (unlocks
 Wave 4) — see PLAN-001 §6.

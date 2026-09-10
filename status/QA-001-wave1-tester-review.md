@@ -1,6 +1,6 @@
 # QA-001 — Independent Tester Review: Wave 1 (Foundation)
 
-Status: REMEDIATION REQUIRED
+Status: REMEDIATED — see Remediation Report at bottom of this document
 Reviewed against: REQ-001-mvp-public-website.md (Approved), PLAN-001 Wave 1
 exit criteria
 Reviewer: Tester (independent of Engineer)
@@ -195,3 +195,71 @@ well-diagnosed fixes, not expected to need further cycles.
 
 Hand back to `@engineer` for remediation of Findings 1–3, then re-run this
 review (regression) before Wave 1 is marked Accepted in `status/STATUS.md`.
+
+---
+
+## Remediation Report (Engineer, 2026-09-10)
+
+Commits: `35efd4e` (Findings 1 + 3), branch rename (Finding 2, ref-only, no
+commit object). No application or test logic was changed beyond what each
+finding specifically required.
+
+### Finding 1 (HIGH) — fixed
+
+`playwright.config.ts`'s `webServer` now sets `env: { ASTRO_DEV_BACKGROUND:
+'0' }`, so the fix travels with the suite rather than depending on a caller
+to export it. Verification, deliberately repeating the Tester's own method
+rather than trusting the first green run:
+
+1. Killed every process listening on :4321/:4322 first (`netstat` confirmed
+   no LISTENING socket before starting).
+2. Ran `npm test` **with no `ASTRO_DEV_BACKGROUND` exported manually** —
+   proving the config-level fix, not an ambient env var, is what's doing the
+   work. Result: 47 passed, 1 skipped, 0 failed.
+3. Repeated in a **freshly cloned** copy of the repo (`git clone` from this
+   working directory after the fix was committed), with `npm ci` (not
+   `install`), port confirmed clear beforehand, no env var exported: build,
+   typecheck, and the full three-browser suite all passed the same way in
+   that clone too — this was the specific scenario in which the original
+   defect reproduced 100% of the time, and it no longer does.
+
+**One honest caveat, not swept under the rug:** a second, unrelated clone
+attempt in this sandbox's `scratchpad` temp directory (a deeply nested path
+under `AppData\Local\Temp`) hit `Error: Playwright Test did not expect
+test.describe() to be called here` / `No tests found` — at config-load time,
+before any server or browser involvement. This is **not** the defect this
+finding is about (different error, different stage of execution), and it
+reproduced identically in the Tester's own scratch clone during the original
+review, never in this project's actual working directory. I did not chase it
+further: it doesn't reproduce in the path that will actually become the
+GitHub repository, and a GitHub Actions runner's checkout path looks nothing
+like this sandbox's nested Temp/AppData structure. Flagging it here in case
+it resurfaces once real CI exists, rather than asserting it's definitely
+sandbox-only.
+
+### Finding 2 (MEDIUM) — fixed
+
+`git branch -m master main`. Confirmed via `git symbolic-ref HEAD` →
+`refs/heads/main`, and via a fresh clone showing `remotes/origin/HEAD ->
+origin/main`. Done before any GitHub remote exists (E3 still open), so
+there's nothing downstream to reconcile.
+
+### Finding 3 (LOW) — fixed
+
+The nav test now loops over `allRoutes`, matching the pattern already used
+by the route-stubs block. 6 route-parameterised nav checks now run per
+browser instead of 1, which is why the totals below read 47/1 rather than
+the original 32/1.
+
+### Full regression, clean environment, all three browsers
+
+```
+47 passed, 1 skipped (documented WebKit tab-order behaviour, unchanged from
+original review), 0 failed
+```
+
+`astro check`: 0 errors. `npm run build`: 7/7 routes. All from a state with
+no pre-existing daemon and no manually exported environment variables —
+exactly the condition that exposed Finding 1 in the first place.
+
+**Recommendation:** ready for regression sign-off / acceptance.
