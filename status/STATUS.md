@@ -1,18 +1,20 @@
 # Workstream Status — haroonie.ai Public Website
 
-Last updated: 2026-09-10 — Wave 1 marked **Accepted** by Owner
+Last updated: 2026-09-10 — Wave 1 **Accepted** by Owner, regression pass complete
 
 ## Lifecycle position
 
 Requirements → Planning → Implementation → Engineering self-test →
 Independent QA review → Remediation → **Acceptance (Owner, 2026-09-10)** →
-**[Regression pass in progress]** → Delivery
+**Regression (Tester, 2026-09-10) — confirmed, no new defects** → Delivery
 
-Owner accepted Wave 1 directly on the strength of the remediation evidence
-below, ahead of the Tester regression pass. The regression pass proceeds
-regardless, as a verification check on an already-accepted wave rather than
-a gate to acceptance — if it surfaces a real defect, that reopens Wave 1
-rather than being silently absorbed.
+Owner accepted Wave 1 directly on the strength of the remediation evidence,
+ahead of the Tester regression pass. The Tester then independently
+re-verified all three code-level findings from a fresh clone — not a
+re-print of the Engineer's numbers — and confirmed each holds: `main`
+branch, the `ASTRO_DEV_BACKGROUND` fix, and the nav test's route coverage.
+Full suite: 47 passed, 1 skipped, 0 failed. No new defects surfaced. Full
+detail: `status/QA-001-wave1-tester-review.md` (Regression Pass section).
 
 REQ-001 is Approved. PLAN-001 (execution waves) is drafted. Wave 1
 (Foundation) has been implemented, self-tested, independently reviewed
@@ -42,7 +44,7 @@ actual project directory, and observed identically by both the Engineer and
 the Tester independently) — flagged in case it resurfaces once real CI
 exists, not asserted as resolved.
 
-Wave 1 is Accepted. A Tester regression pass follows as verification.
+Wave 1 is Accepted and regression-confirmed. Closed.
 
 ## Wave 1 — verification evidence (post-remediation)
 
@@ -69,7 +71,7 @@ only so a future local run isn't confused by a stale global Node version.
 | Wave | Description | Status | Blocked by |
 |---|---|---|---|
 | 0 | Owner actions | Open | Owner |
-| 1 | Foundation (scaffold, toolchain, Playwright harness) | **Accepted (Owner, 2026-09-10) — Tester regression pass in progress** | Nothing |
+| 1 | Foundation (scaffold, toolchain, Playwright harness) | **Accepted (Owner) — regression-confirmed (Tester), closed** | Nothing |
 | 2 | Pages, content, SEO plumbing | Not started | Nothing — Wave 1 Accepted |
 | 3 | CI/CD pipeline | Not started | Wave 1; verification blocked on E3, E5 |
 | 4 | Domain and hosting configuration | Not started | Blocked on E1, E2 |
@@ -94,10 +96,10 @@ already-granted REQ-001 approval.
 
 ## Recommended immediate next step
 
-Hand to `@tester` for a regression pass against QA-001's fixes (not a full
-re-review — confirm the four findings are actually resolved and nothing else
-broke). Wave 1 is already Accepted; this pass is a verification check, and
-Wave 2 is unblocked to start in parallel with it.
+Wave 1 is closed. Wave 2 (pages, content, SEO plumbing) is ready to start —
+its 2a/2b split from PLAN-001 applies: shared layout/nav/head work first,
+then the five content pages in parallel once that merges. Real page copy
+depends on E6; structure and tests do not.
 
 In parallel, the owner can action E3+E5 (unlocks Wave 3) and E1+E2 (unlocks
 Wave 4) — see PLAN-001 §6.

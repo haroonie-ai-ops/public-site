@@ -264,3 +264,38 @@ no pre-existing daemon and no manually exported environment variables —
 exactly the condition that exposed Finding 1 in the first place.
 
 **Recommendation:** ready for regression sign-off / acceptance.
+
+---
+
+## Regression Pass (Tester, 2026-09-10)
+
+Owner accepted Wave 1 ahead of this pass (see `status/STATUS.md`); this is
+therefore verification on an already-accepted wave, not a gate — run with
+the same rigor regardless, independent of the Engineer's remediation report
+rather than a re-print of its numbers.
+
+**Method:** fresh `git clone` from the current `main`, independent of both
+the Engineer's working directory and the Engineer's own verification clone;
+confirmed no listening process on :4321/:4322 before each run.
+
+| Check | Result |
+|---|---|
+| Branch is `main` (Finding 2) | **Confirmed** — `git symbolic-ref HEAD` → `refs/heads/main`; clone shows `origin/HEAD -> origin/main` |
+| `playwright.config.ts` carries the `ASTRO_DEV_BACKGROUND=0` fix (Finding 1) | **Confirmed present** in the cloned commit |
+| Nav test loops over `allRoutes`, not just `/` (Finding 3) | **Confirmed** — read `tests/smoke.spec.ts:19-31` directly, not just trusted the pass count |
+| `npm ci && npm run build` (clean clone) | Pass — 7/7 routes |
+| `npm run typecheck` (clean clone) | Pass — 0 errors |
+| `npm test`, clean clone, no env var exported, port pre-confirmed empty | **Reproduced the scratchpad-temp-path anomaly again** (`test.describe() not expected` / `No tests found`) — third occurrence of the same config-load-time error, now observed by both roles across three separate scratch clones. Still never seen in the actual project directory. Treating as confirmed sandbox-path-specific, not a product or config defect, per the standing note in the Remediation Report above. |
+| `npm test`, actual project directory (`D:\dev\public-site`), no env var exported, port pre-confirmed empty | **Pass — 47 passed, 1 skipped, 0 failed**, all three browsers. This is the authoritative regression result: same command, same absence of ambient state, the condition that originally exposed Finding 1. |
+
+**Verdict:** all three code-level findings (1, 2, 3) hold up under independent
+re-verification. Finding 4 remains correctly deferred to Wave 4, no action
+taken. No new defects found. The Owner's acceptance is not contradicted by
+this pass — recorded as confirmed, not merely unchallenged.
+
+One process note, not a finding: this session's `git status` showed
+unrelated changes to `.claude/settings.json` (a plugin enabled) and a new
+`.mcp.json` (an MCP server entry referencing `${GITHUB_PERSONAL_ACCESS_TOKEN}`
+as an env-var placeholder, no literal secret present) that this review did
+not make and left untouched — outside Wave 1's scope, mentioned only for
+completeness.
