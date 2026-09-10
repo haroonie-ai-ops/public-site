@@ -17,17 +17,19 @@ test.describe('route stubs respond', () => {
 });
 
 test.describe('primary navigation (R-2.7)', () => {
-	test('every page exposes Home, Services, About, Contact in the header', async ({
-		page,
-	}) => {
-		await page.goto('/');
-		const primaryNav = page.getByRole('navigation', { name: 'Primary' });
-		for (const route of primaryNavRoutes) {
-			await expect(
-				primaryNav.getByRole('link', { name: route.navLabel }),
-			).toBeVisible();
-		}
-	});
+	for (const onPage of allRoutes) {
+		test(`${onPage.path} exposes Home, Services, About, Contact in the header`, async ({
+			page,
+		}) => {
+			await page.goto(onPage.path);
+			const primaryNav = page.getByRole('navigation', { name: 'Primary' });
+			for (const route of primaryNavRoutes) {
+				await expect(
+					primaryNav.getByRole('link', { name: route.navLabel }),
+				).toBeVisible();
+			}
+		});
+	}
 
 	test('the current page is indicated in the nav', async ({ page }) => {
 		await page.goto('/services/');
