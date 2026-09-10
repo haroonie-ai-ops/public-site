@@ -1,12 +1,18 @@
 # Workstream Status — haroonie.ai Public Website
 
-Last updated: 2026-09-10 by Engineer (Wave 1 remediation complete)
+Last updated: 2026-09-10 — Wave 1 marked **Accepted** by Owner
 
 ## Lifecycle position
 
 Requirements → Planning → Implementation → Engineering self-test →
-Independent QA review → Remediation → **[Regression / Acceptance next]** →
-Delivery
+Independent QA review → Remediation → **Acceptance (Owner, 2026-09-10)** →
+**[Regression pass in progress]** → Delivery
+
+Owner accepted Wave 1 directly on the strength of the remediation evidence
+below, ahead of the Tester regression pass. The regression pass proceeds
+regardless, as a verification check on an already-accepted wave rather than
+a gate to acceptance — if it surfaces a real defect, that reopens Wave 1
+rather than being silently absorbed.
 
 REQ-001 is Approved. PLAN-001 (execution waves) is drafted. Wave 1
 (Foundation) has been implemented, self-tested, independently reviewed
@@ -36,7 +42,7 @@ actual project directory, and observed identically by both the Engineer and
 the Tester independently) — flagged in case it resurfaces once real CI
 exists, not asserted as resolved.
 
-Wave 1 is ready for a Tester regression pass before being marked Accepted.
+Wave 1 is Accepted. A Tester regression pass follows as verification.
 
 ## Wave 1 — verification evidence (post-remediation)
 
@@ -63,8 +69,8 @@ only so a future local run isn't confused by a stale global Node version.
 | Wave | Description | Status | Blocked by |
 |---|---|---|---|
 | 0 | Owner actions | Open | Owner |
-| 1 | Foundation (scaffold, toolchain, Playwright harness) | **Remediated — pending Tester regression sign-off** | Nothing |
-| 2 | Pages, content, SEO plumbing | Not started | Wave 1 acceptance |
+| 1 | Foundation (scaffold, toolchain, Playwright harness) | **Accepted (Owner, 2026-09-10) — Tester regression pass in progress** | Nothing |
+| 2 | Pages, content, SEO plumbing | Not started | Nothing — Wave 1 Accepted |
 | 3 | CI/CD pipeline | Not started | Wave 1; verification blocked on E3, E5 |
 | 4 | Domain and hosting configuration | Not started | Blocked on E1, E2 |
 | 5 | Enquiry form completion | Not started | Wave 2 (Contact skeleton); blocked on E4 |
@@ -90,7 +96,8 @@ already-granted REQ-001 approval.
 
 Hand to `@tester` for a regression pass against QA-001's fixes (not a full
 re-review — confirm the four findings are actually resolved and nothing else
-broke), then mark Wave 1 Accepted.
+broke). Wave 1 is already Accepted; this pass is a verification check, and
+Wave 2 is unblocked to start in parallel with it.
 
 In parallel, the owner can action E3+E5 (unlocks Wave 3) and E1+E2 (unlocks
 Wave 4) — see PLAN-001 §6.

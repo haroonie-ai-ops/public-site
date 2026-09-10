@@ -1,6 +1,7 @@
 # QA-001 — Independent Tester Review: Wave 1 (Foundation)
 
-Status: REMEDIATED — see Remediation Report at bottom of this document
+Status: REMEDIATED — Wave 1 Accepted by Owner 2026-09-10; regression pass
+below is post-acceptance verification, not a gate
 Reviewed against: REQ-001-mvp-public-website.md (Approved), PLAN-001 Wave 1
 exit criteria
 Reviewer: Tester (independent of Engineer)
