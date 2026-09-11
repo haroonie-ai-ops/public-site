@@ -271,7 +271,7 @@ wait on this remediation's sign-off — it was already cleared to proceed.
 |---|---|---|---|
 | E1 | Cloudflare account + zone add for `haroonie.ai` | Blocks Wave 4 | New |
 | E2 | Registrar nameserver delegation to Cloudflare | Blocks Wave 4 | New |
-| E3 | GitHub repo under `haroonie-ai-ops` + secrets configured | Blocks Wave 3 verification; **all 22 commits are local-only until done** | Owner-actioned 2026-09-11, in progress |
+| E3 | GitHub repo under `haroonie-ai-ops` + secrets configured | **Repo half DONE** — `haroonie-ai-ops/public-site`, 26 commits pushed 2026-09-11, no longer local-only. Secrets half still open (needs E5's token value) | Partially resolved 2026-09-11 |
 | E5 | Cloudflare API token — Account → Cloudflare Pages: Edit (CI only) | Blocks Wave 3 verification | Owner-actioned 2026-09-11, in progress |
 | E4 | Transactional email credential | Blocks Wave 5 only; not a launch blocker | New |
 | E6 | Copy: services, bio, legal entity/address, mailbox, booking URL | Blocks production sign-off on affected pages only; does not block any wave from starting | New |
@@ -326,6 +326,28 @@ file**.
    environment variable.
 3. Wave 4's real Cloudflare permission surface was larger than PLAN-001's E5
    entry implied. Resolved by OAuth rather than by widening a stored token.
+
+## E3 — remote established, program history pushed (2026-09-11)
+
+`haroonie-ai-ops/public-site` (private, default branch `main`). All 26
+commits pushed; `main` tracks `origin/main`. The program's history is no
+longer single-copy on one workstation, which was the real exposure behind
+E3 rather than just Wave 3's verification.
+
+Push hygiene: the remote URL carries no credentials, the PAT was supplied
+by a `credential.helper` reading the environment variable at runtime (never
+on a command line, never written to `.git/config` — verified after the
+push), and the full history was secret-scanned before first publish.
+
+Permission side-effects confirmed by the push itself: **Contents write is
+granted** (previously unprovable read-only). **Workflows write remains
+unverified** — it can only be proven by pushing a `.github/workflows/*.yml`,
+which Wave 3 will be the first to do. If that permission was missed, the
+symptom is the *push* being rejected, not the workflow failing to run.
+
+Still open on E3: the repository secrets (`CLOUDFLARE_API_TOKEN`,
+`CLOUDFLARE_ACCOUNT_ID`) cannot be set until the owner supplies E5's token
+value. The `Secrets` permission needed to write them is verified granted.
 
 ## E8 — R-6.1 AC2 cannot be satisfied on the current GitHub plan (2026-09-11)
 
