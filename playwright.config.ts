@@ -60,7 +60,7 @@ export default defineConfig({
 			env: { ASTRO_DEV_BACKGROUND: '0' },
 		},
 		{
-			command: `npm run build && npm run preview -- --port ${PREVIEW_PORT}`,
+			command: `npm run build && npm run preview -- --port ${PREVIEW_PORT} --ignore-lock`,
 			url: previewBaseURL,
 			reuseExistingServer: false,
 			timeout: 120_000,
@@ -72,6 +72,52 @@ export default defineConfig({
 			// own lock file, the foreground process Playwright is watching
 			// exits, and webServer reports "exited early" — the same failure
 			// mode as QA-001 Finding 1, one CLI command over.
+			//
+			// --ignore-lock (QA-002 Finding 2): `astro preview`'s concurrency
+			// lock (node_modules/astro/dist/core/dev/lockfile.js) is keyed on
+			// the project ROOT directory, never on --port, so any second
+			// `astro preview` invocation from this working directory — on any
+			// port — refuses to start while *any* prior preview process is
+			// still alive here, orphaned or not. Reproduced directly (no crash
+			// needed): started `astro preview --port 4362` in the foreground,
+			// left it running, then ran `astro preview --port 4363` from the
+			// same directory — it was refused with "Another astro preview
+			// server is already running", pointing at the still-live PID on
+			// 4362, even though 4363 was completely free.
+			//
+			// `--force` (the CLI's own suggested remedy, and QA-002's
+			// suggestion) was tested and rejected: reading
+			// dist/cli/preview/index.js (Astro 7.3.2) shows `--force` is never
+			// actually wired up for `astro preview` — only `astro dev --force`
+			// calls killDevServer(); `astro preview --port 4363 --force` was
+			// run against the same live 4362 process above and still refused
+			// to start, so it doesn't even do what its own error message
+			// implies in this Astro version. And even where Astro *does*
+			// implement `--force` (`astro dev`), it kills whatever PID its own
+			// (single, root-scoped) liveness check believes is alive with no
+			// re-verification — if two agents ever shared this directory with
+			// two genuinely live preview servers, `--force` would silently
+			// kill the other agent's real server. We don't want that risk even
+			// if a future Astro version wires `--force` up for `preview` too.
+			//
+			// `--ignore-lock` instead makes this webServer entry start its own
+			// server on its own port without ever reading or writing the lock
+			// file — it cannot block on someone else's lock, and it cannot
+			// kill anyone else's process, because it never inspects or signals
+			// any other PID. Verified: with server A left running on 4362,
+			// `astro preview --port 4363 --ignore-lock` started cleanly
+			// alongside it, both served 200s, and A's lock/PID were untouched.
+			// The tradeoff, accepted deliberately: an instance started this
+			// way isn't tracked by `astro preview stop/status/logs` — fine
+			// here, since Playwright's own webServer lifecycle (not Astro's
+			// lock) is what starts and tears down this process. Residual risk
+			// carried forward, not fixed here: repeated crashes will still
+			// accumulate untracked orphan processes over time, since nothing
+			// external can find them via the lock file anymore. That's a
+			// resource-hygiene concern for Wave 3 CI, not a correctness
+			// regression — it's strictly better than every subsequent run
+			// being blocked outright, and it never trades into the
+			// cross-agent-kill hazard above.
 			env: { ASTRO_PREVIEW_BACKGROUND: '0' },
 		},
 	],
