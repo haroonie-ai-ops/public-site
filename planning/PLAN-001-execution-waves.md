@@ -71,10 +71,29 @@ because they block Wave 1.
 |----|--------|-----------------------------------|
 | E1 | Cloudflare account + add `haroonie.ai` zone | Wave 4 |
 | E2 | Registrar nameserver delegation to Cloudflare | Wave 4 |
-| E3 | GitHub repo (remote) + secrets configured | Wave 3 |
-| E5 | Scoped Cloudflare API token (Pages edit only) | Wave 3 |
+| E3 | GitHub repo (remote) under `haroonie-ai-ops` + secrets configured | Wave 3 |
+| E5 | Scoped Cloudflare API token — Account → Cloudflare Pages: Edit, CI deploy only | Wave 3 |
 | E6 | Copy: services, bio, legal entity/address, enquiry mailbox, booking URL | Wave 2 (structure proceeds without it; production content gate) |
 | E4 | Transactional email credential | Wave 5 only |
+
+**Owner decisions recorded 2026-09-11 (access/credentials — owner-approved
+per CLAUDE.md):**
+
+- **E3 resource owner:** the remote repository lives under the
+  `haroonie-ai-ops` GitHub account. The fine-grained PAT authenticates as
+  that account and is scoped to that single repository.
+- **E5 scope correction.** The original entry above read "Pages edit only".
+  That is correct for CI — R-6.2 and R-6.3 need nothing beyond Account →
+  Cloudflare Pages: Edit — but was **insufficient for Wave 4**: R-7.2 needs a
+  DNS record, R-7.3 a redirect rule (permission name "Dynamic Redirect", not
+  "Single Redirect"), and R-7.4 zone TLS settings, none of which that
+  permission grants. Resolved **without** a second token: Wave 4 zone
+  configuration is performed through Cloudflare's hosted remote MCP server
+  (`https://mcp.cloudflare.com/mcp`, OAuth, interactive owner consent) rather
+  than a stored credential. E5 therefore remains a single CI-only token, and
+  no long-lived DNS-capable secret exists anywhere in this program. R-7.5's
+  security headers need no Cloudflare permission at all — they ship from
+  `public/_headers` in the repository.
 
 **Action for owner, low effort, unblocks the most work fastest:** E3 and E5
 together unlock all of Wave 3; E1+E2 together unlock all of Wave 4. E6 does

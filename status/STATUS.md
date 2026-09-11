@@ -267,14 +267,60 @@ wait on this remediation's sign-off — it was already cleared to proceed.
 |---|---|---|---|
 | E1 | Cloudflare account + zone add for `haroonie.ai` | Blocks Wave 4 | New |
 | E2 | Registrar nameserver delegation to Cloudflare | Blocks Wave 4 | New |
-| E3 | GitHub repository (remote) + secrets configured | Blocks Wave 3 verification | New |
-| E5 | Scoped Cloudflare API token (Pages edit only) | Blocks Wave 3 verification | New |
+| E3 | GitHub repo under `haroonie-ai-ops` + secrets configured | Blocks Wave 3 verification; **all 22 commits are local-only until done** | Owner-actioned 2026-09-11, in progress |
+| E5 | Cloudflare API token — Account → Cloudflare Pages: Edit (CI only) | Blocks Wave 3 verification | Owner-actioned 2026-09-11, in progress |
 | E4 | Transactional email credential | Blocks Wave 5 only; not a launch blocker | New |
 | E6 | Copy: services, bio, legal entity/address, mailbox, booking URL | Blocks production sign-off on affected pages only; does not block any wave from starting | New |
 
 No blocker halts the whole program. Waves 1, 2, 5 (once its precondition
 lands), and 6 are fully executable today without any owner action beyond the
 already-granted REQ-001 approval.
+
+## Access and credentials (2026-09-11)
+
+Owner created a GitHub PAT and Cloudflare API access; scopes were researched
+and determined against the acceptance criteria that actually require them.
+Recorded here because CLAUDE.md reserves credentials/access to the owner.
+
+**Decisions (owner):** the remote repository lives under `haroonie-ai-ops`;
+Wave 4 zone configuration goes through Cloudflare's OAuth MCP server rather
+than a second stored token.
+
+**GitHub — fine-grained PAT, scoped to the single repository.** Contents RW
+(push), Metadata R (mandatory), **Workflows RW** (without it, pushing any
+`.github/workflows/*.yml` is rejected outright), Actions RW (R-6.1 AC2), Pull
+requests RW (R-6.1, R-6.2 AC1), Secrets RW (E3), **Administration RW**
+(branch protection — R-6.1 AC2's "cannot be merged" is unimplementable
+without it), Deployments RW (R-6.2 AC1). Issues RW optional.
+
+**Cloudflare — one token only.** Account → Cloudflare Pages: Edit, stored as
+a GitHub Actions secret alongside `CLOUDFLARE_ACCOUNT_ID`. Everything else
+the deploy needs comes from Actions' built-in `GITHUB_TOKEN` with
+`contents: read, deployments: write`. No DNS-capable secret is stored
+anywhere — see PLAN-001's E5 scope correction for why that required a
+decision rather than just a longer permission list.
+
+**MCP wiring (`.mcp.json`, committed).** `github` (stdio, local binary,
+toolsets limited to `repos,pull_requests,actions,issues`);
+`cloudflare-docs` (read-only, unauthenticated); `cloudflare-api` (OAuth,
+interactive consent). The PAT is supplied via a `GITHUB_PERSONAL_ACCESS_TOKEN`
+environment variable — **never committed, and not stored in any tracked
+file**.
+
+**Findings from this work:**
+
+1. The `github` MCP server's `CONNECTION_CLOSED` was almost certainly bare
+   `"command": "github-mcp-server"` — Windows does not apply `PATHEXT` when
+   the process is spawned without a shell, so the `.exe` never resolved. The
+   binary itself is healthy (v1.12.1; a full stdio handshake succeeds). Now
+   configured with an absolute path. Not yet confirmed in a live session.
+2. The PAT was found in plaintext in `.claude/settings.local.json`.
+   Containment was correct — gitignored, untracked, and the token prefix appears
+   in zero commits on any branch — but it is unencrypted at rest and has been
+   read into a model context, so it is being rotated and moved to an
+   environment variable.
+3. Wave 4's real Cloudflare permission surface was larger than PLAN-001's E5
+   entry implied. Resolved by OAuth rather than by widening a stored token.
 
 ## Recommended immediate next step
 
