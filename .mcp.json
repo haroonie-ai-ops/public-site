@@ -2,11 +2,20 @@
   "mcpServers": {
     "github": {
       "type": "stdio",
-      "command": "github-mcp-server",
+      "command": "C:/Users/haroonie/bin/github-mcp-server.exe",
       "args": ["stdio"],
       "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}",
+        "GITHUB_TOOLSETS": "repos,pull_requests,actions,issues"
       }
+    },
+    "cloudflare-docs": {
+      "type": "http",
+      "url": "https://docs.mcp.cloudflare.com/mcp"
+    },
+    "cloudflare-api": {
+      "type": "http",
+      "url": "https://mcp.cloudflare.com/mcp"
     }
   }
 }

@@ -31,3 +31,6 @@ pnpm-debug.log*
 
 # Claude Code per-developer local settings (may hold tokens)
 .claude/settings.local.json
+
+# Claude Code agent worktrees (local, ephemeral)
+.claude/worktrees/
