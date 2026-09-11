@@ -12,6 +12,7 @@
     "preview": "astro preview",
     "astro": "astro",
     "typecheck": "astro check",
+    "lint": "astro check && tsc --noEmit -p tsconfig.json",
     "test": "playwright test",
     "test:ui": "playwright test --ui"
   },
