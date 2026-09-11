@@ -48,12 +48,58 @@ test.describe('sitemap and robots.txt in the built preview (R-4.2, R-4.4)', () =
 });
 
 test.describe('non-indexable preview builds (R-4.4)', () => {
+	// Each test here spawns a real `astro build`. `--outDir` only redirects
+	// the final output — the intermediate prerender cache
+	// (`.astro/.prerender/`) is still shared at the project root regardless
+	// of `--outDir`, so two of these builds racing in parallel corrupt each
+	// other's cache (observed directly: `ERR_MODULE_NOT_FOUND` on a chunk
+	// another concurrent build had already rewritten). Serial mode avoids
+	// that without weakening any assertion.
+	test.describe.configure({ mode: 'serial' });
+
 	test('a build with SITE_ENV=preview disallows all crawling in its robots.txt', async () => {
 		const outDir = mkdtempSync(join(tmpdir(), 'haroonie-preview-robots-'));
 		try {
 			execSync(`npm run build -- --outDir "${outDir}"`, {
 				cwd: process.cwd(),
 				env: { ...process.env, SITE_ENV: 'preview' },
+				stdio: 'pipe',
+			});
+
+			const robots = readFileSync(join(outDir, 'robots.txt'), 'utf-8');
+			expect(robots).toContain('Disallow: /');
+		} finally {
+			rmSync(outDir, { recursive: true, force: true });
+		}
+	});
+
+	// QA-002 Probe 2: SITE_ENV is compared case-insensitively, so a build
+	// pipeline that sets an unexpected case doesn't accidentally de-index
+	// production. This must never flip the other way (a typo'd/unrecognised
+	// value must still de-index) — see the sibling test below.
+	test('a build with SITE_ENV=Production (mixed case) still allows crawling', async () => {
+		const outDir = mkdtempSync(join(tmpdir(), 'haroonie-preview-robots-'));
+		try {
+			execSync(`npm run build -- --outDir "${outDir}"`, {
+				cwd: process.cwd(),
+				env: { ...process.env, SITE_ENV: 'Production' },
+				stdio: 'pipe',
+			});
+
+			const robots = readFileSync(join(outDir, 'robots.txt'), 'utf-8');
+			expect(robots).not.toContain('Disallow: /');
+			expect(robots).toContain('Sitemap: https://www.haroonie.ai/sitemap-index.xml');
+		} finally {
+			rmSync(outDir, { recursive: true, force: true });
+		}
+	});
+
+	test('a build with an unrecognised SITE_ENV value still disallows crawling (fails safe)', async () => {
+		const outDir = mkdtempSync(join(tmpdir(), 'haroonie-preview-robots-'));
+		try {
+			execSync(`npm run build -- --outDir "${outDir}"`, {
+				cwd: process.cwd(),
+				env: { ...process.env, SITE_ENV: 'staging' },
 				stdio: 'pipe',
 			});
 

@@ -14,7 +14,14 @@ function isPreviewBuild(): boolean {
 	const env = import.meta.env as unknown as Record<string, string | undefined>;
 
 	if (env.SITE_ENV) {
-		return env.SITE_ENV !== 'production';
+		// QA-002 Probe 2: compare case-insensitively (and trimmed) so a build
+		// pipeline that sets SITE_ENV=Production (or with stray whitespace)
+		// still resolves to indexable. This only widens what counts as
+		// "production" — it does not touch the asymmetric failure direction:
+		// a value that isn't recognisably "production" still de-indexes, and
+		// SITE_ENV being unset entirely still falls through to the
+		// CF_PAGES_BRANCH check / production default below.
+		return env.SITE_ENV.trim().toLowerCase() !== 'production';
 	}
 	if (env.CF_PAGES_BRANCH) {
 		return env.CF_PAGES_BRANCH !== 'main';
