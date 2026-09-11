@@ -64,12 +64,16 @@ Wave 1 is Accepted and regression-confirmed. Closed.
   scaffold + Node 24 LTS pin, shared layout + route stubs, Playwright
   harness, QA-001 review, remediation fixes
 
-Known environment note for whoever runs this next: this machine's default
-`node` on PATH is v17.3.0 (nvm-windows' `nvm use` requires elevated
-privileges not available in this session). Build/test runs above used Node
-24.21.0 directly via its nvm-managed path. CI will use `.nvmrc` (24.21.0) via
-`actions/setup-node`, which is unaffected by this local quirk — flagged here
-only so a future local run isn't confused by a stale global Node version.
+Environment note — **resolved 2026-09-11 by the owner.** This machine's
+active `node` was previously v17.3.0, which Astro rejects outright
+(`Node.js v17.3.0 is not supported`), so Wave 1 and Wave 2a build/test runs
+invoked Node 24.21.0 directly via its nvm-managed path. The owner has since
+switched nvm to 24.21.0, matching `.nvmrc` and `package.json`'s `engines`
+pin. Verified on the current `main`: `astro check` 0/0/0, `tsc --noEmit`
+clean, `npm run build` 7/7 routes, full Playwright suite **98 passed, 1
+skipped, 0 failed**, and `npx wrangler` now resolves (4.131.1) where it
+previously failed the engine check — all with no PATH override. Wave 3's CI
+is unaffected either way, since `actions/setup-node` reads `.nvmrc`.
 
 ## Wave 2a — shared layout, nav, SEO plumbing (Engineer self-test, 2026-09-10)
 
