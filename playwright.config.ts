@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const PORT = 4321;
+const PORT = Number(process.env.PW_PORT ?? 4321);
 const baseURL = `http://localhost:${PORT}`;
 
 // A second server, serving the actual built static output (`astro build` +
@@ -9,7 +9,7 @@ const baseURL = `http://localhost:${PORT}`;
 // output), so anything that depends on what Cloudflare Pages will actually
 // serve — the sitemap and robots.txt endpoints (R-4.2-R-4.4) in particular —
 // is verified against this server, not `astro dev`.
-const PREVIEW_PORT = 4322;
+const PREVIEW_PORT = Number(process.env.PW_PREVIEW_PORT ?? 4322);
 const previewBaseURL = `http://localhost:${PREVIEW_PORT}`;
 
 export default defineConfig({
@@ -47,9 +47,9 @@ export default defineConfig({
 	],
 	webServer: [
 		{
-			command: 'npm run dev',
+			command: `npm run dev -- --port ${PORT}`,
 			url: baseURL,
-			reuseExistingServer: !process.env.CI,
+			reuseExistingServer: false,
 			timeout: 60_000,
 			// Astro 7.2+ auto-detects an AI coding agent and runs `astro dev` as a
 			// detached background daemon, which exits the foreground process
@@ -62,7 +62,7 @@ export default defineConfig({
 		{
 			command: `npm run build && npm run preview -- --port ${PREVIEW_PORT}`,
 			url: previewBaseURL,
-			reuseExistingServer: !process.env.CI,
+			reuseExistingServer: false,
 			timeout: 120_000,
 			// `astro preview` has its own, separate AI-agent auto-background
 			// detection (distinct env var from `astro dev`'s — confirmed by
