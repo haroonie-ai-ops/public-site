@@ -1,8 +1,11 @@
 # Workstream Status — haroonie.ai Public Website
 
-Last updated: 2026-09-10 — Wave 2a (shared layout/SEO plumbing) implemented
-and self-tested; ready for independent QA review. Wave 1 remains Accepted
-by Owner, regression-confirmed.
+Last updated: 2026-09-10 — QA-002's Finding 2 (stale `astro preview` lock
+blocking concurrent test runs) remediated; awaiting Tester regression
+re-verification. Wave 2a's underlying deliverable already passed QA-002
+with no product defect; Wave 2b is clear to proceed regardless of this
+remediation's own sign-off, per the Tester's verdict. Wave 1 remains
+Accepted by Owner, regression-confirmed.
 
 ## Lifecycle position
 
@@ -186,14 +189,72 @@ CLAUDE.md's failure policy. The `ASTRO_PREVIEW_BACKGROUND` issue above was
 diagnosed and fixed in a single cycle by reading Astro's own source rather
 than trial-and-error.
 
+## QA-002 remediation (Engineer, 2026-09-10)
+
+Independent Tester review (`status/QA-002-wave2a-tester-review.md`) passed
+Wave 2a's actual deliverable with two findings against the **test harness**,
+not the site. Remediated:
+
+1. **Finding 2 (TEST_DEFECT, Medium) — fixed.** `astro preview`'s
+   concurrency lock is keyed on the project root directory, not on
+   `--port`, so any live `astro preview` process in this working
+   directory — including an orphan left behind by a crashed prior run —
+   blocked every subsequent `astro preview` invocation regardless of port,
+   contradicting commit `5820915`'s per-agent port-isolation guarantee.
+   Reproduced directly (a live process on one port blocked a completely
+   free different port, no crash needed to trigger it); the Tester's own
+   suggested `--force` remedy was tested against that reproduction and
+   found not to work at all in the installed Astro version (7.3.2) — it
+   isn't wired up for `astro preview`, only `astro dev`. Fixed instead with
+   `astro preview --ignore-lock` on the `static-preview` webServer entry in
+   `playwright.config.ts`: it starts on its own port without ever reading
+   or signalling any other process, so it cannot block on someone else's
+   lock and — unlike `--force` — cannot kill another agent's genuinely
+   running server either, by construction. Verified end-to-end through the
+   real harness with `PW_PORT=4361`/`PW_PREVIEW_PORT=4362`: a live orphan
+   left on a third port throughout, `static-preview` project 12/12 passed,
+   orphan's PID and lock left byte-for-byte untouched. Full reasoning is in
+   the `playwright.config.ts` comment and the Remediation Report section of
+   `status/QA-002-wave2a-tester-review.md`.
+2. **Finding 1 (ENVIRONMENT/FLAKY_TEST, Low) — no action taken**, per the
+   Tester's own explicit recommendation (logged for Wave 3 CI capacity
+   awareness only). No retry logic, timeout loosening, or reduced browser
+   coverage was added anywhere.
+3. **Probe 2 (informational) — fixed.** `src/pages/robots.txt.ts`'s
+   `SITE_ENV` comparison is now case-insensitive and trimmed
+   (`SITE_ENV=Production` no longer incorrectly de-indexes), without
+   changing the asymmetric safe-default direction the Tester verified — an
+   unset `SITE_ENV` still falls through to production/indexable. Three new
+   regression tests added to `tests/seo-preview.spec.ts`.
+4. **Probe 4 (informational) — flagged, not decided.** Whether
+   `404.astro`'s description string is final copy or an unlogged
+   placeholder is a Business Analyst call per CLAUDE.md's role boundaries,
+   not an Engineer one. Not acted on either way; noted here for BA
+   confirmation.
+
+Full suite (`PW_PORT=4361 PW_PREVIEW_PORT=4362`), run twice from a clean
+port state: **98 passed, 1 skipped, 0 failed** both times — 2 more passing
+tests than Wave 2a's 96/1/0 (the new SITE_ENV regression tests), no
+existing assertion weakened. `astro check` and `tsc --noEmit`: clean.
+
+One self-inflicted issue caught and fixed during this remediation (not a
+QA-002 finding): the two new SITE_ENV tests raced against each other and
+the existing one on Astro's shared `.astro/.prerender` build cache when run
+in parallel — fixed with `test.describe.configure({ mode: 'serial' })` on
+that describe block. Found by actually running the new tests, not assumed.
+
+**Recommendation:** ready for independent Tester regression re-verification
+of Finding 2's fix. Per the Tester's own verdict, Wave 2b does not need to
+wait on this remediation's sign-off — it was already cleared to proceed.
+
 ## Wave status
 
 | Wave | Description | Status | Blocked by |
 |---|---|---|---|
 | 0 | Owner actions | Open | Owner |
 | 1 | Foundation (scaffold, toolchain, Playwright harness) | **Accepted (Owner) — regression-confirmed (Tester), closed** | Nothing |
-| 2a | Shared layout, nav, SEO plumbing | **Implemented, self-tested — awaiting independent QA review** | Nothing |
-| 2b | Home/Services/About/Contact/Privacy/Terms page content | Not started | Wave 2a must pass QA and merge first |
+| 2a | Shared layout, nav, SEO plumbing | **QA-002 passed with findings; Finding 2 remediated — awaiting Tester regression re-verification** | Nothing |
+| 2b | Home/Services/About/Contact/Privacy/Terms page content | Not started | Nothing — Wave 2a's QA-002 verdict already clears this to start |
 | 3 | CI/CD pipeline | Not started | Wave 1; verification blocked on E3, E5 |
 | 4 | Domain and hosting configuration | Not started | Blocked on E1, E2 |
 | 5 | Enquiry form completion | Not started | Wave 2b (Contact skeleton); blocked on E4 |
@@ -217,19 +278,22 @@ already-granted REQ-001 approval.
 
 ## Recommended immediate next step
 
-Wave 2a (shared layout, nav, SEO plumbing) is implemented and self-tested —
-see the Wave 2a section above. Per CLAUDE.md's Delivery Lifecycle, it now
-needs an independent Tester review before Wave 2b starts, so that any
-remediation to the shared layout/head/sitemap/robots mechanism happens
-before five parallel engineers each build a page on top of it (PLAN-001's
-explicit reason for sequencing 2a first: "the single highest
-merge-contention risk in this project").
+Wave 2a passed independent QA (QA-002) with no product defect; its one
+actionable finding (Finding 2, the shared-directory `astro preview` lock)
+is now remediated per the section above and awaiting Tester regression
+re-verification of that specific fix. That re-verification does not gate
+Wave 2b — the Tester's own QA-002 verdict already cleared Wave 2b to
+proceed, since Finding 2 never touched the mechanism (required props,
+`BaseLayout` composition, `SeoHead`, sitemap/robots) Wave 2b's five pages
+depend on.
 
-Once 2a passes QA and is merged, Wave 2b's five pages (Home, Services,
-About, Contact static portion, Privacy+Terms) can proceed in parallel, one
-engineer each, each importing `BaseLayout` and authoring their own
-Playwright spec alongside their page. Real page copy depends on E6;
-structure and tests do not.
+Wave 2b's five pages (Home, Services, About, Contact static portion,
+Privacy+Terms) can proceed in parallel, one engineer each, each importing
+`BaseLayout` and authoring their own Playwright spec alongside their page.
+Real page copy depends on E6; structure and tests do not. One outstanding
+question for the Business Analyst, not a blocker: whether `404.astro`'s
+description string is intended as final copy or should be logged in
+`status/placeholder-content.md` (QA-002 Probe 4).
 
 In parallel, the owner can action E3+E5 (unlocks Wave 3) and E1+E2 (unlocks
 Wave 4) — see PLAN-001 §6.

@@ -1,6 +1,9 @@
 # QA-002 — Independent Tester Review: Wave 2a (Shared layout, nav, SEO plumbing)
 
-Status: REVIEWED — pass with findings; no product defect blocks Wave 2b start
+Status: REMEDIATED (Finding 2) — see Remediation Report at bottom of this
+document. Wave 2a itself was already "pass with findings; no product defect
+blocks Wave 2b start" per the Tester's verdict below — this remediation
+does not change that, it closes the one actionable harness finding.
 Reviewed against: REQ-001-mvp-public-website.md R-2.7, R-4.1–R-4.4, R-5.1 (Approved);
 PLAN-001 Wave 2a exit criteria; QA-001's standard of evidence
 Reviewer: Tester (independent of Engineer)
@@ -339,3 +342,196 @@ Finding 2 doesn't touch the mechanism Wave 2b's five pages depend on
 (required props, `BaseLayout` composition, `SeoHead`, sitemap/robots), only
 the built-preview test project's crash recovery. Finding 1 requires no
 action beyond the note logged here for Wave 3. Wave 2b may proceed.
+
+---
+
+## Remediation Report (Engineer, 2026-09-10)
+
+Scope: Finding 2 only (the actionable one), plus the two cheap informational
+notes the Tester raised in Probes 2 and 4. Finding 1 was explicitly "no
+action required" per the Tester's own verdict and was not touched — no test
+was weakened, retried, or given reduced browser coverage to paper over it.
+
+### Finding 2 (TEST_DEFECT, Medium) — fixed, but not the way the Tester's
+own recommendation literally proposed
+
+Before changing anything, re-derived the mechanism from source rather than
+trusting the Tester's or Astro's own error message at face value, per this
+task's instructions:
+
+- Read `node_modules/astro/dist/core/dev/lockfile.js`. Confirmed the lock
+  key (`getLockFileURL` → `<root>/.astro/${command}.json`, no port) and,
+  importantly, that Astro **already** self-heals a lock whose PID is
+  verifiably dead: `checkExistingServer` → `isLockFileProcessAlive` calls
+  `isProcessAlive(pid)` (a bare `process.kill(pid, 0)`) *before* it ever
+  consults `find-proc`, and returns `false` immediately if that fails —
+  removing the lock and proceeding normally. So a truly-dead PID was never
+  actually the reproducing case.
+- Reproduced the real failure directly, with no crash needed: started
+  `astro preview --port 4362` in the foreground and **left it running**
+  (simulating a prior test run's process that outlived its parent, exactly
+  as Finding 2 describes — "Node's own `spawn UNKNOWN` killed the
+  Playwright runner before it could tear down its `astro preview` child
+  process"). From the same directory, `astro preview --port 4363` — a
+  **different, completely free port** — was refused:
+  ```
+  Another astro preview server is already running.
+    URL:  http://localhost:4362
+    PID:  18492
+  Run `astro preview stop` to stop it, or use `astro preview --force` to replace it.
+  ```
+  This confirms Finding 2's core claim exactly: the block is keyed on the
+  root directory, not the port, and it fires even when the second port is
+  entirely uncontended.
+- Tested the Tester's own suggested primary remedy, `--force`, against that
+  same live process: `astro preview --port 4363 --force` **still refused
+  to start**, with the identical error. Reading
+  `node_modules/astro/dist/cli/preview/index.js` (Astro 7.3.2) explains
+  why: `--force` is never wired up for `astro preview` at all — only
+  `astro dev --force` (`dist/cli/dev/index.js:146`) actually calls
+  `killDevServer()`. The CLI's own error message advertises `--force` as a
+  remedy for `preview`, but in this installed Astro version it is a dead
+  flag for that command. Recommending it as-is would not have fixed
+  anything — worth surfacing since it contradicts the tool's own help text.
+- Considered whether `--force` (or an equivalent kill-based cleanup, e.g.
+  always running `astro preview stop` first) would be safe to add anyway,
+  in case a future Astro version wires it up for `preview` too, or as a
+  belt-and-suspenders pretest step. Rejected deliberately, per this task's
+  explicit constraint: `killDevServer`'s force-path kills whatever PID the
+  lock names with no further verification. If two agents ever shared this
+  working directory with two genuinely live preview servers — exactly the
+  scenario this finding warns Wave 2b about — a blind `--force`/`stop`
+  would silently kill the other agent's real, running server. The lock
+  file's contents alone cannot distinguish "my own crashed run's orphan"
+  from "someone else's legitimate concurrent server"; both look identical
+  (alive PID, `astro`-shaped command line). Any fix that resolves the
+  block by killing based on that information trades one isolation bug for
+  a worse, silent one.
+- Fixed instead with `astro preview`'s own `--ignore-lock` flag, appended
+  to the `static-preview` webServer's command in `playwright.config.ts`.
+  It makes this invocation start its own server on its own port **without
+  ever reading or writing the lock file** — it cannot be blocked by
+  someone else's lock, and, critically, it never inspects or signals any
+  other PID, so it cannot kill anyone else's process by construction (not
+  just "with a safety check" — the code path that could do so is never
+  reached). Verified against the exact scenario above: with the live
+  process still on 4362, `astro preview --port 4363 --ignore-lock`
+  started cleanly; both instances served HTTP 200; the 4362 process's PID
+  and lock entry were byte-for-byte unchanged afterwards.
+- End-to-end verification through the actual harness, not just the raw
+  CLI, using this task's assigned ports: built the site, started an
+  orphaned `astro preview --port 4399` and **left it alive** (a stand-in
+  for a crashed prior run on yet another port), confirmed the *unfixed*
+  command (`astro preview --port 4362`, no `--ignore-lock`) is refused
+  against that live orphan, then ran
+  `PW_PORT=4361 PW_PREVIEW_PORT=4362 npx playwright test --project=static-preview`
+  with the fix in place and the orphan still running: **12/12 passed**.
+  Confirmed afterwards that the orphan (PID, port 4399, lock file) was
+  completely untouched — killed it manually only as cleanup.
+- Documented all of the above reasoning directly in
+  `playwright.config.ts`'s comment for that webServer entry, in the same
+  style as the existing QA-001-derived comments there, so the next person
+  reading this file doesn't have to re-derive it.
+- Residual risk carried forward, not fixed here, and said so in the code
+  comment: since `--ignore-lock` never writes a lock either, repeated
+  crashes will now accumulate untracked orphan `astro preview` processes
+  over time instead of being blocked outright. That's a resource-hygiene
+  concern worth Wave 3 CI awareness (same treatment as Finding 1), not a
+  correctness regression — it's strictly better than the current total
+  block, and it never reintroduces the cross-agent-kill hazard above.
+
+**Self-inflicted issue caught and fixed during this remediation, not part
+of Finding 2:** the two new SITE_ENV regression tests added below (Probe 2)
+each spawn a real `astro build`. Running them in Playwright's default
+parallel mode raced against each other and the existing SITE_ENV=preview
+test on the shared `.astro/.prerender` build cache (`--outDir` only
+redirects final output, not that intermediate cache), causing an
+`ERR_MODULE_NOT_FOUND` on a chunk file one concurrent build had already
+rewritten out from under another. Fixed by
+`test.describe.configure({ mode: 'serial' })` on that describe block —
+serializes only the three build-spawning tests against each other, not the
+rest of the suite. Caught by actually running the new tests, not assumed
+from reading them.
+
+### Finding 1 (ENVIRONMENT/FLAKY_TEST, Low) — no action taken, per the
+Tester's own recommendation
+
+Not touched. No retry logic, no reduced browser matrix, no timeout
+loosening was added anywhere in the suite. One robustness point considered
+and rejected as unnecessary: capping `workers` locally to reduce memory
+pressure. Rejected because the Tester's own Finding 1 already scoped this
+as a Wave 3 CI capacity question, explicitly not something to act on now,
+and because doing it unilaterally as "for good measure" would be
+second-guessing a call CLAUDE.md assigns to the Tester's classification,
+not the Engineer's judgment.
+
+### Probe 2 (informational) — case-sensitive `SITE_ENV` comparison
+
+Judged in-remit: one line in `src/pages/robots.txt.ts`, and it does not
+touch the asymmetric failure direction the Tester specifically checked
+(`isPreviewBuild` still falls through to `CF_PAGES_BRANCH` / the
+production default whenever `SITE_ENV` is unset — that path is completely
+unchanged). Changed the comparison to
+`env.SITE_ENV.trim().toLowerCase() !== 'production'` so
+`SITE_ENV=Production` (or a stray trailing space) resolves to indexable
+instead of incorrectly de-indexing. Added three regression tests to
+`tests/seo-preview.spec.ts`: `SITE_ENV=preview` still disallows (unchanged
+behaviour), `SITE_ENV=Production` (mixed case) now allows, and
+`SITE_ENV=staging` (an unrecognised value) still disallows — proving the
+fix only widens what counts as "production," it doesn't loosen the safe
+default in the other direction.
+
+### Probe 4 (informational) — `404.astro`'s description string not in the
+placeholder register
+
+Not changed. The Tester correctly identified this as a Business Analyst
+question, not an Engineer one: whether "The page you're looking for
+doesn't exist or has moved." is intended as final copy or should be logged
+in `status/placeholder-content.md` as a Wave 2/E6 stub. Deciding that
+silently either way would be guessing at product intent, which CLAUDE.md
+reserves for the Business Analyst. Flagging it here for that confirmation
+rather than acting on it — this is the only item in this remediation that
+still needs a human/BA decision; it does not block Wave 2b or this
+remediation's own acceptance.
+
+### Verification evidence
+
+- `npm run typecheck` (astro check): 0 errors, 0 warnings, 0 hints.
+- `npx tsc --noEmit -p tsconfig.json`: clean, no output.
+- Stale/orphaned-lock reproduction against the real harness (see above):
+  `static-preview` project, 12/12 passed with a live orphan on a different
+  port present throughout.
+- Full suite, `PW_PORT=4361 PW_PREVIEW_PORT=4362`, run twice from a clean
+  port state: **98 passed, 1 skipped (the same documented WebKit tab-order
+  case from Waves 1/2a, unchanged), 0 failed** — both times, identically.
+  This is 2 more passing tests than Wave 2a's self-tested 96/1/0, entirely
+  the two new SITE_ENV regression tests; no existing test was weakened,
+  skipped, or had its assertions reduced.
+- Confirmed clean teardown after each run: no `.astro/preview.json` left
+  behind (expected — `--ignore-lock` never writes one) and no process left
+  listening on either assigned port.
+
+### Not attempted / explicitly out of scope for this remediation
+
+- Did not touch the `dev` webServer entry's own `.astro/dev.json` lock.
+  The same lock-key-is-root-not-port mechanism could theoretically affect
+  it too, but Finding 2 only reported it for `static-preview`/`astro
+  preview`, and QA-001 already hardened `astro dev`'s own background-daemon
+  issue separately. Extending this fix there wasn't asked for and wasn't
+  reproduced as a live problem — flagging it here as a latent question
+  rather than silently fixing or silently ignoring it.
+- Did not add any general "kill stale processes" hygiene job. The
+  untracked-orphan accumulation risk noted above is real but was judged a
+  Wave 3 CI concern, not something to solve unilaterally here.
+
+### No blockers raised
+
+This did not reach CLAUDE.md's three-repair-cycle threshold — the fix was
+diagnosed from source and verified empirically in one cycle, matching Wave
+1's and Wave 2a's own precedent of reading Astro's source rather than
+trial-and-error.
+
+**Recommendation:** ready for independent Tester regression re-verification
+of Finding 2's fix. Per the Tester's own verdict above, this remediation
+was not a precondition for Wave 2b starting; it closes the one finding that
+was outstanding against the shared test harness.
