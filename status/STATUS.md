@@ -275,6 +275,7 @@ wait on this remediation's sign-off — it was already cleared to proceed.
 | E5 | Cloudflare API token — Account → Cloudflare Pages: Edit (CI only) | Blocks Wave 3 verification | Owner-actioned 2026-09-11, in progress |
 | E4 | Transactional email credential | Blocks Wave 5 only; not a launch blocker | New |
 | E6 | Copy: services, bio, legal entity/address, mailbox, booking URL | Blocks production sign-off on affected pages only; does not block any wave from starting | New |
+| E8 | **R-6.1 AC2 is unimplementable as specified**: branch protection and rulesets are unavailable on private repos on GitHub Free. Owner must choose public repo, GitHub Pro, or an AC change | Blocks Wave 3 exit, not Wave 3 start | New 2026-09-11 |
 
 No blocker halts the whole program. Waves 1, 2, 5 (once its precondition
 lands), and 6 are fully executable today without any owner action beyond the
@@ -325,6 +326,60 @@ file**.
    environment variable.
 3. Wave 4's real Cloudflare permission surface was larger than PLAN-001's E5
    entry implied. Resolved by OAuth rather than by widening a stored token.
+
+## E8 — R-6.1 AC2 cannot be satisfied on the current GitHub plan (2026-09-11)
+
+**Found while verifying the rotated PAT's granted permissions against the
+requirements that need them.** Not a token problem — the token is correct.
+
+R-6.1 AC2 states: "Given any failing job, When CI completes, Then the pull
+request is reported as failing and **cannot be merged**." The "cannot be
+merged" half needs a required status check, which needs branch protection or
+a repository ruleset. Both return HTTP 403 on
+`haroonie-ai-ops/public-site`:
+
+    "Upgrade to GitHub Pro or make this repository public to enable this
+     feature."
+
+Confirmed as a **plan gate, not a permission gate**, by control: the same
+token against a public repository's `/rulesets` endpoint returns 200. Branch
+protection and rulesets are unavailable on private repositories on GitHub
+Free.
+
+Consequence if unresolved: CI can *report* a failing check on a PR (R-6.1
+AC1 is fine), but nothing *enforces* it — a red PR stays mergeable. That
+directly contradicts CLAUDE.md's requirement that tests gate delivery, which
+is the stated rationale for design decision D-02.
+
+**Owner decision required — three options:**
+
+1. **Make the repository public.** Unlocks rulesets at no cost. The site's
+   content is public by nature, but the repository also carries `status/`
+   and `planning/` — program internals, QA findings and remediation history.
+   Nothing secret (every commit has been secret-scanned), but internal.
+2. **GitHub Pro** (~USD 4/month). Keeps the repository private and unlocks
+   protection on private repos. Lowest-friction option that preserves both
+   the requirement and privacy.
+3. **Amend R-6.1 AC2** to "reported as failing" without the enforcement
+   clause. This is a material requirement change: it is a Business Analyst
+   and owner decision, not an Engineer one, and it weakens the delivery gate
+   CLAUDE.md depends on. Recorded as an option, not recommended.
+
+**Recommendation: option 2**, or option 1 if the repository being public is
+acceptable. Either preserves the approved acceptance criterion as written.
+
+**Does not block Wave 3 from starting.** The workflow YAML, the build, test
+and deploy jobs, and preview deployments (R-6.2) are all implementable today
+and unaffected. Only R-6.1 AC2's enforcement clause — and therefore Wave 3's
+*exit* — depends on this.
+
+**Also confirmed in the same pass (token is otherwise correct):** Metadata,
+Actions, Secrets, Pull requests and Deployments all granted and verified by
+live probe. Issues not granted — it was optional, no action needed.
+`Administration` could not be verified either way, because the only
+endpoints that would prove it are the plan-gated ones above. `Contents` and
+`Workflows` write cannot be probed read-only; the first push will confirm
+both.
 
 ## Recommended immediate next step
 
