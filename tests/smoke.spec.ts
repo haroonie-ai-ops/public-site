@@ -70,7 +70,9 @@ test.describe('footer (R-2.5 AC2, R-2.7 AC2)', () => {
 test.describe('custom 404 page (R-2.6)', () => {
 	test('an unknown path returns HTTP 404 and links back home', async ({ page }) => {
 		const response = await page.goto('/this-page-does-not-exist/');
-		expect(response?.status()).toBe(404);
+		// DELIBERATELY WRONG (Wave 3 gate-proof, see commit message) — the
+		// real route returns 404; this asserts 200 so the test genuinely fails.
+		expect(response?.status()).toBe(200);
 		await expect(
 			page.getByRole('heading', { name: 'Page not found' }),
 		).toBeVisible();
