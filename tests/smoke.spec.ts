@@ -31,16 +31,24 @@ test.describe('primary navigation (R-2.7)', () => {
 		});
 	}
 
-	test('the current page is indicated in the nav', async ({ page }) => {
-		await page.goto('/services/');
-		const primaryNav = page.getByRole('navigation', { name: 'Primary' });
-		await expect(
-			primaryNav.getByRole('link', { name: 'Services' }),
-		).toHaveAttribute('aria-current', 'page');
-		await expect(
-			primaryNav.getByRole('link', { name: 'About' }),
-		).not.toHaveAttribute('aria-current', 'page');
-	});
+	// R-2.7 AC1 requires the current page to be indicated "given any page",
+	// so this checks every route, not just one — accessibly (via
+	// aria-current, not colour alone; see BaseLayout's nav styles).
+	for (const onPage of allRoutes) {
+		test(`${onPage.path} marks its own nav link current and no other`, async ({ page }) => {
+			await page.goto(onPage.path);
+			const primaryNav = page.getByRole('navigation', { name: 'Primary' });
+
+			for (const navRoute of primaryNavRoutes) {
+				const link = primaryNav.getByRole('link', { name: navRoute.navLabel });
+				if (navRoute.path === onPage.path) {
+					await expect(link).toHaveAttribute('aria-current', 'page');
+				} else {
+					await expect(link).not.toHaveAttribute('aria-current', 'page');
+				}
+			}
+		});
+	}
 });
 
 test.describe('footer (R-2.5 AC2, R-2.7 AC2)', () => {
