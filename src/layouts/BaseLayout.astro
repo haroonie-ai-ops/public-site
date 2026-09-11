@@ -1,13 +1,17 @@
 ---
-// Shared shell for every page: <head> boilerplate, skip link, header nav,
-// footer. Page content and metadata (R-4 SEO plumbing) land in Wave 2 — this
-// layout only owns structure that is identical across pages (R-2.7).
-export interface Props {
-	title: string;
-	description?: string;
-}
+// Shared shell for every page: <head> boilerplate (via SeoHead, R-4.1),
+// skip link, header nav (R-2.7), footer (R-2.5 AC2 / R-2.7 AC2).
+//
+// `title` and `description` are required with no default: every page that
+// uses this layout must supply its own unique values (R-4.1 AC1). This is
+// deliberate — see src/components/SeoHead.astro for the rationale. Optional
+// SEO overrides (ogType, ogImage) and structured data pass straight through.
+import SeoHead from '../components/SeoHead.astro';
+import type { Props as SeoHeadProps } from '../components/SeoHead.astro';
 
-const { title, description = 'haroonie.ai — tech consulting.' } = Astro.props;
+export interface Props extends SeoHeadProps {}
+
+const { title, description, ogType, ogImage } = Astro.props;
 
 const navLinks = [
 	{ href: '/', label: 'Home' },
@@ -29,8 +33,13 @@ const year = new Date().getFullYear();
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<meta name="generator" content={Astro.generator} />
-		<title>{title}</title>
-		<meta name="description" content={description} />
+		<SeoHead
+			title={title}
+			description={description}
+			ogType={ogType}
+			ogImage={ogImage}
+		/>
+		<slot name="head" />
 	</head>
 	<body>
 		<a class="skip-link" href="#main-content">Skip to main content</a>
@@ -171,9 +180,18 @@ const year = new Date().getFullYear();
 		text-decoration: underline;
 	}
 
+	/*
+	 * Current-page indication must not rely on colour alone (R-5.1 AC1/AC3
+	 * and the "not by colour alone" note in PLAN-001). aria-current="page"
+	 * carries the semantic signal for assistive tech; font-weight and the
+	 * underline carry it visually for sighted users regardless of colour
+	 * perception.
+	 */
 	nav a[aria-current='page'] {
 		color: var(--accent);
 		font-weight: 600;
+		text-decoration: underline;
+		text-underline-offset: 0.25em;
 	}
 
 	main {

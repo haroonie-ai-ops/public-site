@@ -1,0 +1,53 @@
+---
+// Per-page <head> metadata (REQ-001 R-4.1). `title` and `description` are
+// required, untyped-default props on purpose: R-4.1 AC1 requires every page
+// to carry a unique, non-empty title and description, so the only way to
+// enforce that at the infrastructure level (rather than trusting each page
+// author to remember) is to make omitting them a typecheck error. Do not add
+// a default value for either — that would silently reintroduce the failure
+// mode this component exists to prevent.
+export interface Props {
+	/** Unique, non-empty page title. Rendered verbatim in <title>. */
+	title: string;
+	/** Unique, non-empty page description (~50-160 chars recommended). */
+	description: string;
+	/**
+	 * Open Graph type. 'website' covers every page in the MVP content set;
+	 * override only if a future content type (e.g. an Insights article)
+	 * needs 'article'.
+	 */
+	ogType?: 'website' | 'article';
+	/**
+	 * Absolute or site-relative path to the Open Graph/Twitter image.
+	 * Defaults to the site-wide placeholder — see
+	 * status/placeholder-content.md for the real asset this awaits.
+	 */
+	ogImage?: string;
+}
+
+const {
+	title,
+	description,
+	ogType = 'website',
+	ogImage = '/favicon.svg',
+} = Astro.props;
+
+const canonicalURL = new URL(Astro.url.pathname, Astro.site);
+const ogImageURL = new URL(ogImage, Astro.site);
+---
+
+<title>{title}</title>
+<meta name="description" content={description} />
+<link rel="canonical" href={canonicalURL} />
+
+<meta property="og:title" content={title} />
+<meta property="og:description" content={description} />
+<meta property="og:type" content={ogType} />
+<meta property="og:url" content={canonicalURL} />
+<meta property="og:image" content={ogImageURL} />
+<meta property="og:site_name" content="haroonie.ai" />
+
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={title} />
+<meta name="twitter:description" content={description} />
+<meta name="twitter:image" content={ogImageURL} />

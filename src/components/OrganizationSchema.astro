@@ -1,0 +1,30 @@
+---
+// Organisation structured data (REQ-001 R-4.3). R-4.3 AC1 requires only that
+// the block parse as valid JSON of type Organization/ProfessionalService and
+// contain the company name and canonical URL — it does not require an
+// address, phone number or other identity details, so this component only
+// ever emits fields that are true today (the real company name and the real
+// site URL), never invented business details (REQ-001 §1.3). Additional
+// fields (address, sameAs/social profiles, telephone) can be added later
+// once the owner supplies them (E6) without changing this component's shape.
+export interface Props {
+	name: string;
+	description?: string;
+	/** 'Organization' or a more specific subtype such as 'ProfessionalService'. */
+	type?: 'Organization' | 'ProfessionalService';
+}
+
+const { name, description, type = 'ProfessionalService' } = Astro.props;
+
+const url = Astro.site ? Astro.site.toString() : undefined;
+
+const schema = {
+	'@context': 'https://schema.org',
+	'@type': type,
+	name,
+	url,
+	...(description ? { description } : {}),
+};
+---
+
+<script type="application/ld+json" is:inline set:html={JSON.stringify(schema)} />

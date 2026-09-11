@@ -1,9 +1,19 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import PlaceholderNotice from '../components/PlaceholderNotice.astro';
+import OrganizationSchema from '../components/OrganizationSchema.astro';
 ---
 
-<BaseLayout title="haroonie.ai — Tech Consulting">
+<BaseLayout
+	title="haroonie.ai — Tech Consulting"
+	description="haroonie.ai is a tech consulting practice. Full home page copy ships in Wave 2 (REQ-001 R-2.1)."
+>
+	<Fragment slot="head">
+		<OrganizationSchema
+			name="haroonie.ai"
+			description="haroonie.ai — tech consulting."
+		/>
+	</Fragment>
 	<h1>haroonie.ai</h1>
 	<PlaceholderNotice />
 	<p>Home page content ships in Wave 2 (REQ-001 R-2.1).</p>
