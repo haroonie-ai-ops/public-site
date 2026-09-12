@@ -3,6 +3,17 @@ title: "Terms"
 metaDescription: >-
   Terms of use for the haroonie.ai website.
 placeholder: false
+# QA-004 remediation (PRODUCT_DEFECT, High): the body below previously
+# disclosed to site visitors that it was agent-drafted boilerplate
+# pending review, pointed them at this repository's internal placeholder
+# register, and named an internal role and escalation ID. That process
+# commentary has been removed from visitor-facing prose; the underlying
+# provenance is unchanged and still lives in status/placeholder-content.md
+# (row P14). This body is agent-drafted, generic terms-of-use boilerplate,
+# pending owner/legal review and sign-off before go-live. It deliberately
+# does not state a registered legal entity name, company number or
+# address, since those values are not yet owner-supplied — see the
+# Contact/E6 note in that register.
 ---
 
 These terms govern your use of the haroonie.ai website. The site is
@@ -13,8 +24,7 @@ of any kind, and haroonie.ai is not liable for any loss arising from your
 use of this site to the fullest extent permitted by law. These terms are
 governed by the laws applicable to haroonie.ai's place of business.
 
-This is agent-drafted boilerplate pending owner/legal review before go-live
-sign-off — see `status/placeholder-content.md`. It does not state a
-registered legal entity name, company number or address, since those
-values are not yet owner-supplied (REQ-001 §4 lists only test data for
-this, per the Project Manager's E6 assessment).
+These terms do not currently name a registered legal entity, company
+number, or registered address; that information will be added once
+available. We may revise these terms from time to time; the version
+posted here is the one in effect.

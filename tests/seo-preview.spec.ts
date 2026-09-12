@@ -181,3 +181,46 @@ test.describe('per-page metadata on the built output (R-4.1)', () => {
 		});
 	}
 });
+
+// QA-004 (PRODUCT_DEFECT, High): the Privacy and Terms pages rendered a
+// repository file path (`status/placeholder-content.md`), an internal role
+// name ("Project Manager"), and an internal escalation ID into visitor-
+// facing copy — confirmed live on the PR's own Cloudflare Pages preview,
+// not just locally. No test in the suite caught it (`tests/legal.spec.ts`
+// only asserts the four required sections are non-empty). This asserts
+// against the actual built HTML in `dist/` — what Cloudflare Pages actually
+// serves, per this file's own project rationale above, not the dev server
+// — across every page, not just the two the Tester happened to name, since
+// the same class of leak (internal req/escalation IDs, a repository path)
+// was also present in About's and Services' rendered body copy, and in a
+// raw HTML comment in Contact's markup.
+test.describe('no internal program artifacts in rendered page content (QA-004 regression)', () => {
+	const BANNED_PATTERNS: { label: string; pattern: RegExp }[] = [
+		{ label: 'repository path reference (status/...)', pattern: /status\/[\w.-]+/i },
+		{ label: 'markdown file reference (*.md)', pattern: /\b[\w-]+\.md\b/i },
+		{ label: 'internal role name: Project Manager', pattern: /Project Manager/i },
+		{ label: 'internal role name: Business Analyst', pattern: /Business Analyst/i },
+		{ label: 'internal role name: Tester', pattern: /\bTester\b/ },
+		{ label: 'internal role name: Wave <n> Engineer', pattern: /Wave\s*\d+[a-z]?\s*Engineer/i },
+		{ label: 'escalation ID (E1-E9)', pattern: /\bE[1-9]\b/ },
+		{ label: 'process vocabulary: agent-drafted', pattern: /agent-drafted/i },
+		{ label: 'process vocabulary: boilerplate pending', pattern: /boilerplate pending/i },
+		{ label: 'process vocabulary: placeholder register', pattern: /placeholder register/i },
+	];
+
+	for (const route of allRoutes) {
+		test(`${route.path} built output contains no internal program artifacts`, () => {
+			const segments = route.path.split('/').filter(Boolean);
+			const filePath = join(process.cwd(), 'dist', ...segments, 'index.html');
+			const html = readFileSync(filePath, 'utf-8');
+
+			for (const { label, pattern } of BANNED_PATTERNS) {
+				const match = html.match(pattern);
+				expect(
+					match,
+					`${route.path} built output must not contain ${label}${match ? ` — found "${match[0]}"` : ''}`,
+				).toBeNull();
+			}
+		});
+	}
+});

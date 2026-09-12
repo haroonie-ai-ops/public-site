@@ -2,9 +2,15 @@
 // Contact (REQ-001 R-2.4). Email, booking link and intro copy come from
 // the `contact` content collection (R-2.8). The enquiry form below is
 // markup only per this wave's scope (R-2.4 AC2) — it has no `action`, no
-// submit handler and no client-side validation. Wiring it up is Wave 5,
-// blocked on E4 (a transactional email credential); do not add any of that
-// here.
+// `method`, no submit handler and no client-side validation. Wiring it up
+// (R-3.1) is Wave 5, blocked on E4 (a transactional email credential); do
+// not add validation, an action endpoint, or a submit handler here.
+//
+// QA-004-class remediation (sweep, PRODUCT_DEFECT, High): this note used
+// to also live as a raw HTML comment in the markup below, which — unlike
+// this frontmatter comment — compiles straight into the shipped HTML and
+// is visible to anyone who views page source. Removed from the markup;
+// this frontmatter comment (never emitted to output) is now the only copy.
 import { getEntry } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 
@@ -32,11 +38,6 @@ const { heading, email, bookingUrl, bookingLabel, formIntro, metaDescription } =
 		<h2 id="contact-form-heading">Send a message</h2>
 		<p>{formIntro}</p>
 
-		<!--
-			Markup only (R-2.4 AC2) — no `action`, `method` or submit
-			handler. Wiring is Wave 5 (R-3.1), blocked on E4. Do not add
-			validation, an action endpoint, or a submit handler here.
-		-->
 		<form novalidate aria-describedby="contact-form-heading">
 			<div class="field">
 				<label for="contact-name">Name</label>

@@ -22,9 +22,21 @@ rightsProcedure: >-
   personal data at any time by emailing dev@haroonie.ai. We will respond
   within the timeframe required by applicable data protection law.
 placeholder: false
+# QA-004 remediation (PRODUCT_DEFECT, High): the body below previously
+# admitted, to site visitors, that this policy had not undergone legal
+# review and pointed them at this repository's internal placeholder
+# register. That process commentary has been removed from visitor-facing
+# prose; the underlying provenance is unchanged and still lives in
+# status/placeholder-content.md (row P13). This policy's structured
+# fields and intro are agent-drafted GDPR boilerplate applying REQ-001
+# assumption A4 (UK/EU GDPR); they do not invent any REQ-001 section-1.3-
+# banned fact, so `placeholder` stays false and no PlaceholderNotice
+# banner is shown. Still pending a separate owner/legal review and
+# sign-off before go-live — the retention-period wording in particular
+# is a business policy choice the owner may want to change.
 ---
 
-This policy applies to haroonie.ai's public website. It is drafted against
-the UK GDPR and EU GDPR (REQ-001 assumption A4) and covers the minimal data
-processing this brochure site currently performs. It has not yet undergone
-a separate legal review — see `status/placeholder-content.md` for tracking.
+This policy applies to haroonie.ai's public website and covers the personal
+data described below, in line with the UK GDPR and the EU GDPR. We may
+update this policy from time to time; the version published on this page
+is the one in effect.
