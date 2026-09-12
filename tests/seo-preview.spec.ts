@@ -64,6 +64,16 @@ test.describe('non-indexable preview builds (R-4.4)', () => {
 				cwd: process.cwd(),
 				env: { ...process.env, SITE_ENV: 'preview' },
 				stdio: 'pipe',
+				// A hung child process blocks execSync's synchronous wait,
+				// which blocks Node's single event loop thread — Playwright's
+				// own test-timeout mechanism cannot intervene at all in that
+				// state, since it relies on that same event loop to fire a
+				// timer. This bounds the failure mode: a genuinely stuck
+				// build now fails this test loudly after 60s instead of
+				// hanging the whole CI job indefinitely (observed directly:
+				// a real CI run stuck on this step for 25+ minutes with no
+				// way to distinguish "slow" from "hung" until this fix).
+				timeout: 60_000,
 			});
 
 			const robots = readFileSync(join(outDir, 'robots.txt'), 'utf-8');
@@ -84,6 +94,7 @@ test.describe('non-indexable preview builds (R-4.4)', () => {
 				cwd: process.cwd(),
 				env: { ...process.env, SITE_ENV: 'Production' },
 				stdio: 'pipe',
+				timeout: 60_000, // see the comment on the first execSync above
 			});
 
 			const robots = readFileSync(join(outDir, 'robots.txt'), 'utf-8');
@@ -101,6 +112,7 @@ test.describe('non-indexable preview builds (R-4.4)', () => {
 				cwd: process.cwd(),
 				env: { ...process.env, SITE_ENV: 'staging' },
 				stdio: 'pipe',
+				timeout: 60_000, // see the comment on the first execSync above
 			});
 
 			const robots = readFileSync(join(outDir, 'robots.txt'), 'utf-8');
@@ -139,6 +151,7 @@ test.describe('non-indexable preview builds (R-4.4)', () => {
 			execSync(`npm run build -- --outDir "${outDir}"`, {
 				cwd: process.cwd(),
 				stdio: 'pipe',
+				timeout: 60_000, // see the comment on the first execSync above
 			});
 
 			const html = readFileSync(join(outDir, 'index.html'), 'utf-8');
