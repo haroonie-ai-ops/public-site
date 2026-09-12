@@ -1,13 +1,83 @@
 ---
+// Services (REQ-001 R-2.2). Entries come from the `services` content
+// collection (R-2.8): between two and six Markdown files under
+// src/content/services/, each rendered with its title (frontmatter
+// heading) and body (description). Adding, removing or editing a service
+// is a Markdown-only change — this file never hard-codes an entry.
+import { getCollection, getEntry, render } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import PlaceholderNotice from '../../components/PlaceholderNotice.astro';
+
+const services = (await getCollection('services')).sort((a, b) => a.data.order - b.data.order);
+const anyPlaceholder = services.some((entry) => entry.data.placeholder);
+
+const pageMeta = await getEntry('pages', 'services');
+if (!pageMeta) throw new Error('Missing required "pages/services" content collection entry.');
+
+const rendered = await Promise.all(
+	services.map(async (entry) => ({ entry, Content: (await render(entry)).Content })),
+);
 ---
 
-<BaseLayout
-	title="Services — haroonie.ai"
-	description="Consulting services offered by haroonie.ai. Full service listing ships in Wave 2 (REQ-001 R-2.2)."
->
+<BaseLayout title="Services — haroonie.ai" description={pageMeta.data.metaDescription}>
 	<h1>Services</h1>
-	<PlaceholderNotice />
-	<p>Service listing ships in Wave 2 (REQ-001 R-2.2).</p>
+
+	{anyPlaceholder && <PlaceholderNotice />}
+
+	<ul class="service-list">
+		{
+			rendered.map(({ entry, Content }) => (
+				<li class="service-entry">
+					<h2>{entry.data.title}</h2>
+					<Content />
+				</li>
+			))
+		}
+	</ul>
+
+	<p class="cta-block">
+		<a class="cta-primary" href="/contact/">Discuss your project</a>
+	</p>
 </BaseLayout>
+
+<style>
+	.service-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: grid;
+		gap: 1.5rem;
+		margin-block: 1.5rem 2rem;
+	}
+
+	.service-entry {
+		border: 1px solid var(--border);
+		border-radius: 0.5rem;
+		padding: 1.25rem 1.5rem;
+	}
+
+	.service-entry h2 {
+		margin-block-start: 0;
+		font-size: 1.25rem;
+	}
+
+	.cta-block {
+		border-top: 1px solid var(--border);
+		padding-block-start: 1.5rem;
+	}
+
+	.cta-primary {
+		display: inline-block;
+		background: var(--accent);
+		color: #fff;
+		text-decoration: none;
+		font-weight: 600;
+		padding: 0.75rem 1.5rem;
+		border-radius: 0.375rem;
+	}
+
+	.cta-primary:hover,
+	.cta-primary:focus-visible {
+		text-decoration: underline;
+	}
+</style>

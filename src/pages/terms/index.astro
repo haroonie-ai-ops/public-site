@@ -1,13 +1,30 @@
 ---
+// Terms (REQ-001 R-2.5). Copy comes from the `legal` content collection
+// (R-2.8), keyed by slug "terms". No specific acceptance criterion governs
+// Terms content beyond the general R-2 rules (reachable from footer nav,
+// renders without console errors, responsive) — see R-2.5 AC2 for the
+// footer-link requirement, covered by BaseLayout.
+import { getEntry, render } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import PlaceholderNotice from '../../components/PlaceholderNotice.astro';
+
+const terms = await getEntry('legal', 'terms');
+if (!terms) throw new Error('Missing required "legal/terms" content collection entry.');
+const { Content } = await render(terms);
 ---
 
-<BaseLayout
-	title="Terms — haroonie.ai"
-	description="Terms of service for haroonie.ai. Full terms ship in Wave 2 (REQ-001 R-2.5)."
->
-	<h1>Terms</h1>
-	<PlaceholderNotice />
-	<p>Terms content ships in Wave 2 (REQ-001 R-2.5).</p>
+<BaseLayout title={`${terms.data.title} — haroonie.ai`} description={terms.data.metaDescription}>
+	<h1>{terms.data.title}</h1>
+	<div class="body">
+		<Content />
+	</div>
 </BaseLayout>
+
+<style>
+	.body {
+		max-width: 42rem;
+	}
+
+	.body :global(p) {
+		margin-block: 1rem;
+	}
+</style>

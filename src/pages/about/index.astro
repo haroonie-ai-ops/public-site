@@ -1,13 +1,36 @@
 ---
+// About (REQ-001 R-2.3). Bio copy comes from the `about` content
+// collection (R-2.8). R-2.3 AC1 requires "owner-approved biography content
+// … with no placeholder markers" — that cannot be true until the owner
+// supplies real biography copy (E6); see status/STATUS.md and
+// status/placeholder-content.md. This page renders whatever the collection
+// currently holds (today: a clearly-marked placeholder) rather than
+// pretending the AC passes.
+import { getEntry, render } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import PlaceholderNotice from '../../components/PlaceholderNotice.astro';
+
+const about = await getEntry('about', 'index');
+if (!about) throw new Error('Missing required "about" content collection entry.');
+const { Content } = await render(about);
 ---
 
-<BaseLayout
-	title="About — haroonie.ai"
-	description="About haroonie.ai. Owner biography ships in Wave 2 (REQ-001 R-2.3)."
->
-	<h1>About</h1>
-	<PlaceholderNotice />
-	<p>Owner biography ships in Wave 2 (REQ-001 R-2.3).</p>
+<BaseLayout title="About — haroonie.ai" description={about.data.metaDescription}>
+	<h1>{about.data.heading}</h1>
+
+	{about.data.placeholder && <PlaceholderNotice />}
+
+	<div class="bio">
+		<Content />
+	</div>
 </BaseLayout>
+
+<style>
+	.bio {
+		max-width: 42rem;
+	}
+
+	.bio :global(p) {
+		margin-block: 1rem;
+	}
+</style>

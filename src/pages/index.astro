@@ -1,20 +1,76 @@
 ---
+// Home (REQ-001 R-2.1). All copy is sourced from the `home` content
+// collection (R-2.8) — this file contains no hard-coded body copy, only
+// structural markup and the single-CTA wiring R-2.1 AC2 requires.
+import { getEntry } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import PlaceholderNotice from '../components/PlaceholderNotice.astro';
 import OrganizationSchema from '../components/OrganizationSchema.astro';
+
+const home = await getEntry('home', 'index');
+if (!home) throw new Error('Missing required "home" content collection entry.');
+const { heading, subheading, ctaLabel, ctaHref, servicesSummary, servicesSummaryLinkLabel, metaDescription, placeholder } = home.data;
 ---
 
-<BaseLayout
-	title="haroonie.ai — Tech Consulting"
-	description="haroonie.ai is a tech consulting practice. Full home page copy ships in Wave 2 (REQ-001 R-2.1)."
->
+<BaseLayout title="haroonie.ai — Tech Consulting" description={metaDescription}>
 	<Fragment slot="head">
-		<OrganizationSchema
-			name="haroonie.ai"
-			description="haroonie.ai — tech consulting."
-		/>
+		<OrganizationSchema name="haroonie.ai" description={metaDescription} />
 	</Fragment>
-	<h1>haroonie.ai</h1>
-	<PlaceholderNotice />
-	<p>Home page content ships in Wave 2 (REQ-001 R-2.1).</p>
+
+	{placeholder && <PlaceholderNotice />}
+
+	<section class="hero">
+		<h1>{heading}</h1>
+		<p class="subheading">{subheading}</p>
+		<a class="cta-primary" href={ctaHref}>{ctaLabel}</a>
+	</section>
+
+	<section class="services-summary" aria-labelledby="services-summary-heading">
+		<h2 id="services-summary-heading">What we do</h2>
+		<p>
+			{servicesSummary}
+			{' '}
+			<a href="/services/">{servicesSummaryLinkLabel}</a>
+		</p>
+	</section>
 </BaseLayout>
+
+<style>
+	.hero {
+		padding-block: 1rem 2rem;
+	}
+
+	.hero h1 {
+		font-size: clamp(1.75rem, 4vw, 2.75rem);
+		line-height: 1.15;
+		margin-block-end: 0.75rem;
+	}
+
+	.subheading {
+		font-size: 1.125rem;
+		color: var(--muted);
+		max-width: 40rem;
+		margin-block-end: 1.5rem;
+	}
+
+	.cta-primary {
+		display: inline-block;
+		background: var(--accent);
+		color: #fff;
+		text-decoration: none;
+		font-weight: 600;
+		padding: 0.75rem 1.5rem;
+		border-radius: 0.375rem;
+	}
+
+	.cta-primary:hover,
+	.cta-primary:focus-visible {
+		text-decoration: underline;
+	}
+
+	.services-summary {
+		border-top: 1px solid var(--border);
+		padding-block-start: 2rem;
+		margin-block-start: 1rem;
+	}
+</style>

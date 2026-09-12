@@ -1,16 +1,108 @@
 ---
+// Contact (REQ-001 R-2.4). Email, booking link and intro copy come from
+// the `contact` content collection (R-2.8). The enquiry form below is
+// markup only per this wave's scope (R-2.4 AC2) — it has no `action`, no
+// submit handler and no client-side validation. Wiring it up is Wave 5,
+// blocked on E4 (a transactional email credential); do not add any of that
+// here.
+import { getEntry } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import PlaceholderNotice from '../../components/PlaceholderNotice.astro';
+
+const contact = await getEntry('contact', 'index');
+if (!contact) throw new Error('Missing required "contact" content collection entry.');
+const { heading, email, bookingUrl, bookingLabel, formIntro, metaDescription } = contact.data;
 ---
 
-<BaseLayout
-	title="Contact — haroonie.ai"
-	description="Get in touch with haroonie.ai. Contact details and enquiry form ship in Wave 2 / Wave 5 (REQ-001 R-2.4, R-3.1)."
->
-	<h1>Contact</h1>
-	<PlaceholderNotice />
-	<p>
-		Contact details and enquiry form ship in Wave 2 / Wave 5 (REQ-001 R-2.4,
-		R-3.1).
-	</p>
+<BaseLayout title="Contact — haroonie.ai" description={metaDescription}>
+	<h1>{heading}</h1>
+
+	<section class="contact-methods" aria-labelledby="contact-methods-heading">
+		<h2 id="contact-methods-heading">Get in touch directly</h2>
+		<ul>
+			<li>
+				Email: <a href={`mailto:${email}`}>{email}</a>
+			</li>
+			<li>
+				<a href={bookingUrl} target="_blank" rel="noopener noreferrer">{bookingLabel}</a>
+			</li>
+		</ul>
+	</section>
+
+	<section class="contact-form" aria-labelledby="contact-form-heading">
+		<h2 id="contact-form-heading">Send a message</h2>
+		<p>{formIntro}</p>
+
+		<!--
+			Markup only (R-2.4 AC2) — no `action`, `method` or submit
+			handler. Wiring is Wave 5 (R-3.1), blocked on E4. Do not add
+			validation, an action endpoint, or a submit handler here.
+		-->
+		<form novalidate aria-describedby="contact-form-heading">
+			<div class="field">
+				<label for="contact-name">Name</label>
+				<input id="contact-name" name="name" type="text" autocomplete="name" />
+			</div>
+			<div class="field">
+				<label for="contact-email">Email</label>
+				<input id="contact-email" name="email" type="email" autocomplete="email" />
+			</div>
+			<div class="field">
+				<label for="contact-message">Message</label>
+				<textarea id="contact-message" name="message" rows="6"></textarea>
+			</div>
+			<button type="submit" disabled>
+				Send message (coming soon — email us directly meanwhile)
+			</button>
+		</form>
+	</section>
 </BaseLayout>
+
+<style>
+	.contact-methods ul {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: grid;
+		gap: 0.5rem;
+	}
+
+	.contact-form {
+		border-top: 1px solid var(--border);
+		margin-block-start: 2rem;
+		padding-block-start: 2rem;
+	}
+
+	form {
+		max-width: 32rem;
+		display: grid;
+		gap: 1rem;
+	}
+
+	.field {
+		display: grid;
+		gap: 0.375rem;
+	}
+
+	label {
+		font-weight: 600;
+	}
+
+	input,
+	textarea {
+		font: inherit;
+		padding: 0.5rem 0.625rem;
+		border: 1px solid var(--border);
+		border-radius: 0.25rem;
+	}
+
+	button[type='submit'] {
+		justify-self: start;
+		font: inherit;
+		padding: 0.625rem 1.25rem;
+		border-radius: 0.375rem;
+		border: 1px solid var(--border);
+		background: var(--paper);
+		color: var(--muted);
+		cursor: not-allowed;
+	}
+</style>
