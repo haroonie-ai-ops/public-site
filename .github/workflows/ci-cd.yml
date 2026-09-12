@@ -1,0 +1,287 @@
+# CI/CD pipeline — R-6.1, R-6.2, R-6.3, R-6.6, R-6.7 (REQ-001).
+#
+# One workflow, three jobs:
+#   validate        — install, lint, build, Playwright (R-6.1 AC1). Runs on
+#                      every PR into main and on every push to main.
+#   deploy-preview   — PR-only. Builds with SITE_ENV=preview (R-4.4 / R-6.2
+#                      AC2) and deploys to a Cloudflare Pages preview
+#                      environment, then reports the URL on the PR (R-6.2
+#                      AC1). Gated on `validate` succeeding.
+#   deploy-production — main-only. Builds with SITE_ENV unset (production,
+#                      indexable) and deploys to the Cloudflare Pages
+#                      production environment (R-6.3 AC1). Gated on
+#                      `validate` succeeding — a failing job upstream means
+#                      GitHub Actions skips this job outright, satisfying
+#                      R-6.3 AC2 ("failing tests -> no deployment") by the
+#                      platform's own `needs:` semantics, not custom logic.
+#
+# R-6.1 AC2's enforcement half ("cannot be merged") is NOT implemented here.
+# It requires branch protection / a repository ruleset with a required
+# status check, and both return HTTP 403 ("Upgrade to GitHub Pro or make
+# this repository public") on this private GitHub Free repository — a plan
+# gate, not something this workflow can work around. See status/STATUS.md
+# (E8) for the three owner options. This workflow still fully reports pass/
+# fail on the PR (AC1's contribution to AC2, and everything AC1 itself asks
+# for) — merging past a red check is possible today only because of E8, not
+# because this workflow fails to report it.
+#
+# R-6.6 (secrets hygiene): CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID are
+# read only from repository secrets, never echoed, and only the wrangler
+# action step (which itself masks known secret values in its own output) and
+# the credential-check step (which never prints the value, only whether it
+# is empty) touch them.
+#
+# The Cloudflare Pages project itself (`haroonie-ai-public-site`) is created
+# once, out of band, by the workflow_dispatch job in
+# bootstrap-pages-project.yml — not auto-created here. A silent
+# create-on-deploy here would turn a typo'd project name into a brand-new
+# empty project instead of a loud, obvious failure.
+#
+# R-6.7 (reproducible builds): `npm ci` (never `npm install`) against the
+# committed package-lock.json, and Node pinned via `.nvmrc`
+# (actions/setup-node's `node-version-file` reads it directly, so CI can
+# never drift from the version pinned in R-1.2).
+#
+# Every third-party action below is pinned to a specific upstream commit SHA
+# (comment carries the human-readable tag) rather than a mutable version
+# tag, so a compromised tag re-point cannot silently change what this
+# pipeline executes.
+
+name: CI/CD
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+
+# Superseding pushes to the same PR (or the same ref) cancel the in-flight
+# run instead of queuing behind it — this project pays for compute, not just
+# time, and a stale run's result is moot once new commits exist.
+concurrency:
+  group: ci-cd-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# No blanket write permissions. Each job below re-declares exactly the scope
+# it needs; anything not listed here or in a job is implicitly `none`.
+permissions:
+  contents: read
+
+env:
+  CLOUDFLARE_PAGES_PROJECT: haroonie-ai-public-site
+
+jobs:
+  validate:
+    name: Install, lint, build, Playwright
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Set up Node (pinned via .nvmrc)
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      # R-6.7 — locked dependency versions, never a fresh resolve.
+      - name: Install dependencies (npm ci)
+        run: npm ci
+
+      # R-6.1 AC1 — lint. astro check + tsc --noEmit (no separate ESLint
+      # config exists yet in this project; this is the real static-analysis
+      # coverage the codebase has today, wired up rather than stubbed).
+      - name: Lint (astro check + tsc --noEmit)
+        run: npm run lint
+
+      # R-6.1 AC1 — build. Production settings (SITE_ENV unset), proves the
+      # exact command R-1.2 documents actually exits 0 in a clean CI runner,
+      # independent of whatever env the later deploy builds use.
+      - name: Build
+        run: npm run build
+
+      # Speeds up repeat runs; playwright's own installer skips a browser
+      # it finds already present at this path, so a cache hit only saves
+      # download time and never masks a genuinely missing browser (the
+      # install step below always runs regardless of cache outcome).
+      - name: Cache Playwright browsers
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-browsers-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright browsers (+ OS deps)
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      # R-6.1 AC1 — the Playwright suite. playwright.config.ts is already
+      # CI-aware (forbidOnly, retries: 2, workers: 1, github reporter) —
+      # nothing here overrides or weakens that.
+      - name: Run Playwright suite
+        run: npm test
+
+      # Failure Policy step 1 ("collect Playwright evidence") — the HTML
+      # report and any trace/screenshot/video the config captures on retry,
+      # uploaded on every run (not just failure) so a passing run's report
+      # is available too. Never blocks the job on upload issues.
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+          if-no-files-found: ignore
+
+  deploy-preview:
+    name: Deploy PR preview (Cloudflare Pages)
+    needs: validate
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Set up Node (pinned via .nvmrc)
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies (npm ci)
+        run: npm ci
+
+      # R-6.6 — never print the secret; only ever check whether it is
+      # present, and fail loudly (not skip quietly) if it isn't. This used
+      # to soft-pass (skip the deploy, still report job success) while E5's
+      # token value was outstanding — that was a defensible interim stance
+      # while the token genuinely didn't exist yet, but it is a live gate
+      # weakness now that it does: a deleted or expired secret would
+      # silently turn a production deploy into a green no-op. Hard-fail
+      # instead so a credential gap is always loudly red, never a quiet
+      # skip. (Secrets cannot be referenced in `if:` conditionals at all —
+      # confirmed against GitHub's own context-availability docs — so this
+      # check has to run inside a step like this one.)
+      - name: Check Cloudflare credentials
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CF_TOKEN" ] || [ -z "$CF_ACCOUNT" ]; then
+            echo "::error::CLOUDFLARE_API_TOKEN and/or CLOUDFLARE_ACCOUNT_ID repository secret is missing. Failing loudly rather than skipping the preview deploy quietly — a credential gap must never look like a successful no-op."
+            exit 1
+          fi
+
+      # R-6.2 / R-4.4 — SITE_ENV=preview flips src/pages/robots.txt.ts to
+      # "Disallow: /" so this preview build is excluded from indexing.
+      - name: Build (SITE_ENV=preview)
+        run: npm run build
+        env:
+          SITE_ENV: preview
+
+      - name: Deploy to Cloudflare Pages (preview)
+        id: deploy
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: >-
+            pages deploy dist
+            --project-name=${{ env.CLOUDFLARE_PAGES_PROJECT }}
+            --branch=${{ github.head_ref }}
+
+      # R-6.2 AC1 — report the unique preview URL on the PR. Idempotent: it
+      # edits its own prior comment on re-runs instead of piling up a new
+      # one per push.
+      - name: Report preview URL on the pull request
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        with:
+          script: |
+            const marker = '<!-- haroonie-ai-preview-deploy -->';
+            const deploymentUrl = `${{ steps.deploy.outputs.deployment-url }}`;
+            const aliasUrl = `${{ steps.deploy.outputs.pages-deployment-alias-url }}`;
+            const body = [
+              marker,
+              '### Cloudflare Pages preview deployed',
+              '',
+              `- Unique deployment URL: ${deploymentUrl}`,
+              aliasUrl ? `- Branch alias URL: ${aliasUrl}` : null,
+              '',
+              '_Excluded from search indexing (`SITE_ENV=preview` -> `robots.txt: Disallow: /`, R-4.4)._',
+            ].filter(Boolean).join('\n');
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find((c) => c.body?.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+  deploy-production:
+    name: Deploy production (Cloudflare Pages)
+    needs: validate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Set up Node (pinned via .nvmrc)
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies (npm ci)
+        run: npm ci
+
+      # See the identical step in deploy-preview above for why this hard-
+      # fails instead of skipping quietly.
+      - name: Check Cloudflare credentials
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CF_TOKEN" ] || [ -z "$CF_ACCOUNT" ]; then
+            echo "::error::CLOUDFLARE_API_TOKEN and/or CLOUDFLARE_ACCOUNT_ID repository secret is missing. Failing loudly rather than skipping the production deploy quietly — a credential gap must never look like a successful no-op."
+            exit 1
+          fi
+
+      # R-6.3 AC1 — production build. SITE_ENV intentionally left unset so
+      # src/pages/robots.txt.ts falls through to its indexable default.
+      - name: Build
+        run: npm run build
+
+      - name: Deploy to Cloudflare Pages (production)
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: >-
+            pages deploy dist
+            --project-name=${{ env.CLOUDFLARE_PAGES_PROJECT }}
+            --branch=main
