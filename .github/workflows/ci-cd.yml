@@ -31,6 +31,12 @@
 # the credential-check step (which never prints the value, only whether it
 # is empty) touch them.
 #
+# The Cloudflare Pages project itself (`haroonie-ai-public-site`) is created
+# once, out of band, by the workflow_dispatch job in
+# bootstrap-pages-project.yml — not auto-created here. A silent
+# create-on-deploy here would turn a typo'd project name into a brand-new
+# empty project instead of a loud, obvious failure.
+#
 # R-6.7 (reproducible builds): `npm ci` (never `npm install`) against the
 # committed package-lock.json, and Node pinned via `.nvmrc`
 # (actions/setup-node's `node-version-file` reads it directly, so CI can
@@ -152,35 +158,35 @@ jobs:
       - name: Install dependencies (npm ci)
         run: npm ci
 
-      # R-6.6 — never print the secret; only ever report whether it is
-      # present. `env:` (not `if:`) is the only workflow location a secret
-      # may be referenced from a job/step condition's surrounding steps —
-      # GitHub Actions does not allow `secrets` in `if:` expressions at all,
-      # so the emptiness check has to happen inside a run step like this one
-      # and hand its result to later steps via `steps.<id>.outputs`.
+      # R-6.6 — never print the secret; only ever check whether it is
+      # present, and fail loudly (not skip quietly) if it isn't. This used
+      # to soft-pass (skip the deploy, still report job success) while E5's
+      # token value was outstanding — that was a defensible interim stance
+      # while the token genuinely didn't exist yet, but it is a live gate
+      # weakness now that it does: a deleted or expired secret would
+      # silently turn a production deploy into a green no-op. Hard-fail
+      # instead so a credential gap is always loudly red, never a quiet
+      # skip. (Secrets cannot be referenced in `if:` conditionals at all —
+      # confirmed against GitHub's own context-availability docs — so this
+      # check has to run inside a step like this one.)
       - name: Check Cloudflare credentials
-        id: cf-check
         env:
           CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           if [ -z "$CF_TOKEN" ] || [ -z "$CF_ACCOUNT" ]; then
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::CLOUDFLARE_API_TOKEN and/or CLOUDFLARE_ACCOUNT_ID repository secret is not set. Skipping the preview deploy (R-6.2) — this is an owner credential gap (see status/STATUS.md, E5), not a build or test failure, so this job reports success rather than a false red X once validate has already passed."
-          else
-            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "::error::CLOUDFLARE_API_TOKEN and/or CLOUDFLARE_ACCOUNT_ID repository secret is missing. Failing loudly rather than skipping the preview deploy quietly — a credential gap must never look like a successful no-op."
+            exit 1
           fi
 
       # R-6.2 / R-4.4 — SITE_ENV=preview flips src/pages/robots.txt.ts to
       # "Disallow: /" so this preview build is excluded from indexing.
       - name: Build (SITE_ENV=preview)
-        if: steps.cf-check.outputs.ready == 'true'
         run: npm run build
         env:
           SITE_ENV: preview
 
       - name: Deploy to Cloudflare Pages (preview)
-        if: steps.cf-check.outputs.ready == 'true'
         id: deploy
         uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
         with:
@@ -195,7 +201,6 @@ jobs:
       # edits its own prior comment on re-runs instead of piling up a new
       # one per push.
       - name: Report preview URL on the pull request
-        if: steps.cf-check.outputs.ready == 'true'
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         with:
           script: |
@@ -254,27 +259,24 @@ jobs:
       - name: Install dependencies (npm ci)
         run: npm ci
 
+      # See the identical step in deploy-preview above for why this hard-
+      # fails instead of skipping quietly.
       - name: Check Cloudflare credentials
-        id: cf-check
         env:
           CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           if [ -z "$CF_TOKEN" ] || [ -z "$CF_ACCOUNT" ]; then
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::CLOUDFLARE_API_TOKEN and/or CLOUDFLARE_ACCOUNT_ID repository secret is not set. Skipping the production deploy (R-6.3) — this is an owner credential gap (see status/STATUS.md, E5), not a build or test failure, so this job reports success rather than a false red X once validate has already passed."
-          else
-            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "::error::CLOUDFLARE_API_TOKEN and/or CLOUDFLARE_ACCOUNT_ID repository secret is missing. Failing loudly rather than skipping the production deploy quietly — a credential gap must never look like a successful no-op."
+            exit 1
           fi
 
       # R-6.3 AC1 — production build. SITE_ENV intentionally left unset so
       # src/pages/robots.txt.ts falls through to its indexable default.
       - name: Build
-        if: steps.cf-check.outputs.ready == 'true'
         run: npm run build
 
       - name: Deploy to Cloudflare Pages (production)
-        if: steps.cf-check.outputs.ready == 'true'
         uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
