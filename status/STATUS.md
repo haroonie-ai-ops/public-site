@@ -1,18 +1,13 @@
 # Workstream Status — haroonie.ai Public Website
 
-Last updated: 2026-09-12 — Wave 3 (CI/CD pipeline): independent Tester
-review (QA-003) passed with findings, two of which were factual corrections
-to this document and are remediated in place below. The owner then
-authorized ("@engineer merge PR #1") and PR #1 was merged, producing this
-workflow's first-ever push-to-`main` event: `deploy-production` executed
-for real for the first time (not skipped), and the live production Pages
-deployment serves the correct indexable `robots.txt` (the opposite of the
-preview deploy's `Disallow: /`). E3, E5, E9 are all closed. Only E8
-(branch-protection plan gate) remains as an owner-side blocker for full
-Wave 3 exit; R-6.3 AC1's `www.haroonie.ai` half is separately Wave 4's to
-unlock (E1/E2). Wave 2a's QA-002 Finding 2 also received its Tester
-regression re-verification 2026-09-12 and is now fully closed. Wave 1
-status below is carried forward unchanged from 2026-09-10.
+Last updated: 2026-09-12 — Wave 2b (page content) implemented and
+self-tested: content-collection architecture (R-2.8) plus Home, Services,
+About, Contact (static), Privacy and Terms, with per-page R-5.1
+accessibility scans. PR opened against `origin/main`; awaiting CI and
+independent Tester review. R-2.3 AC1 (owner-approved biography) is reported
+blocked on E6, not passing. See "Wave 2b — page content" below for full
+detail. Wave 2a's QA-002 Finding 2 remediation and Wave 1 remain as
+previously recorded (unchanged by this wave).
 
 ## Lifecycle position
 
@@ -258,521 +253,164 @@ that describe block. Found by actually running the new tests, not assumed.
 of Finding 2's fix. Per the Tester's own verdict, Wave 2b does not need to
 wait on this remediation's sign-off — it was already cleared to proceed.
 
-Tester regression re-verification landed 2026-09-12: **CONFIRMED, Finding 2
-closed** — see the "Regression Re-verification" section appended to
-`status/QA-002-wave2a-tester-review.md`. Independently re-staged the exact
-failure (a live orphan `astro preview` blocking a different port), confirmed
-the shipped `--ignore-lock` fix still passes 12/12 with that orphan alive
-and its PID/lock untouched, and reproduced the full suite twice from a
-clean port state (98 passed, 1 skipped, 0 failed both times). QA-002 is now
-fully closed, nothing outstanding.
+## Wave 2b — page content (Engineer, 2026-09-12)
 
-## Wave 3 — CI/CD pipeline (Engineer, 2026-09-11 through 2026-09-12)
+Scope delivered per PLAN-001 §2 ("2b — parallel once 2a merges"), covering
+REQ-001 R-2.1 through R-2.8 plus R-5.1 (accessibility) per page.
 
-Scope delivered per PLAN-001 §2 Wave 3 and REQ-001 R-6.1–R-6.3, R-6.6, R-6.7.
+### Deviation from PLAN-001's parallel-engineer assignment (recorded per
+instruction)
 
-### What was built
+PLAN-001 §2 assigns Wave 2b's five pages to one engineer each, in parallel.
+That assignment was overridden for this wave: R-2.8 requires all page copy
+to originate from Markdown/content collections rather than hard-coded
+markup, which makes the content-collection layer (`src/content.config.ts`
+and everything under `src/content/`) a **shared scaffold every page
+imports** — the same single-shared-file contention profile that made Wave
+2a sequential (PLAN-001 §2: "touching them concurrently from multiple
+branches is the single highest merge-contention risk in this project").
+Building it in parallel across five branches would have hit exactly that
+risk. Instead: the content architecture was built first (one commit), then
+all five pages and their specs were built on top of it as normal
+"editing a Markdown file" work, sequentially, by this Engineer. No
+parallel-engineer contention occurred because there were no parallel
+engineers this wave — a deliberate scope/process deviation, not a defect.
 
-1. **`.github/workflows/ci-cd.yml`** — one workflow, three jobs:
-   - `validate` — `npm ci`, `npm run lint` (new script, see below), `npm run
-     build`, Playwright across chromium/firefox/webkit, HTML report +
-     traces uploaded as an artifact on every run. Runs on every PR into
-     `main` and every push to `main` (R-6.1 AC1).
-   - `deploy-preview` — PR-only, `needs: validate`. Builds with
-     `SITE_ENV=preview` (flips `src/pages/robots.txt.ts` to
-     `Disallow: /`, R-4.4/R-6.2 AC2), deploys via
-     `cloudflare/wrangler-action`, reports the URL on the PR by
-     creating/updating one marked comment (R-6.2 AC1).
-   - `deploy-production` — `main`-only (push event), `needs: validate`.
-     Same shape, `SITE_ENV` left unset, deploys to production (R-6.3 AC1).
-   - Both deploy jobs open with a "Check Cloudflare credentials" step that
-     tests whether `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID` are
-     non-empty (secrets cannot be referenced in `if:` conditionals at all
-     — confirmed against GitHub's own context-availability docs — so the
-     check has to run inside a step). **Revised 2026-09-12** (see "Soft-
-     pass revisited" below): this originally set a `ready=false` output
-     and let later steps skip themselves while the job still reported
-     success, while `CLOUDFLARE_API_TOKEN` genuinely didn't exist yet
-     (E5). Now that both secrets exist, that behaviour is a live gate
-     weakness rather than a defensible interim stance, so the check now
-     `exit 1`s with an `::error::` on a missing secret and the `if:`
-     guards on the build/deploy/comment steps are gone — a credential gap
-     is always loudly red, never a quiet no-op.
-   - `needs: validate` is what actually satisfies R-6.3 AC2 ("failing
-     tests -> no deployment") — GitHub Actions skips a dependent job
-     outright when its dependency fails, no custom logic needed.
-   - Every third-party action pinned to a specific upstream commit SHA
-     (`actions/checkout@11d5960a...` v4.4.0, `actions/setup-node@49933ea...`
-     v4.4.0, `actions/cache@0057852b...` v4.3.0,
-     `actions/upload-artifact@ea165f8d...` v4.6.2,
-     `actions/github-script@f28e40c7...` v7.1.0,
-     `cloudflare/wrangler-action@ebbaa158...` v4.0.0), not a mutable tag.
-2. **`package.json`'s `lint` script** — `astro check && tsc --noEmit -p
-   tsconfig.json`. R-1's scaffold never had one; R-6.1 AC1 requires a real
-   lint step, and this is the actual static-analysis coverage Waves 1–2a
-   already ran by hand, now wired into both local and CI use. **Open
-   question, not settled by this Engineer** (QA-003 Finding 1, below):
-   whether type-checking alone satisfies R-6.1 AC1's intent for "lint", or
-   whether a dedicated linter (e.g. ESLint) is also expected. Flagged to
-   the Business Analyst; not decided here, and this document should not be
-   read as treating it as settled.
-3. **`.github/workflows/bootstrap-pages-project.yml`** (added 2026-09-12)
-   — a `workflow_dispatch`-only, one-off job that runs
-   `wrangler pages project create <name> --production-branch=<branch>`
-   using the CI's own `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID`
-   secrets. Deliberately **not** folded into the deploy jobs as a
-   create-if-missing step: an auto-create on every deploy would turn a
-   typo'd `--project-name` into a brand-new empty Pages project instead of
-   a loud "project not found" failure. Safe to re-run — treats wrangler's
-   "already exists" failure as success rather than an error (inspects
-   `continue-on-error`'s captured output rather than swallowing every
-   failure). Exists on both `main` and `wave-3-ci-cd-pipeline`: GitHub
-   only discovers a `workflow_dispatch`-only workflow for manual dispatch
-   once it exists on the default branch (confirmed by a 404 from the
-   dispatch API while the file existed only on the feature branch), so it
-   was pushed to `main` directly rather than waiting for PR #1.
+### Content architecture (R-2.8 AC1)
 
-### Independent Tester review — QA-003, pass with findings (2026-09-12)
+Astro content-layer collections (`src/content.config.ts`), each backed by
+Markdown under `src/content/<collection>/` and a typed Zod schema:
+`home`, `services`, `about`, `contact`, `legal` (privacy + terms), and a
+small `pages` collection for the one page (Services) whose meta description
+has no natural per-page singleton entry to live on. Every page under
+`src/pages/` reads its copy — including `<meta name="description">` — from
+these collections via `getEntry`/`getCollection` + the `render()` helper;
+none of the six page files hard-code body copy. Proven directly (not just
+asserted) by `tests/seo-preview.spec.ts`'s new "editing only a Markdown
+content file changes the rendered page after a rebuild" test, which edits
+`src/content/home/index.md`'s heading on disk, runs a real `astro build`,
+asserts the new text appears in the built HTML, and restores the original
+file in a `finally` block.
 
-`status/QA-003-wave3-tester-review.md` — independently re-verified every
-claim below against raw CI logs, live HTTP responses, and direct GitHub/
-Cloudflare API calls rather than trusting this document. Four findings,
-none a product defect, none blocking Wave 3 from continuing. Two of them
-are factual corrections to earlier text in this document, remediated in
-place below rather than left standing:
+Each schema carries an optional `placeholder` boolean (default `false`),
+independent of `status/placeholder-content.md` — see that file's header
+note for the distinction. This structure is designed to accommodate the
+out-of-scope Insights/blog collection later (REQ-001 §1.2) without
+restructuring: a new collection can be added to `src/content.config.ts`
+without touching any existing one.
 
-- **Finding 1 (Low)** — "lint" is type-checking, not a dedicated linter;
-  R-6.1 AC1's letter is satisfied, its likely intent is an open question.
-  Business Analyst call, noted inline above, not resolved here.
-- **Finding 2 (Medium)** — this document's claim that R-6.3 AC2 was
-  "exercised for real" for **both** deploy jobs overstated `deploy-
-  production`'s evidence: its skip in every PR run is fully explained by
-  its own `if: github.event_name == 'push' ...` guard, which excludes
-  `pull_request` events regardless of `validate`'s outcome — `needs:
-  validate` never had an opportunity to be the operative cause in a PR
-  run. **Corrected in the "R-6.3" section below**, and substantially — but
-  not completely — closed by the real push-to-`main` event that happened
-  afterward (see that section for exactly what is now observed vs. still
-  inferred).
-- **Finding 3 (Low)** — the credential hard-fail path's negative case had
-  a safe local repro available and unused at the time. **Closed below**
-  ("Soft-pass revisited").
-- **Finding 4 (Low/Medium)** — E9's "read-only account-wide" corrected
-  root cause was itself not fully supported by the Tester's own read-only
-  probes. **Corrected a second time in the E9 section below**, with a
-  methodological note on why the second correction was needed too.
+### Pages built
 
-Full findings, evidence and per-AC verdicts: `status/QA-003-wave3-tester-
-review.md`. The Tester's independent re-verification of R-6.1 AC1, R-6.2
-AC1/AC2, R-6.6 AC1/AC2, R-6.7 AC1, and E8 all reached the same conclusions
-this document already recorded, on the Tester's own separately-gathered
-evidence — those are not repeated here.
+1. **Home (R-2.1).** Single `<h1>` above the fold at both 1280x800 and
+   390x844 (AC1); exactly one primary CTA (`ctaLabel` from content, distinct
+   accessible name from the nav's own "Contact" link) linking to `/contact/`
+   (AC2); a service-area summary paragraph with a link to `/services/`
+   (AC3). Content: `src/content/home/index.md` (placeholder positioning
+   copy — P1).
+2. **Services (R-2.2).** Three entries (within the 2-6 range) from the
+   `services` collection, each with an `<h2>` heading and Markdown-rendered
+   description body (AC1); a CTA to `/contact/` (AC2). Content:
+   `src/content/services/service-{1,2,3}.md` (placeholder — P9-P11).
+3. **About (R-2.3).** Renders the `about` collection entry. **AC1 is
+   reported BLOCKED ON E6, not passing** — see the dedicated section below.
+4. **Contact (R-2.4).** Real, owner-supplied email (`dev@haroonie.ai`) as
+   an actionable `mailto:` link, and the real booking URL
+   (`https://www.haroonie.ai/booking`) as an actionable external link (AC1).
+   Enquiry form markup only — name/email/message fields, each with a
+   `<label for>` association, no `action`, no submit handler, disabled
+   submit button (AC2). Wiring is explicitly out of scope (Wave 5, blocked
+   on E4) and was not touched.
+5. **Privacy + Terms (R-2.5).** Privacy states data collected, lawful
+   basis, retention period, and the rights-exercise procedure (AC1) as four
+   headed sections sourced from `src/content/legal/privacy.md`'s typed
+   frontmatter fields. Footer links to both (AC2) were already wired in
+   Wave 2a's `BaseLayout` and are unchanged. Both pages' policy *bodies* are
+   agent-drafted boilerplate — logged as P13/P14, not marked
+   `placeholder: true` in schema because neither invents a REQ-001 §1.3-
+   banned fact, but still pending owner/legal sign-off before go-live.
+6. **R-2.6 (404) / R-2.7 (nav/footer)** were verified still passing with
+   the new page content in place — no change was needed to either; the
+   existing `tests/smoke.spec.ts` suite (unmodified assertions) continues
+   to pass against all six real pages.
 
-### Real evidence — not a local dry run
+### R-2.3 AC1 — explicitly blocked on E6, not weakened or marked passing
 
-Per PLAN-001's explicit instruction, R-6.1–R-6.3 are not reported complete
-on local-run strength alone. Two real PRs were opened against the real
-remote (`haroonie-ai-ops/public-site`), and PR #1 was subsequently merged:
+REQ-001 R-2.3 AC1: "owner-approved biography content … with no placeholder
+markers." No owner-approved biography exists. The test-data table's
+`Test biography.` is owner-entered test data, not supplied copy (per the
+Project Manager's E6 assessment recorded in `main`'s local-only history at
+this program's current point — not yet present on this `origin/main`-based
+branch; see the repository-divergence note the owner recorded for this
+wave), so it was not rendered as though it were real. Per
+REQ-001 R-8.3, `tests/about.spec.ts` does not assert AC1 passes: it carries
+a `test.fixme` documenting the exact assertion AC1 requires ("renders with
+no placeholder markers"), plus one currently-passing test that honestly
+asserts today's actual state (a heading, and the placeholder notice
+visible). This is intentional so a future regression — the placeholder
+disappearing without real content replacing it — is still caught, without
+faking a pass. **Status: BLOCKED on E6.**
 
-**PR #1 — normal validation, then merge:**
-<https://github.com/haroonie-ai-ops/public-site/pull/1> (branch
-`wave-3-ci-cd-pipeline` → `main`). Ran five times as the branch picked up
-fixes and was ultimately merged; the runs that matter:
+### R-5.1 accessibility (per page)
 
-- **Run 1** (initial workflow, E5/E9 both still open):
-  <https://github.com/haroonie-ai-ops/public-site/actions/runs/34620416238>
-  — **conclusion: success**. `validate`: every step succeeded, CI's own
-  Playwright output was `Running 99 tests using 1 worker` → **98 passed, 1
-  skipped, 0 failed** (matches the local baseline). `deploy-preview`: ran,
-  "Check Cloudflare credentials" correctly found both secrets absent,
-  soft-skipped the build/deploy/comment steps (the behaviour since
-  revised — see below), job still reported success. `deploy-production`:
-  skipped outright (not a push to `main`).
-- Two intermediate runs while the credential-check and bootstrap-workflow
-  commits landed:
-  <https://github.com/haroonie-ai-ops/public-site/actions/runs/34670392646>
-  — **conclusion: cancelled**, all three jobs individually reporting
-  `cancelled` (not `failure`). Confirmed cause: two commits were pushed to
-  `wave-3-ci-cd-pipeline` ~17 seconds apart (03:27:04Z and 03:27:21Z), each
-  triggering its own `pull_request: synchronize` run in the same
-  `concurrency.group: ci-cd-${{ github.workflow }}-${{ github.ref }}`; the
-  workflow's own `cancel-in-progress: true` cancelled the older run in
-  favour of the newer one. This is the mechanism working as designed, not
-  a failure — recorded explicitly so it is never misread as one.
-  <https://github.com/haroonie-ai-ops/public-site/actions/runs/34670405376>
-  is the run that superseded it, and is the one reported next.
-- **Run 4** (after the owner supplied `CLOUDFLARE_API_TOKEN`, the hard-
-  fail credential-check fix, and the Pages project bootstrap — see below):
-  <https://github.com/haroonie-ai-ops/public-site/actions/runs/34670405376>
-  — **conclusion: success**.
-  - `validate`: every step succeeded again (install, lint, build,
-    Playwright browser cache/install, suite, report upload).
-  - `deploy-preview`: **took the real path for the first time.** "Check
-    Cloudflare credentials" succeeded (both secrets present); "Build
-    (SITE_ENV=preview)" **executed** (not skipped); "Deploy to Cloudflare
-    Pages (preview)" **executed and succeeded** — wrangler 4.131.1
-    uploaded 12 files and reported:
-    ```
-    ✨ Deployment complete! Take a peek over at https://2da3e3a2.haroonie-ai-public-site.pages.dev
-    ✨ Deployment alias URL: https://wave-3-ci-cd-pipeline.haroonie-ai-public-site.pages.dev
-    ```
-    "Report preview URL on the pull request" **executed and succeeded** —
-    posted this comment on PR #1
-    (<https://github.com/haroonie-ai-ops/public-site/pull/1#issuecomment-5643169689>,
-    from `github-actions[bot]`):
-    > <!-- haroonie-ai-preview-deploy -->
-    > ### Cloudflare Pages preview deployed
-    > - Unique deployment URL: https://2da3e3a2.haroonie-ai-public-site.pages.dev
-    > - Branch alias URL: https://wave-3-ci-cd-pipeline.haroonie-ai-public-site.pages.dev
-    >
-    > _Excluded from search indexing (`SITE_ENV=preview` -> `robots.txt: Disallow: /`, R-4.4)._
-  - `deploy-production`: skipped outright (not a push to `main`), as
-    designed.
-  - **R-6.2 AC2 / R-4.4 verified against this real deployment, not a
-    local build, for the first time.** Fetched directly:
-    - `GET https://2da3e3a2.haroonie-ai-public-site.pages.dev/` → `200`.
-    - `GET https://2da3e3a2.haroonie-ai-public-site.pages.dev/robots.txt`
-      → `200`, body exactly:
-      ```
-      User-agent: *
-      Disallow: /
-      ```
-    - Same two checks against the alias URL
-      (`https://wave-3-ci-cd-pipeline.haroonie-ai-public-site.pages.dev`):
-      identical `200`s.
-- **PR #1 merged 2026-09-12 — owner-authorized.** The owner's exact
-  instruction: **"@engineer merge PR #1"**. This is the authorization that
-  was missing when an earlier attempt in this same wave was correctly
-  blocked and escalated instead of forced through (see CLAUDE.md's
-  "potentially irreversible Git operation" escalation rule) — recorded
-  here so the audit trail shows why the same action proceeded this time.
-  Merged via `merge_pull_request` with `merge_method: merge` (a regular
-  merge commit, not squash or rebase), specifically to keep the three
-  individually-meaningful commits' own messages and evidence intact in
-  `main`'s history rather than collapsing them. Merge commit:
-  <https://github.com/haroonie-ai-ops/public-site/commit/3d6e02d589dd677bbd5c2084d1b07f0dc93f94ff>.
+`@axe-core/playwright` added as a new devDependency (package.json/
+package-lock.json — see the divergence note below on how this was done
+against the *remote* package.json). `tests/accessibility.spec.ts` runs a
+full axe-core scan against every route in the shared `tests/support/
+routes.ts` fixture and asserts zero `serious`/`critical`-impact violations
+(`tests/support/a11y.ts`), matching R-5.1 AC1's exact wording — moderate/
+minor findings are not asserted on, which is a scope match, not a weakened
+scan. Result: **zero serious/critical violations on all six pages.**
 
-**PR #2 — deliberately broken, to prove the gate gates:**
-<https://github.com/haroonie-ai-ops/public-site/pull/2> (branch
-`wave-3-prove-gate-red` → `main`, off `wave-3-ci-cd-pipeline` so the
-workflow file was present). `tests/smoke.spec.ts`'s custom-404 test was
-changed to assert `expect(response?.status()).toBe(200)` for a route that
-genuinely returns 404 — a real, deterministic failure, not a flaky or
-environmental one. Real run:
-<https://github.com/haroonie-ai-ops/public-site/actions/runs/34620626345>
-— **conclusion: failure**.
-- `validate` job: install/lint/build/browser-install all still
-  **succeeded**; the job failed specifically at "Run Playwright suite":
-  **95 passed, 1 skipped, 3 failed** — the 3 failures are exactly
-  `tests/smoke.spec.ts:71:2 › custom 404 page (R-2.6) › an unknown path
-  returns HTTP 404 and links back home`, once per browser project
-  (chromium, firefox, webkit). No incidental failure anywhere else.
-- `deploy-preview` and `deploy-production`: both **skipped**. As QA-003
-  Finding 2 correctly identified, `deploy-production`'s skip here is fully
-  explained by its own event-type guard (this was a `pull_request` event)
-  and does not, by itself, demonstrate `needs: validate` was the operative
-  cause for that job — see the "R-6.3" section below for what this run
-  *does* and does not establish. `deploy-preview`'s skip **is** genuinely
-  attributable to `needs: validate`: it runs on every PR when `validate`
-  succeeds (proven by every other PR run in this wave) and was skipped
-  here specifically because `validate` failed.
-- **Failure classification (CLAUDE.md/R-8.2):** none of product failure,
-  automation defect, flaky behaviour, environmental failure, or test-data
-  problem — this was a deliberate, intentional test-code change made by
-  the Engineer solely to generate gate-proof evidence, always intended to
-  be reverted and never merged. No assertion was weakened anywhere (R-8.3
-  is not implicated: the change went the other direction, breaking a
-  correct assertion on purpose, then reverting it).
-- A comment recording this evidence was posted on PR #2, the PR was then
-  **closed without merging**, and branch `wave-3-prove-gate-red` was
-  **deleted**.
-- **Explicit note so this is never mistaken for a pipeline defect later:**
-  PR #2 was, at the moment it went red, still technically mergeable via
-  the GitHub UI/API — this is E8 (branch protection/rulesets return 403 on
-  this private GitHub Free repo), already escalated below, not a new gap
-  and not something this workflow failed to do. The workflow correctly
-  *reported* red; nothing yet *enforces* it.
+### Divergence handling (package.json/package-lock.json)
 
-### R-6.3 — the first real push-to-`main` event (2026-09-12)
+Per this wave's brief: local `main`'s `package.json` predates Wave 3's
+`lint` script. Before adding `@axe-core/playwright`, the *remote*
+`package.json` and `package-lock.json` (`origin/main` tip `f411480`) were
+fetched via the GitHub API and used as the base — local `package.json` was
+edited to add the `lint` script (matching remote) rather than risk
+reverting it, then `npm install --save-dev @axe-core/playwright` was run
+against that reconciled base. `npm run lint` (the real remote script:
+`astro check && tsc --noEmit`) passes clean.
 
-Merging PR #1 produced this workflow's first-ever `push` event to `main`.
-Run <https://github.com/haroonie-ai-ops/public-site/actions/runs/34701592010>
-— **conclusion: success**.
+### Engineer self-test evidence
 
-- `validate`: every step succeeded (98 passed, 1 skipped, 0 failed, same
-  as every prior green run).
-- `deploy-production`: **executed for the first time, not skipped.**
-  "Check Cloudflare credentials" succeeded; "Build" executed with
-  `SITE_ENV` correctly left **unset** (production/indexable settings);
-  "Deploy to Cloudflare Pages (production)" executed and succeeded —
-  wrangler 4.131.1 reported
-  `✨ Deployment complete! Take a peek over at https://0e94cb59.haroonie-ai-public-site.pages.dev`.
-- `deploy-preview`: skipped (correct — this was a `push`, not a
-  `pull_request`, event).
+- `npm run lint` (`astro check && tsc --noEmit -p tsconfig.json`): **0
+  errors, 0 warnings** (28 files; 32 informational "hints" — all a single
+  upstream `'z' is deprecated` notice from `astro:content`'s re-export of
+  zod v4 in this Astro/zod version combination, not something under this
+  repo's control; hints do not fail `astro check`'s exit code, confirmed
+  exit 0).
+- `npm run build`: 7/7 routes generated, sitemap + robots.txt unchanged in
+  shape. Manually inspected the built HTML for each new page (heading text,
+  CTA hrefs, mailto/booking links, four privacy sections) — matches
+  content-collection source.
+- `npm test` (Playwright, `PW_PORT=4501 PW_PREVIEW_PORT=4502`, confirmed
+  both ports free beforehand), run twice from a clean state: **207 passed,
+  4 skipped, 0 failed** both times, identical. That is 109 more passing
+  tests than the pre-Wave-2b baseline of 98 passed/1 skipped — no existing
+  assertion was weakened, skipped, or deleted to get there. The 3 new
+  skips are the `test.fixme` in `tests/about.spec.ts` (one per browser
+  project), documented above as an intentional non-pass, not a defect.
+- Two real defects found and fixed during self-test (not weakened around):
+  `tests/accessibility.spec.ts` initially hit "Execution context was
+  destroyed" against the dev server intermittently — fixed by waiting for
+  `networkidle` before scanning, not by retrying blindly or narrowing the
+  scan. `tests/contact.spec.ts`'s `getByLabel('Message')` initially matched
+  two elements (the textarea and the surrounding `<section>`, whose
+  `aria-labelledby` heading text "Send a message" contains the substring
+  "message") — fixed with `{ exact: true }`, not by loosening the
+  assertion to `.first()`.
+- Secret scan of the diff (`git diff main -- . | grep -iE
+  "api[_-]?key|secret|token|password|BEGIN .* PRIVATE KEY"`): no matches.
 
-**R-6.3 AC1 — publication to the Pages production environment, verified
-live:**
-- `GET https://haroonie-ai-public-site.pages.dev/` → `200`.
-- `GET https://haroonie-ai-public-site.pages.dev/robots.txt` → `200`,
-  body exactly:
-  ```
-  User-agent: *
-  Allow: /
+### Not attempted / explicitly out of scope for 2b
 
-  Sitemap: https://www.haroonie.ai/sitemap-index.xml
-  ```
-  This is the **indexable** form — the opposite of the preview deploy's
-  `Disallow: /` above, from the same `SITE_ENV` switch, now proven on both
-  sides of the asymmetry it was built for (R-4.4) for the first time
-  against a real production deploy, not a local build. Had this come back
-  `Disallow: /`, that would have been a genuine product failure requiring
-  a loud report, not an explanation — it did not.
-- `GET https://haroonie-ai-public-site.pages.dev/sitemap-index.xml` →
-  `200`, pointing at `https://www.haroonie.ai/sitemap-0.xml`.
-- `GET https://haroonie-ai-public-site.pages.dev/sitemap-0.xml` → `200`,
-  listing exactly the 6 expected public routes in canonical form
-  (`https://www.haroonie.ai/`, `/about/`, `/contact/`, `/privacy/`,
-  `/services/`, `/terms/`).
-- **What this does not yet prove:** R-6.3 AC1's full text names
-  `https://www.haroonie.ai` specifically. That host does not resolve yet —
-  it is entirely Wave 4's scope (DNS/zone for the `haroonie.ai` zone,
-  blocked on E1/E2), untouched by this wave. What is proven today is
-  publication to the Cloudflare Pages production environment itself; the
-  custom-domain half of R-6.3 AC1 is unproven until Wave 4 lands and a
-  Wave 7 smoke pass can hit the real domain.
-
-**R-6.3 AC2 — corrected a second time, this time with a real push event
-to reason from (QA-003 Finding 2):**
-
-What is now actually observed: a **passing** push to `main` correctly
-executes `deploy-production` (not skipped) — the event-type gate (`if:
-github.event_name == 'push' && github.ref == 'refs/heads/main'`) let it
-through, and `needs: validate` did not block it because `validate` passed.
-This is new evidence beyond what QA-003 reviewed; it did not exist when
-that review was written.
-
-What remains **inferred, not observed**, exactly as QA-003 Finding 2
-described and exactly as the Tester's own instruction warns against
-overstating: **no failing push to `main` has occurred.** A green run
-proves the event-type gate admits `deploy-production` when `validate`
-passes; it does not, by itself, demonstrate that `needs: validate` would
-have blocked `deploy-production` on a *failing* push to `main` — that
-still rests on GitHub Actions' documented, platform-level `needs:`
-semantics (a dependent job is skipped when its dependency fails), which
-QA-003 itself judged sound and deterministic, not on anything this wave
-has directly triggered and watched fail. `deploy-preview`'s skip in PR
-#2's gate-red run remains the only *directly observed* instance of
-`needs: validate` actually blocking a deploy job in this program. Closing
-this residual gap for `deploy-production` specifically would need a
-deliberately-broken push to `main` (or a throwaway branch configured to
-mimic one) — not performed here, since it would mean landing a broken
-commit on the real production branch; judged not worth that risk for a
-platform mechanism QA-003 already assessed as sound by inspection.
-
-### E5 — CLOSED 2026-09-12: `CLOUDFLARE_API_TOKEN` supplied, real deploy proven
-
-`GET /repos/haroonie-ai-ops/public-site/actions/secrets` now returns:
-```
-{ "total_count": 2, "secrets": [
-  { "name": "CLOUDFLARE_ACCOUNT_ID", "created_at": "2026-09-11T15:56:21Z", ... },
-  { "name": "CLOUDFLARE_API_TOKEN", "created_at": "2026-09-12T03:22:18Z", ... }
-] }
-```
-`CLOUDFLARE_ACCOUNT_ID` was set by this Engineer 2026-09-11 (value read
-from the `cloudflare-api` MCP session). `CLOUDFLARE_API_TOKEN` was
-supplied by the owner 2026-09-12 directly into GitHub secrets — this
-session never saw, requested, or handled its value, and does not need to;
-it was only ever confirmed present by name via the secrets-listing API.
-The real preview deploy and the real production deploy (above) are direct
-proof both secrets are correct and sufficient — wrangler authenticated and
-deployed successfully using them, twice, in two different jobs.
-
-### E9 — CLOSED 2026-09-12, root cause corrected a **second** time (QA-003 Finding 4)
-
-Distinct from E5 (the CI token). This entry has now been wrong twice, and
-both corrections are recorded rather than silently overwritten, because
-the sequence itself is the more useful thing for a later reader than
-either individual conclusion.
-
-**First write-up (superseded):** inferred "the `cloudflare-api` OAuth
-session is missing a Pages-specific write scope" from
-`POST .../pages/projects` failing while `GET` on the same path succeeded.
-
-**Second write-up (also superseded — this is the one QA-003 corrected):**
-concluded "read-only account-wide," on the strength of one control probe:
-`POST .../storage/kv/namespaces` (an unrelated product) failing the same
-way as the Pages write. **The methodological flaw:** that control probe
-was chosen without first checking whether KV was in scope for this OAuth
-grant *at all* — a write failing on a product that was never granted any
-access (read or write) looks identical to a write failing on a product
-that has read-only access, and the probe used could not tell those apart.
-The fix for that flaw isn't a cleverer probe, it's a cheaper and more
-basic one: check a **read** against the same control product before
-drawing any conclusion from its write failing. That check was skipped the
-first time and is what the Tester's Finding 4 supplied.
-
-**Third write-up — current, based on the Tester's own read-only GET
-probes, independently re-confirmed:**
-- `GET /accounts/{id}` → `200`
-- `GET /accounts/{id}/pages/projects` → `200`
-- `GET /accounts/{id}/members` → `200`
-- `GET /accounts/{id}/roles` → `200`
-- `GET /accounts/{id}/storage/kv/namespaces` → `10000: Authentication error`
-  (a **read**, not a write)
-- `GET /accounts/{id}/workers/scripts` → `10000: Authentication error`
-- `GET /accounts/{id}/r2/buckets` → `10000: Authentication error`
-
-**Corrected conclusion:** this is a **product-scoped** OAuth grant, not an
-account-wide read/write split. Pages and core Account/Members/Roles
-endpoints are granted and readable (but not writable, per the original
-Pages-write failure). KV, Workers and R2 are not granted **at all** —
-their reads fail identically to their writes, which an account-wide
-read-only theory does not predict (it would predict their reads succeed).
-Whether the grant is exactly "Pages + Account, read-only" or something
-narrower within that is not fully pinned down here either — this write-up
-does not claim more precision than the evidence supports a third time.
-
-**What has not changed across all three write-ups:** the *resolution*.
-Re-consenting the OAuth connection was tried once (between write-ups one
-and two) and changed nothing, so it stays struck from the remedy list
-regardless of which diagnosis is correct. The actual fix — a real
-Cloudflare API token in GitHub secrets, bypassing the OAuth MCP session
-for CI entirely — works independently of the underlying cause, and its
-result (the `haroonie-ai-public-site` Pages project, live, production
-deploys succeeding through it twice now) is unaffected by any of this.
-E9 stays closed on that basis.
-
-**Resolution actually used:** the owner's `CLOUDFLARE_API_TOKEN` was
-supplied directly into GitHub's repository secrets, never seen by this
-session. A new one-off workflow,
-`.github/workflows/bootstrap-pages-project.yml` (`workflow_dispatch`,
-dispatched manually against `main`), ran `wrangler pages project create
-haroonie-ai-public-site --production-branch=main` using that token —
-**run <https://github.com/haroonie-ai-ops/public-site/actions/runs/34670431345>,
-conclusion: success.** Confirmed by reading the account back:
-```
-{ "name": "haroonie-ai-public-site", "production_branch": "main",
-  "domains": ["haroonie-ai-public-site.pages.dev"],
-  "created_on": "2026-09-12T03:28:29Z" }
-```
-alongside the untouched legacy `haroonie-bb8eb`.
-
-**Impact on Wave 3 vs. Wave 4:** resolved for both, unaffected by the
-diagnosis being corrected twice. This was always a shared-infrastructure
-item (PLAN-001 §2 Wave 4 flagged "the Pages project itself" as created
-once, wherever it happens first) — it is done, so Wave 4 does not need to
-create it again.
-
-### Soft-pass revisited — credential checks now hard-fail (QA-003 Finding 3 closed)
-
-Both deploy jobs originally set a `ready=false` step output and let the
-build/deploy/comment steps skip themselves via `if:` while still reporting
-job success, when `CLOUDFLARE_API_TOKEN` didn't exist yet. That was
-defensible while E5 was genuinely outstanding, but became a live gate
-weakness the moment the secret started existing: a later deleted or
-expired secret would have silently turned a real production deploy into a
-green no-op, with nothing in the PR/commit status to say so.
-
-**Changed:** both "Check Cloudflare credentials" steps now
-`echo "::error::..."` and `exit 1` on a missing secret; the `if:
-steps.cf-check.outputs.ready == 'true'` guards on the later steps are
-removed entirely (a failed step already stops the job by default, so they
-were redundant once the check itself fails loudly).
-
-**Confirmed by a real run** (PR #1's run 4,
-<https://github.com/haroonie-ai-ops/public-site/actions/runs/34670405376>):
-"Check Cloudflare credentials" runs as a normal, unconditional, succeeding
-step (both secrets present) followed by the build/deploy steps executing
-unconditionally — there is no longer an `if:`-gated skip path in the
-executed job at all.
-
-**Negative case — QA-003 Finding 3, closed 2026-09-12.** The Tester
-correctly pointed out that not exercising the negative case live was more
-avoidable than the original write-up suggested, and named two specific
-low-risk options that don't touch the real secrets. Took the cheaper of
-the two — a local reproduction of the exact script block, no CI run
-needed:
-```
-$ CF_TOKEN="" CF_ACCOUNT="x" bash -c '
-if [ -z "$CF_TOKEN" ] || [ -z "$CF_ACCOUNT" ]; then
-  echo "::error::CLOUDFLARE_API_TOKEN and/or CLOUDFLARE_ACCOUNT_ID repository secret is missing. Failing loudly rather than skipping the preview deploy quietly — a credential gap must never look like a successful no-op."
-  exit 1
-fi
-'
-::error::CLOUDFLARE_API_TOKEN and/or CLOUDFLARE_ACCOUNT_ID repository secret is missing. Failing loudly rather than skipping the preview deploy quietly — a credential gap must never look like a successful no-op.
-$ echo "exit code: $?"
-exit code: 1
-```
-And the positive case, for contrast, confirming the check only fires when
-it should:
-```
-$ CF_TOKEN="present" CF_ACCOUNT="present" bash -c '... same block ...'
-credentials present, check passes
-$ echo "exit code: $?"
-exit code: 0
-```
-This is the exact text of both scripts as they appear in `ci-cd.yml` —
-copy-pasted, not paraphrased. Confirms the `::error::` annotation and
-`exit 1` both fire correctly on a missing secret and don't fire when
-present. The Tester's other suggested option (a throwaway branch
-referencing a nonexistent secret name, exercised on a real Actions runner)
-was not additionally run — this local repro already demonstrates the
-logic is correct, and a real-runner difference would only appear if
-GitHub Actions' own `${{ secrets.X }}` substitution behaved unlike a
-missing shell variable, which it does not (an unset secret resolves to an
-empty string in `env:`, identical to this repro's `CF_TOKEN=""`).
-
-### Local `git push` to the real remote hangs — root-caused, worked around
-
-The very first attempt to publish this wave's branch via plain `git push`
-(with `http.extraHeader` carrying a bearer token, since no cached
-credential existed) hung indefinitely and was eventually killed
-mid-negotiation with a "Logon failed, use ctrl+c to cancel basic
-credential prompt" message from Git Credential Manager. Three diagnostic
-cycles, each isolating one variable:
-
-1. `-c credential.helper= -c http.extraHeader="AUTHORIZATION: bearer …"`
-   push — hung with **zero** output (not even GCM's own error text this
-   time), for the full 600s watch.
-2. `GIT_TERMINAL_PROMPT=0` + `GCM_INTERACTIVE=Never` +
-   `-c credential.helper=` + the same `extraHeader`, on a read-only
-   `git ls-remote` against this same private repo (removing "push" as a
-   variable entirely) — still hung with zero output.
-3. Control: `git ls-remote` against a **public, unrelated** repo
-   (`torvalds/linux`, no auth needed) — returned instantly. Then
-   `git -c credential.helper= ls-remote` against **this project's own
-   private origin**, with no credential helper and no auth header at all
-   (so no interactive credential flow *could* fire, and
-   `GIT_TERMINAL_PROMPT=0` should force a fast, clean failure if one
-   tried) — **hung again**, zero output.
-
-Conclusion: this is not a Git Credential Manager misconfiguration —
-disabling every credential-resolution path GCM could use (helper, prompt,
-interactivity) did not change the outcome, and unauthenticated access to
-an unrelated public repo over the same network path succeeded immediately.
-The hang is specific to authenticated *and* unauthenticated git-protocol
-network access to **this project's own origin** from this worktree. That
-matches, exactly, the Bash tool's own explicit refusal message earlier in
-this session for any `git`-adjacent command referencing this repo's path
-("a worktree-isolated agent's git operations must target its own
-worktree") — strong circumstantial evidence this is a deliberate
-worktree-isolation safeguard in the harness sandbox (blocking direct
-git-level network traffic to the shared origin so a worktree-isolated
-agent cannot bypass repo-level controls), not a fixable local
-misconfiguration. Not chased further per CLAUDE.md's three-cycle policy —
-documented here rather than declared "fixed."
-
-**Working, durable alternative — already used for every change in this
-wave:** the GitHub REST API (`push_files`, `create_or_update_file`,
-`create_branch`, `create_pull_request`, `merge_pull_request`, and plain
-`curl`/`Invoke-RestMethod` calls with the PAT) works immediately and was
-used for every commit, branch, PR, comment, and status update in this
-wave. **Recommendation:** treat the API as the standard way an
-agent-worktree session publishes changes to this repo; don't re-attempt
-plain `git push`/`git fetch` against `origin` from inside a worktree
-without a specific reason to retest it (e.g. running outside this harness
-entirely, such as on the owner's own machine, where it is very likely to
-just work).
+- No enquiry-form wiring, validation, or spam protection (R-3.1, Wave 5,
+  blocked on E4) — the Contact form is markup only, as instructed.
+- No changes to `.github/workflows/`, Wave 4 domain config, or any file
+  outside this wave's page/content/test scope.
+- `404.astro`'s description string was left untouched (QA-002 Probe 4 is
+  still an open Business Analyst question, not resolved by this wave).
 
 ## Wave status
 
@@ -780,9 +418,9 @@ just work).
 |---|---|---|---|
 | 0 | Owner actions | Open | Owner |
 | 1 | Foundation (scaffold, toolchain, Playwright harness) | **Accepted (Owner) — regression-confirmed (Tester), closed** | Nothing |
-| 2a | Shared layout, nav, SEO plumbing | **QA-002 passed with findings; Finding 2 remediated and Tester-regression-confirmed 2026-09-12 — fully closed** | Nothing |
-| 2b | Home/Services/About/Contact/Privacy/Terms page content | Not started | Nothing — Wave 2a's QA-002 verdict already clears this to start |
-| 3 | CI/CD pipeline | **Implemented and proven against real CI end to end, including a real production deploy via a real push-to-`main` (PR #1 merged, owner-authorized). Independent Tester review (QA-003) passed with 4 non-blocking findings, all remediated or corrected in place. E5, E9 closed.** | Exit blocked on E8 (plan gate) only. R-6.3 AC1's `www.haroonie.ai` half separately awaits Wave 4 (E1/E2) |
+| 2a | Shared layout, nav, SEO plumbing | **QA-002 passed with findings; Finding 2 remediated — awaiting Tester regression re-verification** | Nothing |
+| 2b | Home/Services/About/Contact/Privacy/Terms page content | **Implemented, self-tested (207 passed, 4 skipped, 0 failed); PR opened, awaiting CI + independent Tester review** | R-2.3 AC1 blocked on E6 (biography); other pages' final copy sign-off also pending E6/owner review |
+| 3 | CI/CD pipeline | Not started | Wave 1; verification blocked on E3, E5 |
 | 4 | Domain and hosting configuration | Not started | Blocked on E1, E2 |
 | 5 | Enquiry form completion | Not started | Wave 2b (Contact skeleton); blocked on E4 |
 | 6 | Performance and cross-browser hardening | Not started | Wave 2 |
@@ -792,14 +430,13 @@ just work).
 
 | ID | Item | Impact | Age |
 |---|---|---|---|
-| E1 | Cloudflare account + zone add for `haroonie.ai` | Blocks Wave 4; also blocks the `www.haroonie.ai` half of R-6.3 AC1 | New |
-| E2 | Registrar nameserver delegation to Cloudflare | Blocks Wave 4; also blocks the `www.haroonie.ai` half of R-6.3 AC1 | New |
-| E3 | GitHub repo under `haroonie-ai-ops` + secrets configured | **DONE** — repo established 2026-09-11; both secrets (`CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`) now set, confirmed 2026-09-12 | **Resolved 2026-09-12** |
-| E5 | Cloudflare API token — Account → Cloudflare Pages: Edit (CI only) | Was blocking R-6.2/R-6.3 real deploys | **Resolved 2026-09-12** — owner supplied `CLOUDFLARE_API_TOKEN` directly into GitHub secrets; a real preview deploy AND a real production deploy confirm it works |
+| E1 | Cloudflare account + zone add for `haroonie.ai` | Blocks Wave 4 | New |
+| E2 | Registrar nameserver delegation to Cloudflare | Blocks Wave 4 | New |
+| E3 | GitHub repo under `haroonie-ai-ops` + secrets configured | **Repo half DONE** — `haroonie-ai-ops/public-site`, 26 commits pushed 2026-09-11, no longer local-only. Secrets half still open (needs E5's token value) | Partially resolved 2026-09-11 |
+| E5 | Cloudflare API token — Account → Cloudflare Pages: Edit (CI only) | Blocks Wave 3 verification | Owner-actioned 2026-09-11, in progress |
 | E4 | Transactional email credential | Blocks Wave 5 only; not a launch blocker | New |
 | E6 | Copy: services, bio, legal entity/address, mailbox, booking URL | Blocks production sign-off on affected pages only; does not block any wave from starting | New |
-| E8 | **R-6.1 AC2 is unimplementable as specified**: branch protection and rulesets are unavailable on private repos on GitHub Free. Owner must choose public repo, GitHub Pro, or an AC change | Blocks Wave 3 exit | New 2026-09-11 |
-| E9 | ~~Cloudflare Pages project doesn't exist~~ | Was blocking R-6.2/R-6.3 real deploys, alongside E5 | **Resolved 2026-09-12** — root cause corrected twice (see write-up above); resolution (CI token, bypassing OAuth) unaffected either time |
+| E8 | **R-6.1 AC2 is unimplementable as specified**: branch protection and rulesets are unavailable on private repos on GitHub Free. Owner must choose public repo, GitHub Pro, or an AC change | Blocks Wave 3 exit, not Wave 3 start | New 2026-09-11 |
 
 No blocker halts the whole program. Waves 1, 2, 5 (once its precondition
 lands), and 6 are fully executable today without any owner action beyond the
@@ -869,11 +506,9 @@ unverified** — it can only be proven by pushing a `.github/workflows/*.yml`,
 which Wave 3 will be the first to do. If that permission was missed, the
 symptom is the *push* being rejected, not the workflow failing to run.
 
-**Update 2026-09-12: E3 fully resolved.** Both repository secrets
-(`CLOUDFLARE_ACCOUNT_ID`, set 2026-09-11; `CLOUDFLARE_API_TOKEN`, supplied
-by the owner 2026-09-12) are confirmed present via the secrets-listing
-API. The `Secrets` permission needed to write them was verified granted at
-the time.
+Still open on E3: the repository secrets (`CLOUDFLARE_API_TOKEN`,
+`CLOUDFLARE_ACCOUNT_ID`) cannot be set until the owner supplies E5's token
+value. The `Secrets` permission needed to write them is verified granted.
 
 ## E8 — R-6.1 AC2 cannot be satisfied on the current GitHub plan (2026-09-11)
 
@@ -892,16 +527,12 @@ a repository ruleset. Both return HTTP 403 on
 Confirmed as a **plan gate, not a permission gate**, by control: the same
 token against a public repository's `/rulesets` endpoint returns 200. Branch
 protection and rulesets are unavailable on private repositories on GitHub
-Free. Independently reconfirmed by the Tester (QA-003) via her own identical
-API calls, same 403 and message text.
+Free.
 
 Consequence if unresolved: CI can *report* a failing check on a PR (R-6.1
 AC1 is fine), but nothing *enforces* it — a red PR stays mergeable. That
 directly contradicts CLAUDE.md's requirement that tests gate delivery, which
-is the stated rationale for design decision D-02. (This is also, concretely,
-how PR #1 itself was mergeable despite R-6.1 AC2's letter — it was green
-when merged, so this did not come into play, but PR #2's gate-red proof
-showed the same red-yet-mergeable state directly.)
+is the stated rationale for design decision D-02.
 
 **Owner decision required — three options:**
 
@@ -920,11 +551,10 @@ showed the same red-yet-mergeable state directly.)
 **Recommendation: option 2**, or option 1 if the repository being public is
 acceptable. Either preserves the approved acceptance criterion as written.
 
-**Does not block Wave 3 from starting or from delivering everything else.**
-The workflow YAML, the build, test and deploy jobs, real preview deploys
-(R-6.2) and now a real production deploy (R-6.3 AC1's Pages half) are all
-implemented, proven, and unaffected. Only R-6.1 AC2's enforcement clause —
-and therefore full Wave 3 exit — depends on this.
+**Does not block Wave 3 from starting.** The workflow YAML, the build, test
+and deploy jobs, and preview deployments (R-6.2) are all implementable today
+and unaffected. Only R-6.1 AC2's enforcement clause — and therefore Wave 3's
+*exit* — depends on this.
 
 **Also confirmed in the same pass (token is otherwise correct):** Metadata,
 Actions, Secrets, Pull requests and Deployments all granted and verified by
@@ -936,25 +566,22 @@ both.
 
 ## Recommended immediate next step
 
-Wave 3's remaining owner-side item is E8 alone (branch protection / GitHub
-Free plan gate — see options above); everything else this wave depended on
-the owner for (E3, E5, E9) is resolved, and R-6.3 AC1's Pages-production
-half and AC2's `deploy-preview` mechanism are both independently proven.
-The `www.haroonie.ai` half of R-6.3 AC1 is Wave 4's to unlock (E1/E2), not
-a new Wave 3 gap.
+Wave 2a passed independent QA (QA-002) with no product defect; its one
+actionable finding (Finding 2, the shared-directory `astro preview` lock)
+is now remediated per the section above and awaiting Tester regression
+re-verification of that specific fix. That re-verification does not gate
+Wave 2b — the Tester's own QA-002 verdict already cleared Wave 2b to
+proceed, since Finding 2 never touched the mechanism (required props,
+`BaseLayout` composition, `SeoHead`, sitemap/robots) Wave 2b's five pages
+depend on.
 
 Wave 2b's five pages (Home, Services, About, Contact static portion,
-Privacy+Terms) remain clear to proceed in parallel, one engineer each, each
-importing `BaseLayout` and authoring their own Playwright spec alongside
-their page — QA-002's Tester regression re-verification (2026-09-12) closed
-the only outstanding harness finding, and Wave 2a's mechanism (required
-props, `BaseLayout` composition, `SeoHead`, sitemap/robots) has been stable
-throughout. Real page copy depends on E6; structure and tests do not. One
-outstanding question for the Business Analyst, not a blocker: whether
-`404.astro`'s description string is intended as final copy or should be
-logged in `status/placeholder-content.md` (QA-002 Probe 4) — and, new from
-QA-003, whether R-6.1 AC1's "lint" is satisfied by type-checking alone or
-requires a dedicated linter.
+Privacy+Terms) can proceed in parallel, one engineer each, each importing
+`BaseLayout` and authoring their own Playwright spec alongside their page.
+Real page copy depends on E6; structure and tests do not. One outstanding
+question for the Business Analyst, not a blocker: whether `404.astro`'s
+description string is intended as final copy or should be logged in
+`status/placeholder-content.md` (QA-002 Probe 4).
 
-In parallel, the owner can action E1+E2 (unlocks Wave 4 and the remaining
-half of R-6.3 AC1) — see PLAN-001 §6.
+In parallel, the owner can action E3+E5 (unlocks Wave 3) and E1+E2 (unlocks
+Wave 4) — see PLAN-001 §6.
