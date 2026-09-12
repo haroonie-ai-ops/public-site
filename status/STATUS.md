@@ -1,12 +1,27 @@
 # Workstream Status — haroonie.ai Public Website
 
-Last updated: 2026-09-12 — Wave 2b (page content) implemented and
-self-tested: content-collection architecture (R-2.8) plus Home, Services,
+Last updated: 2026-09-12 — **QA-004 (Wave 2b independent Tester review)
+Finding 1, PRODUCT_DEFECT/High, remediated.** Privacy, Terms, About, and all
+three Services entries rendered internal program artifacts (a repository
+file path, an internal role name, internal requirement/escalation IDs, and
+process commentary such as "agent-drafted boilerplate pending review") into
+visitor-facing copy; Contact's form intro and a raw HTML comment in its
+markup carried a smaller instance of the same class of leak. All removed
+from rendered output and relocated to frontmatter comments / this file's
+placeholder register, which was updated in both directions to match. A new
+regression test (`tests/seo-preview.spec.ts`) asserts the real built
+`dist/` output for all six pages contains none of this class of artifact;
+it was verified to fail against the pre-fix content before the fix landed.
+See "QA-004 remediation (PRODUCT_DEFECT, High)" below for full detail.
+
+Wave 2b (page content) was implemented and self-tested prior to this
+remediation: content-collection architecture (R-2.8) plus Home, Services,
 About, Contact (static), Privacy and Terms, with per-page R-5.1
-accessibility scans. PR opened against `origin/main`; awaiting CI and
-independent Tester review. R-2.3 AC1 (owner-approved biography) is reported
-blocked on E6, not passing. See "Wave 2b — page content" below for full
-detail. Wave 2a's QA-002 Finding 2 remediation and Wave 1 remain as
+accessibility scans. PR open against `origin/main`; CI and independent
+Tester review (QA-004) both completed — QA-004 passed with the one High
+finding remediated here. R-2.3 AC1 (owner-approved biography) remains
+reported blocked on E6, not passing. See "Wave 2b — page content" below for
+full detail. Wave 2a's QA-002 Finding 2 remediation and Wave 1 remain as
 previously recorded (unchanged by this wave).
 
 ## Lifecycle position
@@ -412,6 +427,117 @@ against that reconciled base. `npm run lint` (the real remote script:
 - `404.astro`'s description string was left untouched (QA-002 Probe 4 is
   still an open Business Analyst question, not resolved by this wave).
 
+## QA-004 remediation (PRODUCT_DEFECT, High) — Engineer, 2026-09-12
+
+Independent Tester review of Wave 2b (`status/QA-004-wave2b-tester-review.md`)
+returned **PASS WITH FINDINGS**. Finding 1, classified **PRODUCT_DEFECT,
+HIGH severity** by the Tester, is remediated here; that classification is
+carried forward unchanged — not softened — per CLAUDE.md's completion
+definition and REQ-001 R-8.3.
+
+**The defect.** The rendered `/privacy/` and `/terms/` pages stated, to any
+site visitor, that the policy had not undergone legal review and pointed
+them at this repository's internal placeholder register
+(`status/placeholder-content.md`); Terms additionally named an internal
+role ("Project Manager") and an internal requirement ID. Confirmed live by
+the Tester on the PR's actual Cloudflare Pages preview deployment, not just
+locally. No test in the suite caught it.
+
+**Why the original judgement missed it.** The Wave 2b self-test reasoned
+that this copy was acceptable because it doesn't invent a REQ-001 §1.3-
+banned fact (no fabricated client names, outcomes, etc.), so no
+`PlaceholderNotice` banner was needed. That reasoning is correct on its own
+terms but answers a different question than the one that matters:
+§1.3 governs fabrication, not whether internal process commentary is fit
+for a visitor to read. The same PR had already solved this correctly for
+Home — its equivalent disclaimer is a Markdown-body HTML comment that the
+Home page never renders (`Content` is never invoked for `home`'s body) — so
+the technique to avoid this defect was known and used elsewhere in the same
+PR, just not applied to Privacy/Terms.
+
+**Sweep beyond the two named pages.** Per instruction, all six pages were
+checked, not just the two the Tester named. Found and fixed the same class
+of leak in:
+- **About** (`src/content/about/index.md`) — an internal acceptance-
+  criterion ID, an escalation ID, and this file path, rendered via
+  `<Content />`.
+- **Services** (`src/content/services/service-{1,2,3}.md`) — an internal
+  requirement/escalation ID and this file path, rendered per entry via
+  `<Content />`.
+- **Contact** (`src/content/contact/index.md`'s `formIntro`, and a raw HTML
+  comment in `src/pages/contact/index.astro`'s markup) — an internal
+  requirement ID and wave number. Not a placeholder-register item (the
+  underlying copy is real, not a placeholder), just leaked jargon in real
+  copy's wording, and a comment placed in the wrong location (an HTML
+  comment in an `.astro` file's markup region compiles straight into
+  shipped HTML, unlike a `//` comment in its script frontmatter, which is
+  discarded at compile time — the same mechanism that makes Home's pattern
+  safe). This second location was found only by the new regression test
+  (below) failing on `/contact/`, not by manual reading — direct evidence
+  for why a test, not a one-time sweep, is what actually closes this class
+  of defect.
+- **`src/components/PlaceholderNotice.astro`** — the shared banner shown on
+  Home/About/Services carried an internal requirement/wave reference in its
+  visible text; trimmed to ordinary site language while keeping the
+  "placeholder, not for production" signal intact.
+
+**Fix.** Every internal reference (repository paths, role names, escalation
+IDs, requirement/wave IDs, and phrases like "agent-drafted"/"boilerplate
+pending") was removed from anything a page actually renders, and relocated
+to YAML frontmatter comments in the source `.md` files (discarded by the
+content-collection schema parser before any HTML is generated — never
+reach output) or restated in `status/placeholder-content.md`, which was
+updated in both directions (register-to-page and page-to-register) to
+match the new wording. No fact was deleted, only relocated. Privacy and
+Terms each also gained one ordinary, visitor-appropriate sentence
+(e.g. "we may update this policy from time to time") in place of the
+removed process commentary, per the Tester's own suggested remedy.
+
+**Regression test added, and verified to fail first.** A new
+`test.describe('no internal program artifacts in rendered page content
+(QA-004 regression)')` block in `tests/seo-preview.spec.ts` reads the real
+`dist/**/index.html` files produced by `astro build` (the `static-preview`
+project's own build output — what Cloudflare Pages actually serves, not the
+dev server) for all six routes, and asserts none contains a `status/` path,
+a `*.md` reference, the role names "Project Manager"/"Business
+Analyst"/"Tester", a "Wave `<n>` Engineer" byline, an `E1`–`E9` escalation
+ID, or the phrases "agent-drafted", "boilerplate pending", or "placeholder
+register". **Verified to fail before the fix**: run against an unmodified
+checkout of the PR head (`d890e116`), it failed on 5 of 6 routes —
+`/services/`, `/about/`, `/contact/` (`E4`, from the HTML-comment leak
+above), `/privacy/`, and `/terms/` — with only `/` passing, matching exactly
+the set of pages found to have this class of defect. After the fix, all 6
+pass. This closes the Tester's central point: "no test in the suite catches
+this."
+
+**Verification.**
+- `npm run lint` (`astro check && tsc --noEmit`): 0 errors, 0 warnings (28
+  files; same 32 informational `zod`-deprecation hints as Wave 2b's
+  self-test, not a regression).
+- `npm run build`: 7/7 routes generated. Manually swept the entire `dist/`
+  output with a broader pattern set than the automated test enforces
+  (`REQ-001`, `Wave \d`, `status/`, `.md`, role names, `E1`-`E9`,
+  "agent-drafted", "boilerplate", "placeholder register") — zero matches
+  anywhere in built HTML.
+- `npm test` (Playwright, `PW_PORT=4501 PW_PREVIEW_PORT=4502`, both ports
+  confirmed free beforehand), run twice from a clean port state: **213
+  passed, 4 skipped, 0 failed** both times, identical — 217 total (up from
+  Wave 2b's 211), the 6 new regression tests accounting for the growth. The
+  skip count is unchanged at 4 (the same `test.fixme` × 3 browsers plus the
+  documented WebKit tab-order case) — no existing assertion was weakened,
+  narrowed, or removed to get here.
+- Also published to this branch, verbatim and byte-identical (round-trip
+  diffed after publish): `status/QA-004-wave2b-tester-review.md` (the
+  Tester's review this remediation responds to) and
+  `status/PM-001-program-status-assessment.md` (a Project Manager program
+  assessment that predates this remediation and was otherwise trapped on a
+  diverged local `main` branch with no remote copy).
+
+**Not attempted / out of scope for this remediation:** no change to
+`.github/workflows/`, Wave 4 domain config, or Wave 5 form wiring; R-2.3
+AC1 remains blocked on E6, not "fixed" by this pass; no existing test
+weakened, skipped, or deleted.
+
 ## Wave status
 
 | Wave | Description | Status | Blocked by |
@@ -419,7 +545,7 @@ against that reconciled base. `npm run lint` (the real remote script:
 | 0 | Owner actions | Open | Owner |
 | 1 | Foundation (scaffold, toolchain, Playwright harness) | **Accepted (Owner) — regression-confirmed (Tester), closed** | Nothing |
 | 2a | Shared layout, nav, SEO plumbing | **QA-002 passed with findings; Finding 2 remediated — awaiting Tester regression re-verification** | Nothing |
-| 2b | Home/Services/About/Contact/Privacy/Terms page content | **Implemented, self-tested (207 passed, 4 skipped, 0 failed); PR opened, awaiting CI + independent Tester review** | R-2.3 AC1 blocked on E6 (biography); other pages' final copy sign-off also pending E6/owner review |
+| 2b | Home/Services/About/Contact/Privacy/Terms page content | **QA-004 passed with one High finding (PRODUCT_DEFECT); remediated (213 passed, 4 skipped, 0 failed) — awaiting Tester regression re-verification** | R-2.3 AC1 blocked on E6 (biography); other pages' final copy sign-off also pending E6/owner review |
 | 3 | CI/CD pipeline | Not started | Wave 1; verification blocked on E3, E5 |
 | 4 | Domain and hosting configuration | Not started | Blocked on E1, E2 |
 | 5 | Enquiry form completion | Not started | Wave 2b (Contact skeleton); blocked on E4 |
