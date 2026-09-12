@@ -1,0 +1,68 @@
+# One-off bootstrap: create the Cloudflare Pages project that ci-cd.yml's
+# deploy jobs deploy into. Deliberately NOT folded into ci-cd.yml's deploy
+# jobs as a create-if-missing step: an auto-create on every deploy would
+# turn a typo'd `--project-name` into a brand-new empty Pages project
+# instead of a loud, obvious "project not found" failure. This runs only
+# on manual dispatch, and only ever needs to succeed once.
+#
+# Safe to re-run: `wrangler pages project create` on a name that already
+# exists fails with a message containing "already exists", which this
+# workflow treats as success rather than as an error to fix.
+
+name: Bootstrap Cloudflare Pages project
+
+on:
+  workflow_dispatch:
+    inputs:
+      project_name:
+        description: 'Cloudflare Pages project name to create'
+        required: true
+        default: haroonie-ai-public-site
+      production_branch:
+        description: 'Production branch for the new project'
+        required: true
+        default: main
+
+permissions:
+  contents: read
+
+jobs:
+  create-project:
+    name: Create Pages project (idempotent)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Set up Node (pinned via .nvmrc)
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Create Cloudflare Pages project
+        id: create
+        continue-on-error: true
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: >-
+            pages project create ${{ inputs.project_name }}
+            --production-branch=${{ inputs.production_branch }}
+
+      # `continue-on-error: true` above means a real failure would
+      # otherwise be swallowed — this step is what actually decides pass
+      # or fail, by inspecting *why* the command failed rather than just
+      # whether it did.
+      - name: Evaluate result
+        if: steps.create.outcome == 'failure'
+        run: |
+          if echo "${{ steps.create.outputs.command-output }}${{ steps.create.outputs.command-stderr }}" | grep -qi "already exists"; then
+            echo "Project '${{ inputs.project_name }}' already exists — bootstrap is idempotent, treating this as success."
+          else
+            echo "::error::wrangler pages project create failed for a reason other than 'already exists'. See the 'Create Cloudflare Pages project' step's output above."
+            exit 1
+          fi
