@@ -13,12 +13,6 @@ test.describe('accessibility scan (R-5.1 AC1)', () => {
 			page,
 		}) => {
 			await page.goto(route.path);
-			// Dev-server HMR can trigger a client-side navigation shortly
-			// after `load` fires, which tears down axe's injected execution
-			// context mid-scan ("Execution context was destroyed"). Wait for
-			// the network to settle first so the scan runs against a
-			// stable document.
-			await page.waitForLoadState('networkidle');
 			await scanForSeriousOrCriticalViolations(page);
 		});
 	}
