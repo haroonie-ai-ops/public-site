@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test, expect } from '@playwright/test';
@@ -106,6 +106,45 @@ test.describe('non-indexable preview builds (R-4.4)', () => {
 			const robots = readFileSync(join(outDir, 'robots.txt'), 'utf-8');
 			expect(robots).toContain('Disallow: /');
 		} finally {
+			rmSync(outDir, { recursive: true, force: true });
+		}
+	});
+
+	// R-2.8 AC1 — "Given a copy change, When only a Markdown file is
+	// edited, Then the rendered page reflects the change after a rebuild."
+	// Proven directly here rather than just by architectural inspection:
+	// edit the Home content collection's Markdown file on disk, rebuild,
+	// and assert the new heading text — not the old one — appears in the
+	// built output, with no `.astro` component touched. Grouped into this
+	// same serial describe block (not a new file) because it spawns a real
+	// `astro build`, which — per the comment above — corrupts a
+	// concurrently-running build's shared `.astro/.prerender` cache; the
+	// content file is restored in `finally` even if the assertion throws,
+	// so a failure here can't corrupt the working tree for other tests.
+	test('editing only a Markdown content file changes the rendered page after a rebuild', async () => {
+		const contentPath = join(process.cwd(), 'src/content/home/index.md');
+		const original = readFileSync(contentPath, 'utf-8');
+		const proofHeading = `R-2.8 proof heading ${Date.now()}`;
+		const modified = original.replace(
+			/^heading: .*$/m,
+			`heading: "${proofHeading}"`,
+		);
+		expect(modified, 'the heading frontmatter field must have been found and replaced').not.toBe(
+			original,
+		);
+
+		const outDir = mkdtempSync(join(tmpdir(), 'haroonie-r28-proof-'));
+		try {
+			writeFileSync(contentPath, modified);
+			execSync(`npm run build -- --outDir "${outDir}"`, {
+				cwd: process.cwd(),
+				stdio: 'pipe',
+			});
+
+			const html = readFileSync(join(outDir, 'index.html'), 'utf-8');
+			expect(html).toContain(proofHeading);
+		} finally {
+			writeFileSync(contentPath, original);
 			rmSync(outDir, { recursive: true, force: true });
 		}
 	});
