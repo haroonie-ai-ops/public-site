@@ -1,9 +1,32 @@
 # Workstream Status — haroonie.ai Public Website
 
-Last updated: 2026-09-12 — **QA-004 (Wave 2b independent Tester review)
-Finding 1, PRODUCT_DEFECT/High, remediated.** Privacy, Terms, About, and all
-three Services entries rendered internal program artifacts (a repository
-file path, an internal role name, internal requirement/escalation IDs, and
+Last updated: 2026-09-13 — **This update reconciles integrity problems in
+this document itself**, found by the Project Manager's PM-002 assessment:
+Wave 3 was listed as "Not started" despite being implemented, independently
+reviewed, remediated, and merged; Wave 3's narrative section was missing
+entirely; and Wave 2a's status line was stale (its regression
+re-verification had already happened, via QA-003). See "Wave 3 — CI/CD
+pipeline" below (new section) and the corrected Wave status table.
+
+**Current state, top to bottom:** Wave 2b is merged to `main` (commit
+`e64ac08e`, owner-authorized) and live in production with three successful
+production deploys since — see "Wave 2b merged and deployed to production"
+below. Per a further owner decision (reasoning per the Project Manager's
+PM-002 assessment, put to the owner directly), production is **temporarily
+forced non-indexable** (`robots.txt: Disallow: /`) until real E6 copy
+replaces the placeholder rows still open in `status/placeholder-content.md`
+— see "Production non-indexable gate" below for the implementation and live
+verification. **Wave 2b has NOT yet had independent Tester regression
+verification of the QA-004 fix** — that step is still outstanding and must
+not be presented as done. **R-2.3 AC1 (owner-approved biography) remains
+blocked on E6, not passing**, throughout all of the above — none of this
+work unblocks it, and the site ships with placeholder copy by design,
+which is exactly why the non-indexable gate exists.
+
+QA-004 (Wave 2b independent Tester review) Finding 1, **PRODUCT_DEFECT,
+High**, was remediated 2026-09-12: Privacy, Terms, About, and all three
+Services entries rendered internal program artifacts (a repository file
+path, an internal role name, internal requirement/escalation IDs, and
 process commentary such as "agent-drafted boilerplate pending review") into
 visitor-facing copy; Contact's form intro and a raw HTML comment in its
 markup carried a smaller instance of the same class of leak. All removed
@@ -13,16 +36,6 @@ regression test (`tests/seo-preview.spec.ts`) asserts the real built
 `dist/` output for all six pages contains none of this class of artifact;
 it was verified to fail against the pre-fix content before the fix landed.
 See "QA-004 remediation (PRODUCT_DEFECT, High)" below for full detail.
-
-Wave 2b (page content) was implemented and self-tested prior to this
-remediation: content-collection architecture (R-2.8) plus Home, Services,
-About, Contact (static), Privacy and Terms, with per-page R-5.1
-accessibility scans. PR open against `origin/main`; CI and independent
-Tester review (QA-004) both completed — QA-004 passed with the one High
-finding remediated here. R-2.3 AC1 (owner-approved biography) remains
-reported blocked on E6, not passing. See "Wave 2b — page content" below for
-full detail. Wave 2a's QA-002 Finding 2 remediation and Wave 1 remain as
-previously recorded (unchanged by this wave).
 
 ## Lifecycle position
 
@@ -538,15 +551,185 @@ this."
 AC1 remains blocked on E6, not "fixed" by this pass; no existing test
 weakened, skipped, or deleted.
 
+## Wave 3 — CI/CD pipeline (reconciled into this document 2026-09-13)
+
+**This section was missing from this document entirely until now** — found
+by PM-002 and corrected here. Wave 3 itself was implemented, reviewed, and
+merged well before this correction; only the write-up was absent.
+
+**Scope delivered**, per PLAN-001 §2, REQ-001 R-6.1–R-6.7: `.github/workflows/ci-cd.yml`,
+a three-job workflow (`validate` — install/lint/build/Playwright on every PR
+and push; `deploy-preview` — PR-only, `SITE_ENV=preview`, reports the URL on
+the PR; `deploy-production` — main-only, deploys to the Cloudflare Pages
+production environment), plus `bootstrap-pages-project.yml` for one-time
+project creation. Every third-party Action is pinned to a commit SHA;
+`npm ci` against a committed lockfile; Node pinned via `.nvmrc`.
+
+**Independent Tester review: `status/QA-003-wave3-tester-review.md`, PASS
+WITH FINDINGS.** The Tester independently re-verified nearly every claim
+against live evidence (raw CI logs, direct API calls to GitHub and
+Cloudflare, a live preview deployment, a byte-for-byte reproducible-build
+diff) rather than re-reading the Engineer's report. Four findings, **none
+classified PRODUCT_DEFECT**:
+- **Finding 1 (Low, informational):** `npm run lint` is `astro check &&
+  tsc --noEmit`, not a dedicated linter (no ESLint in the dependency tree).
+  R-6.1 AC1's letter is satisfied (a real, gating "lint" step exists); its
+  conventional sense (style/unused-import rules) is narrower. Routed to the
+  Business Analyst; not blocking.
+- **Finding 2 (Medium) — since closed, see below.** STATUS.md's prior
+  Wave 3 write-up (before this reconciliation) claimed R-6.3 AC2's
+  `deploy-production` skip-on-failure was "exercised for real," but every
+  run observed at review time was a `pull_request` event — `deploy-
+  production`'s own `if: github.event_name == 'push' ...` guard, not
+  `needs: validate`, fully explained every observed skip. The Tester's
+  recommended fix (a real `push`-to-`main` event) has since happened: PR #1
+  merged (below), and `deploy-production` genuinely executed rather than
+  being skipped by the event-type guard.
+- **Finding 3 (Low):** the credential hard-fail path's negative case
+  (missing secret → `::error::` + `exit 1`) was verified by local repro of
+  the exact bash logic, not by a live Actions run against a real missing
+  secret (a disproportionate risk to test directly). Recommended a
+  throwaway-secret-name branch as a safer live test; not done, not
+  blocking.
+- **Finding 4 (Low/Medium):** revises E9's closed diagnosis (why the
+  `cloudflare-api` OAuth MCP session's writes failed) from "read-only
+  account-wide" to "more consistent with a product-scoped grant" based on
+  the Tester's own read-only probes (KV/Workers/R2 reads also failed, which
+  an account-wide read/write split would not predict). E9's actual
+  *resolution* (a real Cloudflare API token in CI secrets, bypassing OAuth
+  entirely) is unaffected either way and independently confirmed working.
+
+QA-003 explicitly recommended **not** marking Wave 3 fully Accepted until
+(a) the owner acts on E8, and (b) the owner merges PR #1 — both were
+already correctly recorded as open, independent of the findings above.
+
+**PR #1 merged, closing Finding 2's gap.** Owner-authorized merge
+("@engineer merge PR #1"), producing this workflow's first-ever
+`push`-to-`main` event (run `34701592010`): `validate` green,
+`deploy-production` **genuinely executed** (Check Cloudflare credentials →
+Build with `SITE_ENV` unset → `wrangler deploy`, all succeeded, not
+skipped), `deploy-preview` correctly skipped (not a `pull_request` event).
+Live production verified directly at the time: `/` → 200, `robots.txt` →
+200 with the indexable `Allow: /` + `Sitemap:` form, `sitemap-index.xml`
+and `sitemap-0.xml` both 200 listing all 6 canonical routes. This is the
+real, `push`-triggered evidence Finding 2 said was missing — `deploy-
+production`'s `needs: validate` gating is now something that has actually
+run against a passing build, not just something reasoned from the YAML.
+
+**E8 — still open, unchanged.** Branch protection / rulesets return HTTP
+403 ("Upgrade to GitHub Pro or make this repository public") on this
+private GitHub Free repository, so R-6.1 AC2's enforcement half ("cannot be
+merged") is still not implemented — see the dedicated E8 section below for
+the three owner options. This is the one thing still standing between Wave
+3 and a formal Accepted status; nothing else remains outstanding.
+
+**Status: implemented, independently reviewed (QA-003, pass with findings,
+zero PRODUCT_DEFECT), PR #1 merged, three separate production deploys
+succeeded since (runs `34701592010`, `34731668961`, `34732487729`). Not
+yet formally marked Accepted, pending E8's owner decision.**
+
+## Wave 2b merged and deployed to production (2026-09-13)
+
+**Merge.** PR #3 was merged by the coordinating session, which received the
+merge instruction directly from the owner ("@engineer proceed with Merge
+PR #3 — ships Wave 2b to production"). This Engineer session had separately
+received the same instruction second-hand (relayed through an intermediate
+agent) and correctly declined to act on it, per the escalation recorded
+below — that escalation was not overruled; the coordinating session merged
+using its own first-hand instruction instead. Merged at head `4dfd5127`
+(this Engineer's last QA-004 remediation commit) producing merge commit
+`e64ac08e`, with CI run `34706213541`-lineage's final descendant — run
+`34731668961` (run #15) — green on that exact merge commit:
+`validate` success, `deploy-production` success (executed, not skipped),
+`deploy-preview` correctly skipped (push event).
+
+**Live production verification (independently re-checked by this Engineer,
+not taken on the coordinator's report alone):** all six routes
+(`/`, `/services/`, `/about/`, `/contact/`, `/privacy/`, `/terms/`) return
+`200` at `https://haroonie-ai-public-site.pages.dev`; re-swept all six for
+the QA-004 banned-pattern class (repository paths, role names, escalation
+IDs, "agent-drafted"/"boilerplate pending"/"placeholder register") —
+**zero matches**, confirming the fix holds in the actual production
+environment, not just the build that shipped it.
+
+**Outstanding: independent Tester regression verification of the QA-004
+fix has NOT happened.** QA-004's remediation was self-tested by this
+Engineer only. Per CLAUDE.md's lifecycle (Remediation → **Regression** →
+Acceptance → Delivery), a Tester still needs to independently re-verify
+that the fix holds before Wave 2b can be considered fully closed — this is
+not a formality skipped by the merge or the production deploy; production
+serving the correct content is necessary evidence for that verification,
+not a substitute for it.
+
+**R-2.3 AC1 remains BLOCKED on E6** — merging and deploying did not, and
+could not, unblock it. The site currently ships with placeholder Services/
+About/legal copy, which is exactly what the next section addresses.
+
+## Production non-indexable gate — owner decision, per PM-002 (Engineer, 2026-09-13)
+
+**The decision (relayed via the coordinator; PM-002 itself was not directly
+read by this Engineer session).** The Project Manager's PM-002 assessment
+argued that shipping Wave 2b as deployed violates REQ-001 §1.3: Cloudflare
+Pages production is "production" under R-6.3's own definition regardless of
+how sparse today's real content is, it is indexable, and roughly ten rows
+in `status/placeholder-content.md` remain open with no owner copy sign-off
+(Services, About, the Privacy/Terms policy bodies) — meaning search engines
+could currently index placeholder content. The owner was asked directly and
+chose: **make production non-indexable until E6 lands.**
+
+**Implementation.** `.github/workflows/ci-cd.yml`'s `deploy-production` job
+now sets `SITE_ENV=prelaunch` (a value distinct from `deploy-preview`'s
+`SITE_ENV=preview`) on its `Build` step, wrapped in a heavily commented
+"TEMPORARY E6 GATE" block naming the owner decision, why, the exact removal
+condition (the placeholder register empty, or every remaining row
+explicitly waived, per Wave 7's own exit criteria), and confirmation that
+deleting the `env:` block alone restores indexing. `src/pages/robots.txt.ts`
+itself was **not** touched — its existing `isPreviewBuild()` logic already
+treats any `SITE_ENV` other than `"production"` as non-indexable, and an
+*unset* `SITE_ENV` still correctly falls through to indexable (proven by
+the pre-existing `SITE_ENV=Production` test and the top-level "production
+build" describe block in `tests/seo-preview.spec.ts`, both left unchanged).
+
+**Test added.** `tests/seo-preview.spec.ts` gained a test proving this
+exact configured value (`SITE_ENV=prelaunch`) yields `Disallow: /` — not
+just "some unrecognised value" (already covered by the pre-existing
+`SITE_ENV=staging` test) — so a future edit to the workflow's literal
+string without updating the test is caught.
+
+**Verification, all by this Engineer directly:**
+- `npm run lint`: 0 errors, 0 warnings.
+- `npm run build`: 7/7 routes.
+- `npm test` (`PW_PORT=4701 PW_PREVIEW_PORT=4702`), run twice from a clean
+  port state: **214 passed, 4 skipped, 0 failed** both times, identical —
+  218 total (up from 217), skip count unchanged. No existing assertion
+  weakened.
+- Manually built with `SITE_ENV=prelaunch` outside the test harness and
+  read the resulting `robots.txt` directly: `User-agent: *` / `Disallow: /`.
+- Pushed to `main` (commit `382273ac`), polled the resulting CI run
+  (`34732487729`, run #16) to completion: `validate` success,
+  `deploy-production` success (executed, not skipped), `deploy-preview`
+  correctly skipped.
+- **Live production, checked directly after that deploy:** all six routes
+  return `200`; `robots.txt` now serves `User-agent: *` / `Disallow: /`
+  (confirmed non-indexable); a repeat sweep of all six pages for the QA-004
+  banned-pattern class found zero matches (the gate did not reintroduce or
+  interact with that issue).
+
+**This is temporary by design.** Once E6 lands and the placeholder register
+is empty (or every remaining row is explicitly owner-waived), deleting the
+`env:` block on `deploy-production`'s `Build` step is sufficient to restore
+indexing — documented in the workflow itself so a future maintainer does
+not have to reconstruct the reasoning from git blame.
+
 ## Wave status
 
 | Wave | Description | Status | Blocked by |
 |---|---|---|---|
 | 0 | Owner actions | Open | Owner |
 | 1 | Foundation (scaffold, toolchain, Playwright harness) | **Accepted (Owner) — regression-confirmed (Tester), closed** | Nothing |
-| 2a | Shared layout, nav, SEO plumbing | **QA-002 passed with findings; Finding 2 remediated — awaiting Tester regression re-verification** | Nothing |
-| 2b | Home/Services/About/Contact/Privacy/Terms page content | **QA-004 passed with one High finding (PRODUCT_DEFECT); remediated (213 passed, 4 skipped, 0 failed) — awaiting Tester regression re-verification** | R-2.3 AC1 blocked on E6 (biography); other pages' final copy sign-off also pending E6/owner review |
-| 3 | CI/CD pipeline | Not started | Wave 1; verification blocked on E3, E5 |
+| 2a | Shared layout, nav, SEO plumbing | **QA-002 passed with findings; Finding 2 remediated and independently regression-confirmed by QA-003** (which reproduced the original failure mode live and confirmed the fix holds) | Nothing |
+| 2b | Home/Services/About/Contact/Privacy/Terms page content | **Merged (`e64ac08e`) and deployed to production (run #15).** QA-004 passed with one High finding (PRODUCT_DEFECT); remediated (214 passed, 4 skipped, 0 failed) and live-verified in production. **Independent Tester regression verification of the QA-004 fix is still outstanding** — not yet done | R-2.3 AC1 blocked on E6 (biography); production temporarily forced non-indexable (owner decision, see "Production non-indexable gate") until E6 lands |
+| 3 | CI/CD pipeline | **Implemented, independently reviewed (QA-003, pass with findings, zero PRODUCT_DEFECT), PR #1 merged, three successful production deploys since. Not yet formally Accepted** | E8 (branch-protection plan gate) — owner decision pending |
 | 4 | Domain and hosting configuration | Not started | Blocked on E1, E2 |
 | 5 | Enquiry form completion | Not started | Wave 2b (Contact skeleton); blocked on E4 |
 | 6 | Performance and cross-browser hardening | Not started | Wave 2 |
@@ -747,3 +930,16 @@ in GitHub themselves, or send a message that reaches this session directly
 either, the Engineer will proceed with the full post-merge verification
 sequence (CI run to completion, production route checks, robots.txt and
 sitemap verification) and record it here.
+
+**Resolved, 2026-09-13.** The coordinating session confirmed it had
+received the merge instruction directly from the owner, first-hand — not
+relayed — and merged PR #3 itself rather than asking this Engineer session
+to act on the second-hand version. The coordinating session's own message
+states plainly that this escalation's reasoning stands and is recorded as
+correct, not overruled. See "Wave 2b merged and deployed to production"
+above for the merge and deploy evidence. This entry is left in place,
+un-deleted, per this document's own register convention (`status/
+placeholder-content.md`'s header: record resolutions, don't silently
+remove the original entry) — the durable record is that the distinction
+this escalation drew (relayed claim vs. first-hand instruction) held up and
+was the actual resolution path, not a false alarm.
