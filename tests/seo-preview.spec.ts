@@ -122,6 +122,33 @@ test.describe('non-indexable preview builds (R-4.4)', () => {
 		}
 	});
 
+	// Temporary E6 gate (owner decision, 2026-09-13, per PM-002) — see the
+	// "TEMPORARY E6 GATE" comment on deploy-production's Build step in
+	// .github/workflows/ci-cd.yml. That job now sets SITE_ENV=prelaunch
+	// specifically (a distinct value from SITE_ENV=preview, which has its
+	// own R-4.4 meaning for PR previews) so the *production* deploy stays
+	// non-indexable while placeholder content remains open. This proves
+	// that exact configured value, not just "some unrecognised value"
+	// (already covered by the SITE_ENV=staging test above) — if a future
+	// edit changes the workflow's literal string without updating this
+	// test, this is what catches the drift.
+	test('a build with SITE_ENV=prelaunch (the production E6 gate) disallows all crawling', async () => {
+		const outDir = mkdtempSync(join(tmpdir(), 'haroonie-preview-robots-'));
+		try {
+			execSync(`npm run build -- --outDir "${outDir}"`, {
+				cwd: process.cwd(),
+				env: { ...process.env, SITE_ENV: 'prelaunch' },
+				stdio: 'pipe',
+				timeout: 60_000, // see the comment on the first execSync above
+			});
+
+			const robots = readFileSync(join(outDir, 'robots.txt'), 'utf-8');
+			expect(robots).toContain('Disallow: /');
+		} finally {
+			rmSync(outDir, { recursive: true, force: true });
+		}
+	});
+
 	// R-2.8 AC1 — "Given a copy change, When only a Markdown file is
 	// edited, Then the rendered page reflects the change after a rebuild."
 	// Proven directly here rather than just by architectural inspection:

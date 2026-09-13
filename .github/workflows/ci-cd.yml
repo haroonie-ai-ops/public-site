@@ -7,13 +7,17 @@
 #                      AC2) and deploys to a Cloudflare Pages preview
 #                      environment, then reports the URL on the PR (R-6.2
 #                      AC1). Gated on `validate` succeeding.
-#   deploy-production — main-only. Builds with SITE_ENV unset (production,
-#                      indexable) and deploys to the Cloudflare Pages
+#   deploy-production — main-only. Deploys to the Cloudflare Pages
 #                      production environment (R-6.3 AC1). Gated on
 #                      `validate` succeeding — a failing job upstream means
 #                      GitHub Actions skips this job outright, satisfying
 #                      R-6.3 AC2 ("failing tests -> no deployment") by the
 #                      platform's own `needs:` semantics, not custom logic.
+#                      TEMPORARILY builds with SITE_ENV=prelaunch (non-
+#                      indexable) rather than the unset/indexable default —
+#                      see the "TEMPORARY E6 GATE" comment on that job's
+#                      Build step for the owner decision, why, and the exact
+#                      condition under which to remove it.
 #
 # R-6.1 AC2's enforcement half ("cannot be merged") is NOT implemented here.
 # It requires branch protection / a repository ruleset with a required
@@ -271,10 +275,45 @@ jobs:
             exit 1
           fi
 
-      # R-6.3 AC1 — production build. SITE_ENV intentionally left unset so
-      # src/pages/robots.txt.ts falls through to its indexable default.
+      # ============================================================
+      # TEMPORARY E6 GATE — DO NOT REMOVE WITHOUT READING THIS COMMENT.
+      # ============================================================
+      # Owner decision, 2026-09-13 (per the Project Manager's PM-002
+      # assessment, put to the owner directly): Cloudflare Pages production
+      # is "production" under R-6.3's own definition regardless of how
+      # sparse today's real content is, and it is indexable. ~10 rows in
+      # status/placeholder-content.md are still open with no owner copy
+      # sign-off (Services, About, and the Privacy/Terms policy bodies).
+      # REQ-001 §1.3 forbids placeholder content reaching a searchable
+      # production audience, so the owner chose to keep production
+      # non-indexable until real E6 copy lands, rather than ship it
+      # indexable in its current state.
+      #
+      # SITE_ENV=prelaunch below is a distinct value from SITE_ENV=preview
+      # (R-4.4's PR-preview value, set in deploy-preview above) — this is
+      # the actual production deploy, just temporarily forced non-indexable.
+      # It works by relying on src/pages/robots.txt.ts's existing
+      # isPreviewBuild() logic, which already treats *any* SITE_ENV value
+      # other than "production" as non-indexable — that logic is NOT
+      # changed here, and must not be: an *unset* SITE_ENV must keep
+      # falling through to indexable (see that file's own comment and
+      # tests/seo-preview.spec.ts's SITE_ENV=Production / unset-equivalent
+      # coverage). Only this job's explicit value changes.
+      #
+      # REMOVAL CONDITION — read before deleting: once E6 lands (real,
+      # owner-approved copy for every row currently open in
+      # status/placeholder-content.md) and that register is empty, or every
+      # remaining row is explicitly waived by the owner (this program's
+      # Wave 7 go-live exit criteria), delete the `env:` block on this step.
+      # That single deletion is sufficient to restore indexing — nothing
+      # else in this repository depends on the literal string "prelaunch",
+      # and no other file needs to change alongside it.
+      #
+      # R-6.3 AC1 — production build.
       - name: Build
         run: npm run build
+        env:
+          SITE_ENV: prelaunch
 
       - name: Deploy to Cloudflare Pages (production)
         uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
