@@ -364,3 +364,348 @@ required fix before Privacy/Terms are considered production-ready content
 both pages already carry). No other finding in this review rises above a
 low-severity note (see items 5 and 10's maintainability comments). This
 does not require weakening or reinterpreting any acceptance criterion.
+
+---
+
+# Regression Verification — QA-004 remediation (Tester, independent)
+
+Reviewer: Tester (independent of Engineer and of the coordinating session).
+Date: 2026-09-12/13.
+
+**Commit pinned for this review:** `e64ac08e70475984290b4831225109f0cd68214b`
+(current true `origin/main` tip at time of review — the "Merge pull request
+#3" commit; base `f411480fdff238313dcd256a18d4a32ef86bc495`, PR head
+`4dfd5127d0c239c91c75957e34fb333b16c36dda`). All content/test file evidence
+below is against this commit unless stated otherwise. Fetched via the
+GitHub REST API (`tarball`/`commits`/`pulls` endpoints), not via local
+`git`, because local `main` is confirmed diverged/stale (its own commit
+graph shares none of the SHAs below) and `git fetch`/`push` hang against
+this remote from this sandbox. A second commit, `382273ac73` (CI run #16,
+in progress at review time), landed on `main` mid-review: `ci(production):
+temporarily gate production indexing behind E6`. Diffed it directly —
+touches only `.github/workflows/ci-cd.yml` and adds one new, purely
+additive test to `tests/seo-preview.spec.ts`; `src/` is byte-identical to
+`e64ac08e`. This is the owner-directed `SITE_ENV=prelaunch` robots.txt
+change flagged as in-flight and out of scope for this review — confirmed
+correctly scoped, not assessed further, and **not** treated as a QA-004
+regression per the task's own instruction.
+
+## Verdict: QA-004 Finding 1 is CLOSED
+
+The leak is gone from source, build, and live production, on independently
+reconstructed and independently fetched evidence, not on the Engineer's or
+coordinating session's say-so. One new finding (Finding 2 below) is raised
+against the regression test's coverage — it does not reopen QA-004, but it
+should be fixed before this class of defect is considered durably
+prevented.
+
+## Important correction to this task's own framing
+
+The task described `6a6c290f76` as "the pre-remediation commit" to diff
+test files against. **That is incorrect, and I did not rely on it as
+pre-fix evidence.** Reconstructing the PR's actual commit sequence via the
+GitHub API (`/pulls/3/commits`, chronological, parent-linked, timestamped):
+
+```
+...7af45888ce → 72c21606a1 → d890e1164b → 5cedd71955 → 84be5df387 →
+   031cd1a693 → 6a54834d2ec → 6a6c290f76 → 4dfd5127d0 (PR head)
+```
+
+`5cedd71955` ("fix(content): remove internal program artifacts…") **is**
+the remediation commit, landed 2026-09-12T17:43:40Z. `6a6c290f76`
+("docs(pm): publish PM-001…") landed a minute later, 2026-09-12T17:44:39Z,
+**four commits after** the fix — it is a docs-only commit essentially at
+the PR's final pre-merge state, not pre-remediation. `src/` and `tests/` at
+`6a6c290f76` are byte-identical to `5cedd71955` (`diff -rq` confirmed, zero
+output). The actual pre-fix commit — the immediate parent of the fix, and
+the exact SHA this review's own original Finding 1 cited as the PR head it
+tested against — is `d890e1164b70069330ee5071939fd90a9ab946db`. I used
+that commit, not `6a6c290f76`, to reconstruct pre-fix state below. I also
+completed the literal instruction (diff test files against `6a6c290f76`
+and against `f411480`) for completeness — see Item 4 — but flag that the
+instruction's characterization of which commit is "pre-remediation" does
+not hold up and should not be repeated in future status writing.
+
+## Item 1 — Does the regression test actually work? Yes, independently reproduced.
+
+Downloaded the real repo tarballs for `d890e1164b` (pre-fix) and
+`5cedd71955` (fix) via `/repos/.../tarball/{sha}`, extracted both. `diff
+-rq` between them: only `src/components/PlaceholderNotice.astro`, eight
+content `.md` files (about, contact, legal/privacy, legal/terms,
+pages/services, services/service-1/2/3), `src/pages/contact/index.astro`,
+and `tests/seo-preview.spec.ts` differ — matches the claimed scope exactly.
+
+Built a clean sandbox from the fix commit's tree (`npm ci`, 273 packages;
+Playwright browsers already cached on this machine), confirming the new
+test passes on the real fixed content (6/6 routes, static-preview project,
+which runs `npm run build && npm run preview` as its own `webServer` — the
+test cannot be reading a stale or cached `dist/`, since Playwright's own
+webServer contract rebuilds it fresh every invocation).
+
+Then, **without touching the test file**, overwrote only the nine
+content/component/page files in the sandbox with their pre-fix (`d890e1164b`)
+versions, deleted `dist/`, and reran just the QA-004 regression block:
+
+```
+5 failed
+  /services/, /about/, /contact/, /privacy/, /terms/
+1 passed
+  /
+```
+
+Exact match, independently reproduced, to the claim "5 of 6 routes failed
+against unmodified pre-fix content, only `/` passed." This is not vacuous:
+it built real HTML from real pre-fix Markdown, matched real substrings in
+it (e.g. `Error: /privacy/ built output must not contain repository path
+reference (status/...) — found "status/placeholder-content.md"`), and
+flipped to 6/6 passing the moment only the content files (not the test)
+were restored to their fixed versions.
+
+**The raw-HTML-comment-in-Contact claim, verified directly, not taken on
+trust:** grepped the pre-fix build's `dist/contact/index.html` myself and
+found the literal comment compiled straight into the shipped file:
+`<!-- Markup only (R-2.4 AC2) — no `action`, `method` or submit handler.
+Wiring is Wave 5 (R-3.1), blocked on E4. ... -->`, sitting inside
+`<section class="contact-form">` right after the visible paragraph text.
+Confirmed post-fix this exact string is absent from `dist/contact/index.html`
+via `grep -o "<!--[^>]*-->"` → no matches. The claim that this is a
+different, more serious leak mechanism than a frontmatter `//` comment
+(which Astro's content-schema parser discards before any HTML exists) is
+correct and independently verified, not just plausible-sounding.
+
+## Item 2 — Finding 2 (NEW): the pattern list is fitted to the instances found, not adequate for the general class — TEST_DEFECT, Medium
+
+**Scenario:** `tests/seo-preview.spec.ts`'s `BANNED_PATTERNS` array (10
+patterns: `status/` paths, `.md` refs, four named roles, `E1`-`E9`,
+three literal phrases) is the sole permanent guard against this entire
+class of defect reaching production again.
+
+**Expected:** per the test's own doc-comment ("the same class of leak…
+was also present" in multiple places, found by a *sweep*, not by guessing
+each exact string), a new instance of the *same class* — an internal
+program-tracking reference leaking into visitor copy — should be caught
+by this test, not just the specific strings that happened to leak this
+time.
+
+**Actual:** it is not. Starting from the **fixed** content (all nine files
+restored to their `5cedd71955` versions, test unmodified), I injected five
+small, realistic probes of the same defect class into otherwise-clean
+copy, one per page:
+
+| Page | Injected text | Caught? |
+|---|---|---|
+| `services/service-2.md` body | "See REQ-001 R-2.2 for scope." | No |
+| `services/service-3.md` body | "Tracked for delivery in PLAN-001." | No |
+| `about/index.md` body | "Escalated to the coordinating session for review." | No |
+| `legal/privacy.md` body | "See PR #3 for revision history." | No |
+| `contact/index.md` `formIntro` | "(Ref REQ-001 R-3.1.)" | No |
+
+Rebuilt and reran the regression block: **6 passed**, all five probes
+shipped verbatim into `dist/**/index.html` (confirmed by grepping the built
+files directly — `REQ-001 R-2.2`, `PLAN-001`, `coordinating session`, `PR
+#3`, and `REQ-001 R-3.1` all present in their respective built pages) and
+none flagged. Every one of these is the same *class* of leak QA-004
+describes in its own title (an internal program artifact reaching visitor
+copy) — an internal requirement/AC ID, an internal plan-document name, a
+reference to an internal actor, and a PR number are not meaningfully
+different in kind from the file paths and escalation IDs the test does
+check for; they are simply strings the pattern list doesn't happen to
+include.
+
+This is not a hypothetical gap: `status/STATUS.md`'s own remediation
+write-up (the "Verification" subsection under the QA-004 entry) states the
+Engineer's **manual** sweep of `dist/` used a *broader* pattern set than
+what was encoded into the permanent test — explicitly including `REQ-001`
+and `Wave \d` — and found zero matches at the time. That broader set was
+never promoted into `BANNED_PATTERNS`. The one-time manual check was
+wider than the thing left standing guard afterward.
+
+**Why TEST_DEFECT, not PRODUCT_DEFECT:** nothing currently shipped is
+affected — my five probes are synthetic and were reverted, not real
+content, and live production plus the current `dist/` are independently
+confirmed clean (Item 3). This is a coverage gap in the regression test
+itself: the exact test whose stated purpose is to make sure this "closes
+this class of defect" for good does not close the class, only the
+instances.
+
+**Severity: Medium.** Not High/Critical — today's ships are clean and this
+doesn't reopen Finding 1. But it directly undercuts the stated rationale
+for the fix ("this is what actually closes this class of defect... not a
+one-time sweep"), and the failure mode is exactly the one QA-004 exists to
+prevent: a future content edit reintroducing internal jargon would go
+straight to production believing it's covered.
+
+**Recommended action (not performed — Tester must not fix product/test
+code without assignment):** extend `BANNED_PATTERNS` with, at minimum, an
+internal requirement/AC ID pattern (`/\bREQ-\d{3}\b/`, `/\bR-\d+\.\d+\b/`),
+an internal plan-document pattern (`/\bPLAN-\d{3}\b/`), and either a
+denylist of internal-actor phrases ("coordinating session", "the
+Engineer", "the Tester" as a phrase distinct from the existing bare-word
+check, "the owner" in a process-commentary sense) or — more robustly — an
+allowlist-based approach (a small vocabulary of internal program nouns
+checked as a single combined regex, reviewed each time a new internal
+noun is introduced in `CLAUDE.md`/`status/`) rather than continuing to
+enumerate exact strings after each new leak is found by hand.
+
+## Item 3 — Is the leak actually gone from source, build, and live production, all six routes? Yes.
+
+**Source:** the QA-004-class process commentary was moved into YAML
+frontmatter comments (discarded by Astro's content-collection schema
+parser before any HTML exists — not merely hidden by CSS/JS) or deleted
+outright, not suppressed at render time. Confirmed by reading the actual
+diffs (see the file-by-file diff in this review's working notes; identical
+in substance to the `status/placeholder-content.md` and `status/STATUS.md`
+narrative) — nothing rendered was replaced with a client-side hide, a
+`display:none`, or an HTML comment inside a template's markup region
+(the one place that pattern was previously used, Contact, had the comment
+removed entirely).
+
+**Built output:** `dist/**/index.html` for all six routes, built fresh
+from `e64ac08e`'s tree, grepped for the full original `BANNED_PATTERNS`
+set: zero matches on all six.
+
+**Live production:** `https://haroonie-ai-public-site.pages.dev/` (the
+Cloudflare Pages production deployment; `www.haroonie.ai` does not resolve
+from this sandbox — DNS/zone delegation is still open per E1/E2, unrelated
+to this review) — fetched all six routes directly with `curl`, all `200`:
+`/`, `/services/`, `/about/`, `/contact/`, `/privacy/`, `/terms/`. Grepped
+each live response for the full `BANNED_PATTERNS` set and for the five
+Item 2 probe-style patterns (`REQ-\d{3}`, `PLAN-\d{3}`, "coordinating
+session", `PR #\d+`, `R-\d+\.\d+`): **zero matches on all six, on both
+pattern sets.** `robots.txt` at review time still read `Allow: /` (the
+`SITE_ENV=prelaunch` gate from the concurrent, unrelated `382273ac73` was
+still landing — expected per the task's own note, not a QA-004 regression).
+Also directly confirmed the Contact page's raw HTML comment is absent from
+the live response (`grep -o "<!--[^>]*-->"` → no matches).
+
+## Item 4 — Did the fix break anything? No product/content regression; one environmental (pre-existing) flake pattern reproduced, unrelated to this fix.
+
+**Diffs against both named commits, as instructed** (with the correction
+above noted): `f411480` (true original base) → `d890e1164b` (Wave 2b,
+pre-QA-004) → `6a6c290f76` (== `5cedd71955` in `src`/`tests`, i.e. actually
+post-fix). In every comparison, only `tests/seo-preview.spec.ts` changes
+among test files; every other test file (`smoke.spec.ts`, `about.spec.ts`,
+`accessibility.spec.ts`, `contact.spec.ts`, `home.spec.ts`, `legal.spec.ts`,
+`responsive.spec.ts`, `services.spec.ts`, `support/a11y.ts`,
+`support/routes.ts`, `playwright.config.ts`) is either absent at the older
+commit (added whole, Wave 2b) or byte-identical across the commits it
+exists at. Within `seo-preview.spec.ts`, `expect(` call count only grows
+(18 at base → 21 pre-QA-004 → +1 new `describe` block with the QA-004
+assertions after the fix) — never shrinks; no pre-existing assertion body
+changed. Skip sources are unchanged: `about.spec.ts:17`'s `test.fixme`
+(×3 browser projects) and `smoke.spec.ts:90`'s documented WebKit skip — 4
+total, matching every count below.
+
+**Local runs, this sandbox, clean port state each time, three full runs**
+(not two — the first two were inconclusive on their own and needed a third
+to separate signal from this machine's known noise, see below):
+
+| Run | Ports | Result |
+|---|---|---|
+| 1 | 4701/4702 | 211 passed, **2 failed**, 4 skipped |
+| 2 | 4703/4704 | 212 passed, **1 failed**, 4 skipped |
+| 3 | 4705/4706 (after clearing orphaned `firefox.exe`) | **213 passed, 0 failed, 4 skipped** |
+
+All three failures, across all three runs, were: (a) exclusively in the
+`firefox` project, (b) exclusively in `tests/smoke.spec.ts` (pre-existing
+Wave 1 route-stub/nav tests, untouched by this remediation — confirmed
+byte-identical above), and (c) browser-crash-class errors — `worker
+process exited unexpectedly (code=3221226505...)` (Windows
+`STATUS_ACCESS_VIOLATION`), `Test timeout of 30000ms exceeded`, `Target
+page, context or browser has been closed` — never an assertion mismatch
+against page content, and never a failure inside `seo-preview.spec.ts`
+(all 6 QA-004 regression assertions passed in all 3 runs, 18/18). At the
+time of run 1/2's failures, `tasklist` showed 20+ live `firefox.exe`
+processes and ~4.8GB free physical memory. This is not a new problem: it
+is the exact signature — same error codes, same "scattershot, different
+test each run, never a content assertion" pattern, same process-count/
+memory profile — that this Tester documented and classified **ENVIRONMENT
+(primary)/FLAKY_TEST (symptom)** in `status/QA-002-wave2a-tester-review.md`
+Finding 1, on this same machine, unrelated to any code change at the time.
+Classification here: **ENVIRONMENT, Low severity** — not a regression
+from this fix.
+
+**Independent corroboration from CI**, a different environment entirely
+(dedicated GitHub Actions runner, `workers: 1`, no concurrent agent load):
+downloaded the actual raw log for run **#15** (`e64ac08e`, the real
+merge/production-deploying run) via the Actions API —
+`Running 217 tests using 1 worker` → `4 skipped` → `213 passed (1.9m)`,
+**0 failed, 0 retries logged**. This exactly matches local run 3 and the
+Engineer's claimed figure, and confirms the local Firefox flakiness is a
+property of this shared sandbox, not of the code or the gating pipeline.
+
+**Verdict: no product or test regression.** 217 total (211 pre-fix + 6 new
+QA-004 tests), 213 passed / 4 skipped / 0 failed is the real, reproducible
+result on the actual gating CI and (once machine noise is cleared) locally
+too.
+
+## Item 5 — Content integrity after the Privacy/Terms rewrite: R-2.5 AC1 holds; no §1.3 fabrication
+
+R-2.5 AC1 requires stating what data is collected, the lawful basis, the
+retention period, and how to exercise data-subject rights. The fix touched
+only the intro paragraph (privacy) and the closing paragraph (terms) —
+`diff` confirms the four structured frontmatter fields
+(`dataCollected`, `lawfulBasis`, `retentionPeriod`, `rightsProcedure`) are
+**untouched** by this remediation. `src/pages/privacy/index.astro` still
+destructures and renders all four into their own labeled `<section>`
+(confirmed by reading the file directly), and `tests/legal.spec.ts`
+(byte-identical pre/post fix) still asserts all four headings are present
+with non-empty body text — passing in every run above. Live production's
+`/privacy/` response contains all four section headings and their
+original body text, unchanged.
+
+No REQ-001 §1.3 fabrication was introduced by the rewrite. §1.3 bans
+inventing "client names, testimonials, project outcomes, headcount,
+revenue, certifications, or years of experience" — none of those appear
+anywhere in either rewritten paragraph. Specifically checked for the
+task's named risks: no legal entity name was invented (Terms' new closing
+sentence explicitly states "these terms do not currently name a registered
+legal entity, company number, or registered address" — a disclosure of
+absence, not a fabrication); no address was invented; the retention-period
+wording was not touched by this fix at all (it predates QA-004 and was not
+in scope here). The rewrite removed process commentary and added two
+short, generic, non-factual sentences ("we may update this policy from
+time to time; the version published on this page is the one in effect" /
+similar for Terms) — housekeeping boilerplate, not new substantive claims.
+
+## Item 6 — Placeholder register accuracy, both directions: accurate
+
+Cross-checked `status/placeholder-content.md` against actual content, both
+directions, at `e64ac08e`:
+- Every `placeholder: true` entry in `src/content/**` (`grep`'d directly:
+  `about/index.md`, `home/index.md`, `pages/services.md`,
+  `services/service-{1,2,3}.md` — six files) has exactly one open register
+  row (P1, P3, P2, P9, P10, P11) — six rows, six files, one-to-one.
+- `contact/index.md`, `legal/privacy.md`, `legal/terms.md` are
+  `placeholder: false` and are still logged (P13, P14; Contact's
+  `formIntro` correctly *not* logged as a placeholder row per the
+  register's own stated rationale — it's real, accurate copy that merely
+  had leaked jargon, a materially different problem the register text
+  itself draws this distinction for).
+- The register's own "QA-004 remediation" section names the exact same
+  scope I independently found by diffing: About + all three Services
+  entries (found by sweep, not by the original finding), Contact's
+  `formIntro` and its raw HTML comment (found "only by the new regression
+  test... not by manual reading" — consistent with my Item 1 reproduction
+  showing `/contact/` was the one failure whose root cause was a template
+  HTML comment rather than a content-file body). No discrepancy found in
+  either direction.
+
+## Summary of new findings from this regression pass
+
+| # | Classification | Severity | Summary |
+|---|---|---|---|
+| Finding 2 | TEST_DEFECT | Medium | `BANNED_PATTERNS` in `tests/seo-preview.spec.ts` catches the specific strings QA-004 found, not the general class of "internal program artifact in visitor copy" it claims to guard against. Five synthetic same-class probes (REQ ID, plan-doc name, internal-actor phrase, PR number) all shipped to `dist/` undetected. Recommend broadening the pattern set (see Item 2) before treating this class of defect as durably closed. |
+| (documentation) | — | Low | This task's framing of `6a6c290f76` as "the pre-remediation commit" is factually incorrect (it is 4 commits and ~1 minute after the actual fix commit `5cedd71955`, with identical `src`/`tests`). Recommend future status/PM writing cite `d890e1164b` (the fix's actual parent) when a pre-fix reference point is needed. |
+
+Nothing above reopens QA-004 Finding 1. **QA-004 is CLOSED** on the
+evidence in this section: the original leak is independently confirmed
+absent from source, build, and live production across all six routes, the
+regression test that guards it is real (not vacuous, reproduced failing
+against genuine pre-fix content), the full suite shows no product or test
+regression once this sandbox's pre-existing, previously-documented
+Firefox/Windows resource contention is accounted for (and CI — the actual
+gate — shows none of that noise at all), and the Privacy/Terms rewrite
+introduced no new content-integrity problem. Finding 2 is a forward-looking
+coverage gap in the regression test, not evidence that the fix itself is
+incomplete or that anything currently shipped is non-compliant.
