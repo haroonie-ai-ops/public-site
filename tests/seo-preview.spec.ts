@@ -221,6 +221,20 @@ test.describe('per-page metadata on the built output (R-4.1)', () => {
 // the same class of leak (internal req/escalation IDs, a repository path)
 // was also present in About's and Services' rendered body copy, and in a
 // raw HTML comment in Contact's markup.
+//
+// QA-004 Finding 2 (TEST_DEFECT, Medium — independent Tester regression
+// review, 2026-09-12/13): the pattern list below originally covered only
+// the exact strings that happened to leak, not the general class of
+// "internal program artifact in visitor copy" the test's own doc-comment
+// above claims to guard against. The Tester proved this by injecting five
+// synthetic same-class probes into otherwise-clean fixed content — an
+// internal requirement ID, a plan-document name, an internal-actor phrase,
+// and a PR number — and all five shipped into `dist/` undetected. The
+// patterns below were broadened in response to cover program document IDs,
+// requirement/AC identifiers, wave references, and PR/issue references —
+// the class, not just the instances — each one verified (by the same
+// inject-and-check method that exposed the gap) to both catch a same-class
+// probe and not fire on any of the six real pages' actual content.
 test.describe('no internal program artifacts in rendered page content (QA-004 regression)', () => {
 	const BANNED_PATTERNS: { label: string; pattern: RegExp }[] = [
 		{ label: 'repository path reference (status/...)', pattern: /status\/[\w.-]+/i },
@@ -233,6 +247,74 @@ test.describe('no internal program artifacts in rendered page content (QA-004 re
 		{ label: 'process vocabulary: agent-drafted', pattern: /agent-drafted/i },
 		{ label: 'process vocabulary: boilerplate pending', pattern: /boilerplate pending/i },
 		{ label: 'process vocabulary: placeholder register', pattern: /placeholder register/i },
+
+		// --- Finding 2 additions: the class, not the instances ---
+
+		// Program document IDs. Each prefix is a distinctive, hyphenated,
+		// all-caps token this program actually uses for its own status/
+		// requirements docs (REQ-001, PLAN-001, QA-001..004, ADR-*,
+		// PM-001/002) — none of these are plausible in ordinary marketing,
+		// legal, or contact copy for a tech consulting site, so requiring
+		// the literal prefix keeps false-positive risk close to zero.
+		{ label: 'program document ID: REQ-NNN', pattern: /\bREQ-\d+\b/ },
+		{ label: 'program document ID: PLAN-NNN', pattern: /\bPLAN-\d+\b/ },
+		{ label: 'program document ID: QA-NNN', pattern: /\bQA-\d+\b/ },
+		{ label: 'program document ID: ADR-NNN', pattern: /\bADR-\d+\b/ },
+		// PM-NNN is this repo's own convention for Project Manager status
+		// docs (status/PM-001-*.md, PM-002-*.md) — added beyond QA-004's
+		// literal instruction because it's the identical document-ID class
+		// already in use here. Small acknowledged residual risk: "PM2.5"/
+		// "PM 2.5" (air-quality) is a real-world usage of "PM" + a number,
+		// but the hyphenated "PM-<digits>" form this pattern requires is
+		// not how that's conventionally written, and this site has no
+		// plausible reason to discuss air quality.
+		{ label: 'program document ID: PM-NNN', pattern: /\bPM-\d+\b/ },
+
+		// Requirement/acceptance-criterion identifiers. "R-<n>.<n>" (e.g.
+		// R-2.3, R-6.1) requires a capital R, a hyphen, and two dot-
+		// separated digit groups — not a pattern ordinary prose or a
+		// version string ("v2.3") produces. "AC<n>" (e.g. AC1, AC2) is
+		// slightly more likely to collide with real English in principle
+		// (air conditioning, alternating current), so it's deliberately
+		// capped at 1-2 digits to match this program's actual AC1-AC9-ish
+		// numbering rather than an open-ended \d+, and checked against all
+		// six real pages below to confirm it doesn't fire in practice.
+		{ label: 'requirement identifier (R-n.n)', pattern: /\bR-\d+\.\d+\b/ },
+		{ label: 'acceptance-criterion identifier (ACn)', pattern: /\bAC\d{1,2}\b/ },
+
+		// Wave references. Deliberately scoped to "Wave" immediately
+		// followed by a digit (optionally a lowercase letter, matching
+		// this program's own "2a"/"2b" sub-wave convention) rather than
+		// banning the bare word "Wave" — a tech-consulting site plausibly
+		// uses "wave" on its own (e.g. "a new wave of AI adoption"), but
+		// "Wave" paired directly with a digit is specific to this
+		// program's internal wave-numbering scheme, not ordinary usage.
+		// Acknowledged residual risk, not eliminated: a future real page
+		// describing a client's own "Wave 3 rollout" would also match this
+		// and would need a narrower fix at that time, not before.
+		{ label: 'internal wave reference (Wave <n>)', pattern: /\bWave\s?\d+[a-z]?\b/i },
+
+		// Internal PR/issue references — "PR #3", "PR#3", "issue #42".
+		// The "#<digits>" requirement makes this specific to a tracker
+		// reference; plain "PR" (public relations) or "issue" (a problem,
+		// a magazine issue) alone are common English words and are
+		// intentionally NOT banned on their own.
+		{ label: 'internal PR/issue reference', pattern: /\b(?:PR|issue)\s?#\d+\b/i },
+
+		// Internal-actor phrases beyond the four role names already above.
+		// Case-sensitive and capitalized ("the Engineer", not "the
+		// engineer") specifically because this program capitalizes role
+		// titles when used as internal-process shorthand, while ordinary
+		// flowing prose about an engineer (a bio, a services blurb) would
+		// not capitalize the common noun mid-sentence. Deliberately NOT
+		// included: a bare "the owner" pattern — a small business's own
+		// About-page bio plausibly and legitimately says "the owner
+		// founded this company in ..."; banning that phrase risks a false
+		// positive on exactly the kind of real content this site needs to
+		// ship, so it's left out rather than silently degrading coverage
+		// elsewhere to compensate.
+		{ label: 'internal-actor phrase: coordinating session', pattern: /coordinating session/i },
+		{ label: 'internal-actor phrase: the Engineer', pattern: /\bthe Engineer\b/ },
 	];
 
 	for (const route of allRoutes) {
