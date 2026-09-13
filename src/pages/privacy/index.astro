@@ -1,13 +1,51 @@
 ---
+// Privacy Policy (REQ-001 R-2.5 AC1). Structured fields (dataCollected,
+// lawfulBasis, retentionPeriod, rightsProcedure) and copy come from the
+// `legal` content collection (R-2.8), keyed by slug "privacy".
+import { getEntry, render } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import PlaceholderNotice from '../../components/PlaceholderNotice.astro';
+
+const privacy = await getEntry('legal', 'privacy');
+if (!privacy) throw new Error('Missing required "legal/privacy" content collection entry.');
+const { title, metaDescription, dataCollected, lawfulBasis, retentionPeriod, rightsProcedure } = privacy.data;
+const { Content } = await render(privacy);
 ---
 
-<BaseLayout
-	title="Privacy Policy — haroonie.ai"
-	description="How haroonie.ai collects, uses and protects personal data. Full policy ships in Wave 2 (REQ-001 R-2.5)."
->
-	<h1>Privacy Policy</h1>
-	<PlaceholderNotice />
-	<p>Privacy policy content ships in Wave 2 (REQ-001 R-2.5).</p>
+<BaseLayout title={`${title} — haroonie.ai`} description={metaDescription}>
+	<h1>{title}</h1>
+
+	<div class="intro">
+		<Content />
+	</div>
+
+	<section aria-labelledby="data-collected-heading">
+		<h2 id="data-collected-heading">What data we collect</h2>
+		<p>{dataCollected}</p>
+	</section>
+
+	<section aria-labelledby="lawful-basis-heading">
+		<h2 id="lawful-basis-heading">Lawful basis</h2>
+		<p>{lawfulBasis}</p>
+	</section>
+
+	<section aria-labelledby="retention-heading">
+		<h2 id="retention-heading">Retention period</h2>
+		<p>{retentionPeriod}</p>
+	</section>
+
+	<section aria-labelledby="rights-heading">
+		<h2 id="rights-heading">Your data protection rights</h2>
+		<p>{rightsProcedure}</p>
+	</section>
 </BaseLayout>
+
+<style>
+	section {
+		max-width: 42rem;
+		margin-block-end: 1.75rem;
+	}
+
+	section h2 {
+		font-size: 1.125rem;
+	}
+</style>
