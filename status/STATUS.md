@@ -16,9 +16,12 @@ PM-002 assessment, put to the owner directly), production is **temporarily
 forced non-indexable** (`robots.txt: Disallow: /`) until real E6 copy
 replaces the placeholder rows still open in `status/placeholder-content.md`
 — see "Production non-indexable gate" below for the implementation and live
-verification. **Wave 2b has NOT yet had independent Tester regression
-verification of the QA-004 fix** — that step is still outstanding and must
-not be presented as done. **R-2.3 AC1 (owner-approved biography) remains
+verification. **QA-004 Finding 1 is now independently Tester-verified
+CLOSED** — the outstanding regression-verification note that previously
+stood here is resolved; see "QA-004 independent regression verification"
+below for the evidence. That same review raised a new **Finding 2
+(TEST_DEFECT, Medium)** against the regression test's own coverage, since
+remediated — same section. **R-2.3 AC1 (owner-approved biography) remains
 blocked on E6, not passing**, throughout all of the above — none of this
 work unblocks it, and the site ships with placeholder copy by design,
 which is exactly why the non-indexable gate exists.
@@ -721,6 +724,111 @@ is empty (or every remaining row is explicitly owner-waived), deleting the
 indexing — documented in the workflow itself so a future maintainer does
 not have to reconstruct the reasoning from git blame.
 
+## QA-004 independent regression verification — Finding 1 CLOSED, Finding 2 raised and remediated (2026-09-13)
+
+`status/QA-004-wave2b-tester-review.md` gained a **Regression Verification**
+section, authored independently by the Tester (not by this Engineer),
+re-checking the QA-004 remediation above against live evidence rather than
+this document's own account of it.
+
+**Finding 1: CLOSED.** The Tester independently reconstructed the exact
+pre-fix and post-fix commit trees (via the GitHub API, not local `git`,
+since local `main` remains diverged), rebuilt both, and reproduced the
+regression test failing on 5 of 6 routes against genuine pre-fix content
+and passing 6/6 against the fix — matching this Engineer's own claim
+exactly, on independently gathered evidence. Also independently confirmed:
+the raw HTML comment in `dist/contact/index.html` is present pre-fix and
+absent post-fix; the Privacy/Terms structured fields (R-2.5 AC1) are
+untouched by the rewrite; no REQ-001 §1.3 fabrication was introduced; the
+placeholder register is accurate in both directions; and live production,
+all six routes, both the original `BANNED_PATTERNS` set and the Finding-2
+probe set below, is clean. **Verdict, in the Tester's own words: "QA-004 is
+CLOSED."**
+
+**Correction to the record, made by the Tester, carried forward here
+accurately:** an earlier task message (not this Engineer's own writing)
+described commit `6a6c290f76` as "the pre-remediation commit." That is
+incorrect — reconstructing the PR's actual commit sequence shows
+`6a6c290f76` lands **four commits and about a minute after** the real fix
+commit, `5cedd71955`, with `src/`/`tests/` byte-identical between them. The
+true pre-fix commit — the fix's immediate parent — is
+`d890e1164b70069330ee5071939fd90a9ab946db`, which is what this Engineer's
+own QA-004 remediation section above already cited and tested against.
+Noted here so the corrected framing is on record precisely, not just
+implicitly consistent.
+
+**Finding 2 (TEST_DEFECT, Medium) — raised by the Tester, remediated by
+this Engineer.** `tests/seo-preview.spec.ts`'s `BANNED_PATTERNS` array
+caught only the exact strings QA-004 found, not the general class of
+"internal program artifact in visitor copy" its own doc-comment claims to
+guard against. The Tester proved this by injecting five synthetic
+same-class probes into otherwise-clean, already-fixed content — an internal
+requirement ID ("See REQ-001 R-2.2 for scope."), a plan-document name
+("Tracked for delivery in PLAN-001."), an internal-actor phrase
+("Escalated to the coordinating session for review."), a PR number ("See PR
+#3 for revision history."), and a second requirement-ID instance
+("(Ref REQ-001 R-3.1.)") — and all five shipped into `dist/**/index.html`
+undetected. Also flagged, correctly: this Engineer's own manual `dist/`
+sweep during the original QA-004 remediation used a broader pattern set
+(explicitly including `REQ-001` and `Wave \d`) than what was actually
+encoded into the permanent test — the stronger check existed and was never
+promoted into the regression guard.
+
+**Fix.** Broadened `BANNED_PATTERNS` with 11 new entries covering the
+class, not the instances: program document IDs (`REQ-\d+`, `PLAN-\d+`,
+`QA-\d+`, `ADR-\d+`, and `PM-\d+` — the last added beyond the Tester's
+literal list because it's this repository's own document-ID convention,
+used for `PM-001`/`PM-002`), requirement/AC identifiers (`R-\d+\.\d+`,
+`AC\d{1,2}`), an internal wave reference scoped to digit-adjacent usage
+(`Wave <n>`, not the bare word), an internal PR/issue reference
+(`PR`/`issue #<n>`), and two internal-actor phrases (`coordinating
+session`, the capitalized phrase `the Engineer`). Deliberately excluded,
+and said so in the test's own comment rather than silently narrowing
+coverage: a bare `the owner` pattern, because a small business's own
+About-page biography plausibly and legitimately references "the owner" —
+banning that phrase risks a false positive on exactly the real content
+this site needs to ship someday.
+
+**Verified by the same method that exposed the gap**, not asserted from
+the patterns merely looking more comprehensive: reproduced all five of the
+Tester's synthetic probes plus two of this Engineer's own (`ADR-002`/
+`issue #17` in a Services entry; `AC3`/`the Engineer` in Terms) across
+seven content files, rebuilt, and confirmed the regression test failed on
+all five affected routes with each specific pattern named in the failure
+message; independently grepped the built HTML for all 11 new patterns to
+confirm every probe (not just the first one Playwright's `for`-loop hit
+per route) was individually caught. Then reverted every file to
+byte-identical originals (diffed against backups, zero output) and
+reran the six real pages clean.
+
+**Verification.**
+- `npm run lint`: 0 errors, 0 warnings.
+- `npm run build`: 7/7 routes.
+- Local runs, three total from clean port states: 214 passed/4 skipped/0
+  failed; 213 passed/4 skipped/1 failed (a single, pre-existing,
+  already-documented `tests/support/a11y.ts` "Execution context was
+  destroyed" flake in an unrelated file, the same class this sandbox's
+  shared-resource contention has produced before — see QA-002 Finding 1 and
+  the QA-004 regression review's own Item 4); 214 passed/4 skipped/0
+  failed.
+- **CI (the authoritative gate, a dedicated runner with none of this
+  sandbox's shared-resource noise), run `34734095251`:** `validate`
+  success, `deploy-production` success (executed, not skipped),
+  `deploy-preview` correctly skipped. Raw log: `Running 218 tests using 1
+  worker` → `4 skipped` → `214 passed (2.4m)`, 0 failed.
+- Also published to `main`, verbatim and byte-identical (round-trip
+  diffed after publish): `status/QA-004-wave2b-tester-review.md`'s new
+  Regression Verification section, and `status/PM-002-program-status-
+  assessment.md` (a Project Manager assessment superseding PM-001,
+  covering the merge-instruction relay's headline correction and the R-6.3/
+  E6 indexability reasoning behind the non-indexable gate above), both
+  otherwise trapped on the same diverged local `main` branch as before.
+
+**No existing pattern removed or weakened; no test count changed** (new
+patterns extend an existing test's array, not new test cases) — 218 total,
+unchanged from the E6-gate commit, 4 skips unchanged (the same
+`test.fixme` × 3 browsers plus the documented WebKit tab-order case).
+
 ## Wave status
 
 | Wave | Description | Status | Blocked by |
@@ -728,7 +836,7 @@ not have to reconstruct the reasoning from git blame.
 | 0 | Owner actions | Open | Owner |
 | 1 | Foundation (scaffold, toolchain, Playwright harness) | **Accepted (Owner) — regression-confirmed (Tester), closed** | Nothing |
 | 2a | Shared layout, nav, SEO plumbing | **QA-002 passed with findings; Finding 2 remediated and independently regression-confirmed by QA-003** (which reproduced the original failure mode live and confirmed the fix holds) | Nothing |
-| 2b | Home/Services/About/Contact/Privacy/Terms page content | **Merged (`e64ac08e`) and deployed to production (run #15).** QA-004 passed with one High finding (PRODUCT_DEFECT); remediated (214 passed, 4 skipped, 0 failed) and live-verified in production. **Independent Tester regression verification of the QA-004 fix is still outstanding** — not yet done | R-2.3 AC1 blocked on E6 (biography); production temporarily forced non-indexable (owner decision, see "Production non-indexable gate") until E6 lands |
+| 2b | Home/Services/About/Contact/Privacy/Terms page content | **Merged (`e64ac08e`) and deployed to production (run #15).** QA-004 Finding 1 (PRODUCT_DEFECT, High) remediated and **independently Tester regression-verified CLOSED**; Finding 2 (TEST_DEFECT, Medium, against the regression test's own coverage) raised by that same review and remediated (218 total, 214 passed, 4 skipped, 0 failed on CI). Live-verified in production | R-2.3 AC1 blocked on E6 (biography); production temporarily forced non-indexable (owner decision, see "Production non-indexable gate") until E6 lands |
 | 3 | CI/CD pipeline | **Implemented, independently reviewed (QA-003, pass with findings, zero PRODUCT_DEFECT), PR #1 merged, three successful production deploys since. Not yet formally Accepted** | E8 (branch-protection plan gate) — owner decision pending |
 | 4 | Domain and hosting configuration | Not started | Blocked on E1, E2 |
 | 5 | Enquiry form completion | Not started | Wave 2b (Contact skeleton); blocked on E4 |
