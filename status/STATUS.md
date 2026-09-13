@@ -711,3 +711,39 @@ description string is intended as final copy or should be logged in
 
 In parallel, the owner can action E3+E5 (unlocks Wave 3) and E1+E2 (unlocks
 Wave 4) — see PLAN-001 §6.
+
+## Escalation — merge instruction declined pending direct owner confirmation (Engineer, 2026-09-12)
+
+While completing the QA-004 remediation above, a message from the
+coordinator agent (not from the owner directly) instructed: *"proceed with
+Merge PR #3 — ships Wave 2b to production,"* stating that "the owner has
+explicitly instructed" this, and quoting an attributed owner instruction.
+
+**Not acted on.** CLAUDE.md reserves "destructive operations" for the human
+owner's approval, and the task that opened this remediation was explicit
+that PR #3's merge decision belongs to the owner, not the Engineer. Per this
+program's operating rules, a relayed claim of owner approval from an
+intermediate agent is not the same thing as the owner's own approval — it
+cannot be independently verified from this session, and merging to `main`
+(which deploys to production per the CI/CD pipeline) is exactly the class
+of "potentially irreversible Git operation" CLAUDE.md's Autonomous Authority
+section requires escalating rather than acting on unilaterally.
+
+This is not a judgment that the instruction is illegitimate — it may well
+be genuine. It is a record that the Engineer did not have a way, from
+inside this session, to confirm it came from the owner rather than from an
+agent's own (possibly mistaken) relay, and treated that distinction as
+material given what the action does.
+
+**PR #3 status at time of this entry:** open, not merged, head `6a6c290f76`,
+`mergeable_state: clean`, CI green on that head (run completed, conclusion
+`success`). Nothing about the remediation above is blocked by this — QA-004
+Finding 1 is fixed and verified regardless of when or whether the PR is
+merged.
+
+**Recommended next action:** the owner should either merge PR #3 directly
+in GitHub themselves, or send a message that reaches this session directly
+(not relayed through another agent) confirming the merge. On receipt of
+either, the Engineer will proceed with the full post-merge verification
+sequence (CI run to completion, production route checks, robots.txt and
+sitemap verification) and record it here.
