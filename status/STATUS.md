@@ -1,6 +1,19 @@
 # Workstream Status — haroonie.ai Public Website
 
-Last updated: 2026-09-13 — **This update reconciles integrity problems in
+Last updated: 2026-09-14 — **Domain facts recorded, proven separately from
+inferred.** `haroonie.ai`'s nameserver delegation to Cloudflare (E2) is
+CLOSED on direct public DNS evidence; zone existence on Cloudflare (E1)
+is only INFERRED from that delegation, not independently confirmed — the
+Cloudflare API's zone-listing endpoint returns an empty, ambiguous result
+under this program's current access. A new escalation, **E10**, records
+that PLAN-001's planned Wave 4 access path (Cloudflare's hosted OAuth MCP
+server) does not appear to reach zone resources at all, let alone grant
+the writes Wave 4 needs — three owner options are recorded, none chosen.
+See "E1/E2 — DNS delegation" and "E10 — Wave 4's planned Cloudflare access
+path is not viable" below. No Wave 4 work was started; this is
+documentation only.
+
+Prior update, 2026-09-13 — **This update reconciles integrity problems in
 this document itself**, found by the Project Manager's PM-002 assessment:
 Wave 3 was listed as "Not started" despite being implemented, independently
 reviewed, remediated, and merged; Wave 3's narrative section was missing
@@ -847,13 +860,19 @@ unchanged from the E6-gate commit, 4 skips unchanged (the same
 
 | ID | Item | Impact | Age |
 |---|---|---|---|
-| E1 | Cloudflare account + zone add for `haroonie.ai` | Blocks Wave 4 | New |
-| E2 | Registrar nameserver delegation to Cloudflare | Blocks Wave 4 | New |
+| E1 | Cloudflare account + zone add for `haroonie.ai` | Blocks Wave 4 | **INFERRED, not confirmed** — see "E1/E2 — DNS delegation" below |
+| E2 | ~~Registrar nameserver delegation to Cloudflare~~ | **RESOLVED — PROVEN 2026-09-14**, closed | Closed 2026-09-14 |
 | E3 | GitHub repo under `haroonie-ai-ops` + secrets configured | **Repo half DONE** — `haroonie-ai-ops/public-site`, 26 commits pushed 2026-09-11, no longer local-only. Secrets half still open (needs E5's token value) | Partially resolved 2026-09-11 |
 | E5 | Cloudflare API token — Account → Cloudflare Pages: Edit (CI only) | Blocks Wave 3 verification | Owner-actioned 2026-09-11, in progress |
 | E4 | Transactional email credential | Blocks Wave 5 only; not a launch blocker | New |
 | E6 | Copy: services, bio, legal entity/address, mailbox, booking URL | Blocks production sign-off on affected pages only; does not block any wave from starting | New |
 | E8 | **R-6.1 AC2 is unimplementable as specified**: branch protection and rulesets are unavailable on private repos on GitHub Free. Owner must choose public repo, GitHub Pro, or an AC change | Blocks Wave 3 exit, not Wave 3 start | New 2026-09-11 |
+| E10 | **Wave 4's planned Cloudflare access path is not viable**: the OAuth session PLAN-001's E5 correction relies on cannot read or write zone resources. Owner must choose a scoped token, `wrangler login`, or manual dashboard configuration | Blocks Wave 4 execution (not drafting); Wave 7 cannot close | New 2026-09-14 |
+
+Row struck through, not deleted, per this table's own convention elsewhere
+(E3/E5) of recording resolution without erasing the original entry — E2's
+row is kept so the record shows what was asked and that it was actually
+verified closed, not just assumed.
 
 No blocker halts the whole program. Waves 1, 2, 5 (once its precondition
 lands), and 6 are fully executable today without any owner action beyond the
@@ -980,6 +999,101 @@ live probe. Issues not granted — it was optional, no action needed.
 endpoints that would prove it are the plan-gated ones above. `Contents` and
 `Workflows` write cannot be probed read-only; the first push will confirm
 both.
+
+## E1/E2 — DNS delegation: E2 proven, E1 inferred, a registrar fact, and a nameserver reference for Wave 4 (2026-09-14)
+
+**Owner-supplied, then independently verified — twice, in two separate
+sessions, with identical results both times:**
+
+**E2 — CLOSED, proven by direct public DNS lookup**, not by owner claim
+alone. `nslookup -type=NS haroonie.ai 8.8.8.8` returns:
+
+    haroonie.ai  nameserver = alex.ns.cloudflare.com
+    haroonie.ai  nameserver = zoe.ns.cloudflare.com
+
+Cloudflare's own nameservers, delegated, against real public DNS — this
+satisfies R-7.1 AC1's "Cloudflare nameservers are returned" half directly,
+not as a claim to be re-verified later. **Registrar fact, also owner-
+supplied and consistent with the above: Cloudflare is also the domain
+registrar for `haroonie.ai`.** Registration and DNS hosting are the same
+vendor here — there is no separate third-party registrar performing a
+delegation step to a different DNS host. This is a material simplification
+of PLAN-001's original E2 framing ("registrar nameserver delegation to
+Cloudflare"), which assumed a distinct registrar; that assumption is
+corrected in `planning/PLAN-001-execution-waves.md` alongside this entry.
+
+**E1 — remains INFERRED, NOT independently confirmed.** Cloudflare only
+issues a specific assigned nameserver pair once a zone is added to an
+account, so the delegation above strongly implies the zone exists. But
+`GET /zones?name=haroonie.ai` and an unfiltered `GET /zones`, through the
+`cloudflare-api` OAuth session, both return `success: true` with an
+**empty result list and `total_count: 0`** — reproduced independently,
+same result both times, once by the Project Manager and once again by this
+Engineer. Given the QA-003/E9 finding that this OAuth grant reads as
+product-scoped rather than account-wide (Pages and account/member
+endpoints readable; KV, Workers, and R2 not accessible even for reads), the
+most likely explanation is that zone resources are simply outside this
+grant, and the empty list is an access artifact — not evidence that no
+zone exists. **E1 is not recorded as closed on this evidence.** Closing it
+needs either a credential that can actually read zone resources, or the
+owner confirming zone status directly in the Cloudflare dashboard.
+
+**No DNS records exist yet, confirmed directly:** `www.haroonie.ai` →
+`NXDOMAIN`; apex `haroonie.ai` has no `A` record. The zone (if it exists,
+per E1 above) is delegated but not yet configured — R-7.2/R-7.3 remain
+fully untouched work, exactly as PLAN-001 already scoped them to Wave 4.
+
+**Reference value for Wave 4 (R-7.1 AC1):** `alex.ns.cloudflare.com` and
+`zoe.ns.cloudflare.com` — the exact nameserver pair to check against when
+Wave 4 verifies delegation. Also recorded in
+`planning/PLAN-001-execution-waves.md`'s Wave 4 section.
+
+## E10 — Wave 4's planned Cloudflare access path is not viable (2026-09-14)
+
+**Found while verifying E1 above** — not a new probe, a direct consequence
+of it. PLAN-001's E5 scope-correction section states Wave 4 zone
+configuration would be performed "through Cloudflare's hosted remote MCP
+server (`https://mcp.cloudflare.com/mcp`, OAuth, interactive owner
+consent) rather than a stored credential," specifically so no long-lived
+DNS-capable secret would ever need to exist.
+
+**That plan does not hold up**, on evidence stronger than when E9 first
+raised the OAuth grant's scope: the session is read-only, and per the E1
+finding immediately above, does not appear to cover zone resources even
+for **reading**, let alone the **writes** Wave 4 actually needs:
+- R-7.2 — a DNS record (`www` canonical + TLS)
+- R-7.3 — a redirect rule (permission name "Dynamic Redirect", not "Single
+  Redirect," per PLAN-001's own E5 note)
+- R-7.4 — zone TLS settings
+
+None of these can be performed by the access this program currently has.
+**R-7.5 (security headers) is unaffected by any of this** — it ships from
+`public/_headers` in the repository and needs no Cloudflare permission at
+all. Per PM-002, that file does not yet exist on either branch; it remains
+fully executable today with zero owner input, independent of E1/E10.
+
+**Owner decision required — three options:**
+
+1. **A scoped Cloudflare API token** with Zone → DNS: Edit, Zone → Zone
+   Settings: Edit, and Zone → Dynamic Redirect. This is explicitly what
+   PLAN-001's E5 correction was trying to avoid creating — noting that
+   tension honestly rather than glossing over it: avoiding a second stored
+   secret was a deliberate choice, and this option reverses it.
+2. **`wrangler login`**, run interactively by the owner, granting real
+   write scopes via OAuth rather than a stored token.
+3. **The owner performs Wave 4's zone configuration manually** in the
+   Cloudflare dashboard — no agent access required at all.
+
+**Recommendation:** not made here — this is the owner's call to weigh
+(a stored secret's blast radius vs. an interactive step vs. manual work),
+and PLAN-001's E5 correction already shows this program's stated preference
+for avoiding a second long-lived credential when avoidable. Recorded as
+three genuine options, not steered toward one.
+
+**Does not block Wave 4 from being drafted** — the workflow/config
+reasoning in PLAN-001 §2 (Wave 4) is unaffected. **Does block Wave 4 from
+being executed** by an agent under this program's current access, until
+the owner picks one of the three options above.
 
 ## Recommended immediate next step
 
