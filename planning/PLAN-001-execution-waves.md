@@ -95,6 +95,50 @@ per CLAUDE.md):**
   security headers need no Cloudflare permission at all — they ship from
   `public/_headers` in the repository.
 
+  **Correction, 2026-09-14 — this plan is not viable; superseded by E10, not
+  deleted.** The paragraph above was written assuming the hosted OAuth MCP
+  session would have the access Wave 4 needs. It does not: independently
+  verified (twice, in two separate sessions, identical result both times),
+  `GET /zones` through that same session returns `success: true` with an
+  **empty result** for an account that public DNS proves has at least one
+  Cloudflare-delegated domain — consistent with this program's separate
+  finding (E9) that the grant is product-scoped (Pages/account endpoints
+  readable; several other products, including this one, are not), not
+  account-wide. If the session cannot even *read* zone resources, it cannot
+  perform the *writes* (R-7.2 DNS records, R-7.3's redirect rule, R-7.4 TLS
+  settings) this paragraph assumed it would. Full reasoning, the
+  independent verification, and three owner options (a scoped token — the
+  exact thing this correction was written to avoid; `wrangler login`; or
+  manual dashboard configuration) are recorded as **E10** in
+  `status/STATUS.md` — not duplicated here to avoid two copies drifting
+  apart. E5 itself is unaffected and still correct as a CI-only token; only
+  this paragraph's Wave 4 plan is superseded.
+
+- **E2 CLOSED, 2026-09-14 — proven, not assumed.** Direct public DNS lookup
+  (`nslookup -type=NS haroonie.ai 8.8.8.8`, independently reproduced twice)
+  returns `alex.ns.cloudflare.com` and `zoe.ns.cloudflare.com` — Cloudflare's
+  own nameservers, delegated. This satisfies R-7.1 AC1's "Cloudflare
+  nameservers are returned" half against real evidence. **Registrar fact,
+  owner-supplied and consistent with the above: Cloudflare is also the
+  domain registrar for `haroonie.ai`.** This is a material simplification
+  of this row's original framing ("registrar nameserver delegation to
+  Cloudflare"), which implicitly assumed a separate third-party registrar
+  performing a delegation step to a different DNS host. That vendor
+  boundary does not exist here — registration and DNS hosting are the same
+  vendor, so there is no separate registrar-side action anyone needs to
+  take or verify.
+- **E1 remains INFERRED, not confirmed, 2026-09-14.** The delegation above
+  strongly implies a zone exists (Cloudflare only issues a specific
+  nameserver pair once a zone is added), but `GET /zones` — both filtered
+  and unfiltered — returns an empty, ambiguous result under this program's
+  current API access (see the E5 correction above and E10 in
+  `status/STATUS.md`). Do not treat E1 as closed on the delegation alone;
+  it needs either a credential that can read zone resources or the owner
+  confirming status directly in the dashboard. Confirmed directly, and
+  unaffected by the above: no DNS records exist yet — `www.haroonie.ai` is
+  `NXDOMAIN` and the apex has no `A` record, so R-7.2/R-7.3 remain fully
+  untouched work, exactly as already scoped to Wave 4 below.
+
 **Action for owner, low effort, unblocks the most work fastest:** E3 and E5
 together unlock all of Wave 3; E1+E2 together unlock all of Wave 4. E6 does
 not block any code from being written, only from being marked
@@ -188,13 +232,24 @@ on the strength of a local dry run alone.
 
 ### Wave 4 — Domain and hosting configuration
 **Depends on:** nothing from Wave 1–3 technically, but has no code to test
-against until Wave 3 exists. **Owner-blocked on:** E1, E2.
+against until Wave 3 exists. **Owner-blocked on:** E1 (inferred resolved
+from delegation, not independently confirmed — see the Wave 0 corrections
+above) and **E10** (new, 2026-09-14: the access path this section originally
+assumed — Cloudflare's hosted OAuth MCP server — does not appear to reach
+zone resources; see the E5 correction above and `status/STATUS.md`).
+**E2 is closed** (nameserver delegation proven 2026-09-14) and no longer
+blocks this wave.
 
 Scope: R-7.1 (zone active on Cloudflare nameservers), R-7.2 (`www` canonical
 + TLS), R-7.3 (apex → `www` 301, path-preserving), R-7.4 (HTTPS upgrade +
 HSTS), R-7.5 (security headers), R-7.6 (trailing-slash canonicalization).
 Also: create the Cloudflare Pages project itself — this is shared
 infrastructure between Wave 3 and Wave 4, do it once, here, first.
+
+**R-7.1 AC1 reference value, confirmed 2026-09-14 by direct public DNS
+lookup:** `haroonie.ai`'s delegated nameservers are `alex.ns.cloudflare.com`
+and `zoe.ns.cloudflare.com`. Verify against these exact values, not a
+generic "*.ns.cloudflare.com" pattern.
 
 **Exit criteria:**
 - `https://www.haroonie.ai/` resolves to a Cloudflare Pages deployment with a
@@ -276,10 +331,20 @@ prohibits any entry surviving to production.
 
 | Blocker | Impact radius | What proceeds regardless |
 |---|---|---|
-| E1/E2 not actioned | Wave 4 cannot start; Wave 7 cannot close | Waves 1, 2, 3, 5, 6 all proceed fully |
+| E1 unconfirmed / E10 (updated 2026-09-14; E2 closed) | Wave 4 cannot start; Wave 7 cannot close | Waves 1, 2, 3, 5, 6 all proceed fully |
 | E3/E5 not actioned | Wave 3 cannot be *verified* (drafting still possible); Wave 7 cannot close | Waves 1, 2, 4, 5, 6 all proceed fully |
 | E4 not actioned | Wave 5 cannot start | Every other wave, including go-live, proceeds — R-3.1 is non-blocking by design |
 | E6 incomplete | Affected pages carry logged placeholders, blocking only those pages' production sign-off | Scaffolding, tests, CI, domain, and unaffected pages all proceed |
+
+**Row updated 2026-09-14, not silently replaced:** this row originally read
+"E1/E2 not actioned." E2 (nameserver delegation) is now proven closed by
+direct public DNS lookup — see the Wave 0 corrections and Wave 4 section
+above. E1 (zone existence) remains unconfirmed, not closed, on the same
+evidence. A new escalation, E10, replaces what was going to be the access
+mechanism for actually configuring the zone once E1/E2 cleared — so Wave
+4's practical blocker moved from "delegation not done" to "confirmed
+delegation, unconfirmed zone, and no working access path to configure it
+regardless." Full detail: `status/STATUS.md` (E1/E2, E10).
 
 No single outstanding item halts the program. Per CLAUDE.md failure policy,
 any wave that hits three unsuccessful repair cycles is logged as a blocker
@@ -296,3 +361,17 @@ and **E1+E2** (unlocks Wave 4) — both can be done today in parallel with
 each other and with Wave 1/2 engineering work already starting. E6 (copy)
 is the next-highest leverage item since it gates production sign-off on
 three pages, but does not block any wave from starting.
+
+**Updated 2026-09-14, not silently replaced:** E2 is now done — proven by
+direct DNS lookup, not just actioned. E1 is very likely also done (the
+delegation above is strong indirect evidence a zone exists) but is not
+independently confirmed under this program's current Cloudflare access,
+and should not be treated as closed on inference alone. The bigger
+practical gap for Wave 4 is now **E10**: even once E1 is confirmed, this
+program has no working access path to actually perform Wave 4's DNS/
+redirect/TLS configuration — the plan this document originally recorded
+(the hosted OAuth MCP server) does not reach zone resources. The owner's
+highest-leverage action for Wave 4 today is deciding E10's three options
+(scoped token / `wrangler login` / manual dashboard work), not E1/E2,
+which are effectively settled or near-settled. Full detail:
+`status/STATUS.md` (E1/E2, E10).
