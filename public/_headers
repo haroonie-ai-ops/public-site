@@ -1,0 +1,49 @@
+# Cloudflare Pages headers file (https://developers.cloudflare.com/pages/configuration/headers/).
+# Everything in `public/` is copied verbatim into the build output, so this
+# file ships as-is to Cloudflare Pages — no build step touches it.
+#
+# REQ-001 R-7.5 — baseline security response headers, on every production
+# page response (AC1: X-Content-Type-Options, Referrer-Policy, CSP; AC2: the
+# CSP must not break any real page — see the derivation note below).
+#
+# Deliberately NOT included here: Strict-Transport-Security. That is R-7.4
+# AC2, which belongs with the domain/TLS work (Wave 4, owner-blocked on
+# E1/E2) — an HSTS header shipped before the zone/TLS setup is finished is
+# far harder to safely undo than any header in this file, so it stays out
+# until R-7.4 lands deliberately, not as a side effect of this change.
+#
+# CSP derivation (inspected the live production responses at
+# https://haroonie-ai-public-site.pages.dev/ across every R-2 route — home,
+# services, about, contact, privacy, terms, 404 — rather than guessing):
+#   - No external scripts, stylesheets, fonts, images, or XHR/fetch targets
+#     exist anywhere in the built output. Every page is self-hosted static
+#     HTML/CSS from this one origin.
+#   - The only <script> element is `application/ld+json` structured data on
+#     the home page. CSP's script-src does not govern non-JS "data block"
+#     script types (application/ld+json, application/json, importmap), so
+#     it does not need `'unsafe-inline'` and stays locked to 'self'.
+#   - The Contact page's "Book a time to talk" link is a plain, same-tab-
+#     opening-in-new-tab <a href> to https://www.haroonie.ai/booking, not an
+#     iframe/script embed — it needs no CSP allowance at all, it's a normal
+#     top-level navigation.
+#   - Astro inlines each page's scoped component CSS as a <style> element in
+#     <head> (not `style="..."` attributes — none exist). A static
+#     Cloudflare Pages _headers file can't mint a per-response nonce, and
+#     hashing every inline style block would need regenerating on every
+#     content/CSS change, so `style-src` carries 'unsafe-inline' as a
+#     deliberate, scoped exception — inline CSS injection cannot execute
+#     script, unlike `script-src 'unsafe-inline'`, which this policy does
+#     not have.
+#   - The contact form has no `action` and its submit button is disabled
+#     (not wired up yet — R-3.1/Wave 5). `form-action 'self'` is set now on
+#     the reasonable assumption the eventual handler is same-origin; revisit
+#     this directive when Wave 5 wires up real submission.
+#
+# Revisit this file whenever new content adds a real third-party dependency
+# (analytics, a booking *embed* rather than a link, a webfont host, etc.) —
+# nothing here should be loosened speculatively ahead of that.
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'
