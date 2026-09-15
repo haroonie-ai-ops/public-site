@@ -1,6 +1,31 @@
 # Workstream Status — haroonie.ai Public Website
 
-Last updated: 2026-09-14 — **Domain facts recorded, proven separately from
+Last updated: 2026-09-15 — **Six corrections/additions, none of them code,
+DNS, or a merge.** (1) The recurring "`git fetch`/`push` hang — a sandbox/
+environment characteristic" narrative carried across PM-002, PM-003, and
+QA-004's regression review is corrected: it is an **authentication
+failure** (no stored credential; Git Credential Manager blocks on a
+prompt nothing answers), not a transport or worktree-isolation
+characteristic — see "Git fetch/push failure — corrected root cause"
+below. (2) **E1 is now CLOSED, proven** (a working `CLOUDFLARE_ZONE_TOKEN`
+confirms the `haroonie.ai` zone active on Cloudflare) — see "E1/E2 — DNS
+delegation" below. (3) **E10 is upgraded from "does not appear to reach
+zone resources" to proven non-functional for Wave 4**, and its three
+owner options collapse to one now-viable path (a scoped zone token,
+read-confirmed) — see "E10" below. (4) Two new owner items recorded:
+`CLOUDFLARE_API_TOKEN`'s scope was never verified and cannot be verified
+by any agent; `main` is unprotected while two red PRs sit mergeable,
+which a peer session now assesses as **higher priority than E10** — see
+the E8 and E10 sections below. (5) A real, unfixed **Wave 2b coverage
+gap** is recorded: the custom 404 page has zero accessibility test
+coverage — see "Wave 2b remediation — 404 accessibility coverage gap"
+below. (6) The 6 local-only commits on local `main` are confirmed
+byte-identical to `origin/main` content already published — duplicated
+history, not lost work — see "Local `main` duplicate-history
+reconciliation" below. R-2.3 AC1 remains blocked on E6, untouched by any
+of the above; the `SITE_ENV=prelaunch` production gate is untouched.
+
+Prior update, 2026-09-14 — **Domain facts recorded, proven separately from
 inferred.** `haroonie.ai`'s nameserver delegation to Cloudflare (E2) is
 CLOSED on direct public DNS evidence; zone existence on Cloudflare (E1)
 is only INFERRED from that delegation, not independently confirmed — the
@@ -11,7 +36,9 @@ server) does not appear to reach zone resources at all, let alone grant
 the writes Wave 4 needs — three owner options are recorded, none chosen.
 See "E1/E2 — DNS delegation" and "E10 — Wave 4's planned Cloudflare access
 path is not viable" below. No Wave 4 work was started; this is
-documentation only.
+documentation only. **This paragraph's E1/E10 characterization is itself
+now superseded — see the 2026-09-15 update above; left in place per this
+document's own convention of correcting in place rather than rewriting.**
 
 Prior update, 2026-09-13 — **This update reconciles integrity problems in
 this document itself**, found by the Project Manager's PM-002 assessment:
@@ -842,6 +869,58 @@ patterns extend an existing test's array, not new test cases) — 218 total,
 unchanged from the E6-gate commit, 4 skips unchanged (the same
 `test.fixme` × 3 browsers plus the documented WebKit tab-order case).
 
+## Wave 2b remediation — 404 page has no accessibility coverage (Open, not yet fixed — 2026-09-15)
+
+**A real coverage gap, found by a peer session, recorded here as an open
+Wave 2b remediation item.** The custom 404 page has zero accessibility
+test coverage on `origin/main` today.
+
+**Evidence.** The Wave 2a-era `tests/a11y.spec.ts` (commit `a2871b2`)
+scanned `allRoutes` **plus** an explicit `test('the custom 404 page has
+zero serious/critical accessibility violations')` hitting
+`/this-page-does-not-exist/`. The shipped `tests/accessibility.spec.ts` on
+`origin/main` loops `allRoutes` **only**. A `git grep` across all shipped
+tests finds **no** accessibility assertion against the 404 page anywhere
+— the rename from `a11y.spec.ts` to `accessibility.spec.ts` dropped that
+case. A peer confirmed this by exhaustion: `allRoutes` on `origin/main` is
+exactly 6 entries with no 404, and grepping every shipped test for
+`404|does-not-exist|not-found` finds only the R-2.6 status assertion in
+`tests/smoke.spec.ts` and the sitemap-exclusion assertion in
+`tests/seo-preview.spec.ts` — so the page is served, routed, and
+status-tested, with **no** accessibility assertion anywhere.
+
+**In scope.** R-5.1 AC1 reads "Given **any page** … zero violations of
+serious or critical impact," and R-2.6 makes the custom 404 a page the
+site actually serves — so it is in scope, and currently unscanned.
+
+**Why two QA passes missed it — worth recording, the lesson matters more
+than the bug.** QA-004 verified the axe integration was not *narrowed by
+configuration* (no disabled rules, no severity filter, no restricted
+selectors) and passed it — accurate, but it never asked whether the
+*route set* itself was complete. A correct answer to a slightly wrong
+question. **Recommendation:** make route-set completeness an explicit
+check in any future QA of R-5.1, not just configuration narrowing.
+**Suggested structural guard:** assert the scanned-route count against the
+set of pages the site actually serves, so a page that exists but isn't
+enumerated in the test's route list fails loudly instead of silently
+going unscanned.
+
+**Credit:** the `public-site-cd` session, whose cross-branch object sweep
+surfaced this.
+
+**Sequencing — deliberately queued, not stalled.** This is recorded as an
+open item and **not fixed in this pass**: it is deliberately queued
+behind PRs #4 and #5 to avoid a third concurrent PR against an unprotected
+`main` in this shared checkout (see the E8 section above).
+
+**The related scare is resolved, not a regression — stated explicitly so
+it isn't re-investigated.** A 129-line `tests/support/a11y.ts` variant
+found in a local worktree is **older** than the shipped 51-line version,
+not a trimmed-down one — the shipped helper still scans the full default
+axe rule set and filters to serious/critical impact afterward. Nothing
+was quietly narrowed; the shipped helper is the more current, not the
+weaker, of the two.
+
 ## Wave status
 
 | Wave | Description | Status | Blocked by |
@@ -860,19 +939,20 @@ unchanged from the E6-gate commit, 4 skips unchanged (the same
 
 | ID | Item | Impact | Age |
 |---|---|---|---|
-| E1 | Cloudflare account + zone add for `haroonie.ai` | Blocks Wave 4 | **INFERRED, not confirmed** — see "E1/E2 — DNS delegation" below |
+| E1 | ~~Cloudflare account + zone add for `haroonie.ai`~~ | **RESOLVED — CLOSED 2026-09-15**, zone confirmed active via `CLOUDFLARE_ZONE_TOKEN` — see "E1/E2 — DNS delegation" below | Closed 2026-09-15 |
 | E2 | ~~Registrar nameserver delegation to Cloudflare~~ | **RESOLVED — PROVEN 2026-09-14**, closed | Closed 2026-09-14 |
 | E3 | GitHub repo under `haroonie-ai-ops` + secrets configured | **Repo half DONE** — `haroonie-ai-ops/public-site`, 26 commits pushed 2026-09-11, no longer local-only. Secrets half still open (needs E5's token value) | Partially resolved 2026-09-11 |
 | E5 | Cloudflare API token — Account → Cloudflare Pages: Edit (CI only) | Blocks Wave 3 verification | Owner-actioned 2026-09-11, in progress |
 | E4 | Transactional email credential | Blocks Wave 5 only; not a launch blocker | New |
 | E6 | Copy: services, bio, legal entity/address, mailbox, booking URL | Blocks production sign-off on affected pages only; does not block any wave from starting | New |
-| E8 | **R-6.1 AC2 is unimplementable as specified**: branch protection and rulesets are unavailable on private repos on GitHub Free. Owner must choose public repo, GitHub Pro, or an AC change | Blocks Wave 3 exit, not Wave 3 start | New 2026-09-11 |
-| E10 | **Wave 4's planned Cloudflare access path is not viable**: the OAuth session PLAN-001's E5 correction relies on cannot read or write zone resources. Owner must choose a scoped token, `wrangler login`, or manual dashboard configuration | Blocks Wave 4 execution (not drafting); Wave 7 cannot close | New 2026-09-14 |
+| E8 | **R-6.1 AC2 is unimplementable as specified**: branch protection and rulesets are unavailable on private repos on GitHub Free. Owner must choose public repo, GitHub Pro, or an AC change. **Now assessed higher priority than E10** — `main` is unprotected and two PRs (#4, #5) are mergeable while red (see E8 section below) | Blocks Wave 3 exit, not Wave 3 start | New 2026-09-11; reprioritized 2026-09-15 |
+| E10 | **Wave 4's planned Cloudflare access path is PROVEN non-functional, not merely "does not appear to reach"** (2026-09-15) — the OAuth session sees zero zones on the same account a working zone token confirms is active. **One option is now half-resolved**: a scoped `CLOUDFLARE_ZONE_TOKEN` is read-confirmed (DNS, rulesets, settings, Pages) but zone-write is untested pending `REQ-001-A1`, and has no expiry set. See "E10" below | Blocks Wave 4 write execution; read verification now unblocked | New 2026-09-14; updated 2026-09-15 |
+| E11 | `CLOUDFLARE_API_TOKEN` (CI Pages-deploy secret) scope was never independently verified, and cannot be verified by any agent (`GET /user/tokens` / `GET /accounts/{id}/tokens` both return `9109 Unauthorized`; the CI secret's value cannot be read back). More consequential now the zone carries live MX/SPF for a working mailbox | Owner dashboard check only; no agent verification path exists | New 2026-09-15 |
 
 Row struck through, not deleted, per this table's own convention elsewhere
-(E3/E5) of recording resolution without erasing the original entry — E2's
-row is kept so the record shows what was asked and that it was actually
-verified closed, not just assumed.
+(E2/E3/E5) of recording resolution without erasing the original entry —
+kept so the record shows what was asked and that it was actually verified
+closed, not just assumed.
 
 No blocker halts the whole program. Waves 1, 2, 5 (once its precondition
 lands), and 6 are fully executable today without any owner action beyond the
@@ -923,6 +1003,78 @@ file**.
    environment variable.
 3. Wave 4's real Cloudflare permission surface was larger than PLAN-001's E5
    entry implied. Resolved by OAuth rather than by widening a stored token.
+
+## Git fetch/push failure — corrected root cause (2026-09-15)
+
+**This corrects a characterization repeated across several of this
+program's own documents** (`status/PM-002-program-status-assessment.md`,
+`status/PM-003-program-status-assessment.md`, and the QA-004 regression
+review in `status/QA-004-wave2b-tester-review.md`): that `git fetch`/
+`push` "hang" against `origin` from "this sandbox," treated as an
+environment/worktree-isolation characteristic rather than a fixable local
+config issue, with the GitHub REST API recorded as the durable, sanctioned
+substitute. **That characterization is wrong, and has been for several
+waves.** Per this document's own convention, the original text in those
+documents is left in place, not rewritten; this section is the correction,
+dated and attributed.
+
+**Corrected facts, verified in this session:**
+
+- With prompting disabled, git fails **immediately** — there is no hang at
+  all:
+
+      GIT_TERMINAL_PROMPT=0 git ls-remote origin HEAD
+      → remote: Invalid username or token. Password authentication is not supported for Git operations.
+      → fatal: Authentication failed for 'https://github.com/haroonie-ai-ops/public-site.git/'
+
+- **Root cause: no usable stored credential for this remote.** Git
+  Credential Manager opens an interactive prompt; stdin is the null
+  device, nothing answers, and the command *appears* to hang. It is an
+  authentication failure, not a transport or sandbox-isolation problem.
+- A working invocation (verified — `ls-remote` returns instantly, `fetch
+  origin` succeeds):
+
+      git -c credential.helper= \
+          -c credential.helper='!f() { echo "username=x-access-token"; echo "password=$GITHUB_PERSONAL_ACCESS_TOKEN"; }; f' \
+          fetch origin
+
+  The **empty first `-c credential.helper=`** is load-bearing — it clears
+  inherited helpers so GCM never wins. An attempt without it hangs exactly
+  as previously recorded.
+- **Caveat, recorded honestly:** this workaround is *not* universally
+  available. Another session reported its permission classifier **blocks**
+  that command because it interpolates a secret into a shell command line
+  — a reasonable block on its own merits. The inline-helper form works in
+  some sessions and not others; it is not a program-wide fix.
+- **Therefore the recommended durable fix is a stored credential**
+  (`gh auth login`, or `git credential-store`), which makes ordinary `git
+  fetch`/`push` work in *every* session with no secret on any command
+  line. **Recorded as an owner action.**
+
+**Attribution:** the corrected diagnosis (authentication failure, not
+sandbox isolation) came from the `Project status update` session; the
+empty-`-c credential.helper=` detail came from the `public-site-94`
+session.
+
+## Local `main` duplicate-history reconciliation (2026-09-15)
+
+The 6 local-only commits on local `main` (see the divergence notes
+elsewhere in this document and in the PM assessments) have been verified
+**byte-identical to content already published on `origin/main`**, per-file
+`git hash-object` comparison, **confirmed independently by two other
+sessions** — not asserted from one comparison alone.
+
+**This closes a data-loss concern this program has raised repeatedly**
+(PM-002 §7, PM-003 §7, and elsewhere): those 6 commits are **duplicated
+history, not unpublished deliverables**. Nothing sitting only on local
+`main` is at risk of being lost if that branch is reset — the content
+exists on `origin/main` under different commit SHAs already.
+
+**Resetting local `main` to `origin/main` is therefore safe, content-wise
+— but is being left to the owner**, not performed here, because four
+sessions currently share this working directory and none of them should
+unilaterally rewrite a branch ref another session may be mid-operation
+against. This is a recommendation, not an action taken.
 
 ## E3 — remote established, program history pushed (2026-09-11)
 
@@ -1000,6 +1152,23 @@ endpoints that would prove it are the plan-gated ones above. `Contents` and
 `Workflows` write cannot be probed read-only; the first push will confirm
 both.
 
+### E8 — new evidence and a priority reassessment (2026-09-15)
+
+**New facts, live-verified:** `main` is confirmed **unprotected**
+(`"protected": false`) — CI *reports* pass/fail on every PR, but nothing
+*gates* on it, and production deploys on every push to `main` regardless.
+Two open PRs (**#4, #5**) are currently **mergeable while red** — live,
+concrete instances of exactly the gap this escalation described in the
+abstract back in 2026-09-11.
+
+**Priority reassessment, attributed:** the `Project status update` session
+now assesses **E8 as higher priority than E10** — an unenforced merge gate
+on a repository already carrying two mergeable-red PRs is a live risk
+today, whereas E10's Wave 4 access-path gap only blocks work that has not
+started. Recorded as that session's assessment, not re-derived here; the
+three options above (public repo / GitHub Pro / amend R-6.1 AC2) are
+unchanged.
+
 ## E1/E2 — DNS delegation: E2 proven, E1 inferred, a registrar fact, and a nameserver reference for Wave 4 (2026-09-14)
 
 **Owner-supplied, then independently verified — twice, in two separate
@@ -1048,6 +1217,22 @@ fully untouched work, exactly as PLAN-001 already scoped them to Wave 4.
 Wave 4 verifies delegation. Also recorded in
 `planning/PLAN-001-execution-waves.md`'s Wave 4 section.
 
+### Correction — E1 is now CLOSED, proven (2026-09-15)
+
+**The "INFERRED, NOT independently confirmed" framing above is superseded,
+not deleted — left in place per this document's own convention.** A
+working `CLOUDFLARE_ZONE_TOKEN` (a Cloudflare user token, `cfut_` prefix,
+status **active**, **no expiry set**, held at Windows User scope) now
+reads zone resources directly, independent of the OAuth session that
+previously returned the ambiguous empty result. Verified with it:
+`haroonie.ai` zone `3708736be9e9237044212d032e737484`, **status active**,
+Free plan, nameservers `alex.ns.cloudflare.com` / `zoe.ns.cloudflare.com`
+— matching the DNS-delegation evidence above exactly. **E1 is CLOSED.**
+Full detail on this token, what it does and does not prove, and why the
+OAuth path never saw this zone, is recorded in the E10 section below —
+this note exists so a reader of E1 alone gets the correct, current
+status without having to already know to look elsewhere.
+
 ## E10 — Wave 4's planned Cloudflare access path is not viable (2026-09-14)
 
 **Found while verifying E1 above** — not a new probe, a direct consequence
@@ -1094,6 +1279,95 @@ three genuine options, not steered toward one.
 reasoning in PLAN-001 §2 (Wave 4) is unaffected. **Does block Wave 4 from
 being executed** by an agent under this program's current access, until
 the owner picks one of the three options above.
+
+### Correction — one option is now half-resolved, and the OAuth path is proven, not inferred, non-functional (2026-09-15)
+
+**The three-options framing above is superseded, not deleted** — left in
+place per this document's own convention; this section states precisely
+what has changed so the owner is not asked to choose between three options
+when one is no longer fully open.
+
+**Option 1 (a scoped Cloudflare API token) now partly exists.** A working
+**`CLOUDFLARE_ZONE_TOKEN`** (user token, `cfut_` prefix, status **active**,
+**no expiry set**, held at Windows User scope) is confirmed:
+- `haroonie.ai` zone `3708736be9e9237044212d032e737484`, status active,
+  Free plan, nameservers `alex.ns.cloudflare.com` / `zoe.ns.cloudflare.com`
+  — **this closes E1** (previously inferred-not-confirmed; see the
+  correction in "E1/E2 — DNS delegation" above).
+- **Zone read is confirmed** across DNS records, rulesets, zone settings,
+  and Pages.
+- **Zone write is untested, and deliberately so** — no zone modification
+  has been made with this token, pending the `REQ-001-A1` DNS coexistence
+  amendment.
+- `always_use_https` currently reads **`off`**, so R-7.4 is real,
+  outstanding work, not something already satisfied by default.
+
+So option 1 is **read-satisfied, write-unproven** — not "open" in the same
+sense as options 2 and 3. Stated precisely here so the owner is choosing
+among the right set of alternatives. **The token has no expiry set** —
+recommend a TTL, or revocation once Wave 4 completes.
+
+**The OAuth path (this section's original framing) is now proven
+non-functional for Wave 4, not merely "does not appear to reach zone
+resources."** A separate session holding an authorized `cloudflare-api`
+OAuth grant ran read-only probes this session could not:
+- Via OAuth, the grant sees exactly one account: `Haroonyoeu@gmail.com's
+  Account` (`bb8eb20a5a4694930299522043258e3e`).
+- `GET /zones` via OAuth returns `success: true, count: 0` — **empty, not
+  a 403.**
+- Yet `CLOUDFLARE_ZONE_TOKEN` shows `haroonie.ai` **active on that same
+  account.**
+
+The zone exists exactly where the OAuth session is bound, and that session
+still cannot see it. **Conclusion: proven, not inferred** — the OAuth/MCP
+path is **non-functional for Wave 4**, not merely riskier or read-only. It
+cannot create R-7.2's DNS record, R-7.3's redirect rule, or change R-7.4's
+TLS settings. PLAN-001's E5 correction — which routed Wave 4 through the
+OAuth path specifically to avoid a stored DNS-capable credential — is
+therefore **not merely overtaken but unworkable**, and a narrowly-scoped
+zone token is the only viable route left of the original three.
+**Attribution:** the session that originally recommended the OAuth
+approach tested it and retracted its own recommendation — credited here
+because that is the kind of correction worth making visible, not quietly
+dropped.
+
+**Two Cloudflare Pages projects exist on the account** —
+`haroonie-ai-public-site` (the live one; production deploys here) and
+`haroonie-bb8eb` (older, bound to `www.haroonie.com`). **Wave 4's
+custom-domain attachment must explicitly name `haroonie-ai-public-site`**
+— attaching `www.haroonie.ai` to the stray project is an easy mistake and
+awkward to unpick after the fact. The good news, not a given going in:
+the zone and the correct Pages project are on the **same** Cloudflare
+account, so native custom-domain attachment will work.
+
+**The additive-only DNS constraint is now testable, not just advisory.**
+Independently confirmed by a second session: the zone has **zero
+web-facing records** — no `A`, `AAAA`, or `CNAME` on either the apex or
+`www`; only the 6 mail/Microsoft records exist. R-7.2's constraint is
+therefore precise and checkable: **create-only; never update or delete any
+of the 6 existing records.**
+
+## E11 — `CLOUDFLARE_API_TOKEN` scope was never verified (New, 2026-09-15)
+
+The CI deploy secret `CLOUDFLARE_API_TOKEN` was created and supplied
+directly by the owner; nobody has confirmed it grants only Account →
+Cloudflare Pages: Edit, as intended (see "Access and credentials" above).
+
+**It cannot be verified by any agent.** `GET /user/tokens` and `GET
+/accounts/{id}/tokens` both return `9109 Unauthorized` when probed with
+the zone token, and the CI secret's actual value cannot be read back from
+GitHub once stored. There is no access path from inside this program that
+can confirm this token's real scope.
+
+**Rationale for recording this now rather than treating it as
+already-acceptable:** a deploy secret carrying more permission than Pages
+rights was an acceptable unknown on a greenfield zone with nothing on it.
+It is **not** an acceptable unknown on a zone that now carries live MX and
+SPF records for a working mailbox (per E1/E10 above) — the blast radius of
+an over-scoped token changed the moment the zone became real. **Recorded
+as an owner dashboard check** — the Cloudflare dashboard's own token
+detail view can show the token's actual permissions where the API cannot.
+Credit: the `public-site-94` session.
 
 ## Recommended immediate next step
 
