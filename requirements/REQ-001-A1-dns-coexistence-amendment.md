@@ -1,10 +1,18 @@
 # REQ-001-A1 — Amendment: DNS Zone Coexistence with Existing Mail/Microsoft 365 Records
 
-**Status: DRAFT — requires owner approval. This is a proposed material
-requirement change to an Approved document (REQ-001, Approved 2026-09-10)
-and has NOT been adopted.** Nothing in this file changes REQ-001 until the
-owner explicitly approves it. No implementation may proceed against this
-draft's new acceptance criteria until then.
+**Status: APPROVED — 2026-09-15.** The owner approved this amendment
+directly, in-session, in these words: *"I approve the DNS coexistence
+amendment (REQ-001-A1)."* This is first-hand owner approval, not a relay.
+
+Its content — R-7.7, the new ACs on R-7.2/R-7.3/R-2.4, the R-3.1 note, A9,
+U7–U12, U2's correction, and E11/E12/E13's resolutions — is now
+incorporated into `requirements/REQ-001-mvp-public-website.md` itself,
+which is the operative specification from this point forward. This
+amendment file now stands as the historical record of *why* the change was
+made — the gap assessment, the coexistence analysis, the corrected/
+retracted access-mechanism claim in §5 — rather than as an operative
+requirements document in its own right. Where this file and REQ-001
+disagree on wording, REQ-001 governs.
 
 Amends: `requirements/REQ-001-mvp-public-website.md` (Approved 2026-09-10)
 Cross-references: `planning/PLAN-001-execution-waves.md` Wave 4
@@ -197,11 +205,14 @@ below checks proxy status, not just record content.
 
 ## 3. Proposed amendment text
 
-Everything in this section is proposed new/changed text for
-`requirements/REQ-001-mvp-public-website.md`. It is written in place, ready
-to merge, but is **not** being written into that file by this session per
-the coordination constraint in effect — the owner or a future session
-merges it after approval.
+Everything in this section was proposed new/changed text for
+`requirements/REQ-001-mvp-public-website.md`, at the time this was drafted
+and not yet approved. **Update, 2026-09-15: it has since been approved and
+incorporated into REQ-001 itself** (with the four owner decisions on
+E11/E12/E13 and E8 folded in there too — see that document's §2, §3 R-2.4/
+R-3.1/R-6.1/R-7.2/R-7.3/R-7.7, §4, §5 and §6). The text below is left as
+originally drafted, as the record of what was proposed; REQ-001 is now the
+operative, and occasionally slightly reworded, version.
 
 ### 3.1 New requirement — R-7.7 (insert after R-7.6, before R-8)
 
