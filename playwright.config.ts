@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { LIGHTHOUSE_CDP_PORT } from './tests/support/ports';
 
 const PORT = Number(process.env.PW_PORT ?? 4321);
 const baseURL = `http://localhost:${PORT}`;
@@ -27,22 +28,68 @@ export default defineConfig({
 		{
 			name: 'chromium',
 			use: { ...devices['Desktop Chrome'] },
-			testIgnore: /seo-preview\.spec\.ts/,
+			// Wave 6 additions below all depend on the *built* static output
+			// (accurate JS-transfer accounting, a real Lighthouse run, and
+			// production-representative console/layout behaviour — the dev
+			// server injects Vite/Astro HMR client scripts and dev-only
+			// warnings that would never ship, so counting or reading console
+			// output from it would misrepresent what Cloudflare Pages actually
+			// serves). Each has its own project against `previewBaseURL`
+			// below, so it must not also run here against the dev server.
+			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts/,
 		},
 		{
 			name: 'firefox',
 			use: { ...devices['Desktop Firefox'] },
-			testIgnore: /seo-preview\.spec\.ts/,
+			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts/,
 		},
 		{
 			name: 'webkit',
 			use: { ...devices['Desktop Safari'] },
-			testIgnore: /seo-preview\.spec\.ts/,
+			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts/,
 		},
 		{
 			name: 'static-preview',
 			use: { ...devices['Desktop Chrome'], baseURL: previewBaseURL },
 			testMatch: /seo-preview\.spec\.ts/,
+		},
+		// Wave 6 (R-5.3): cross-browser layout/console-error pass, one project
+		// per engine, all against the built static output via `previewBaseURL`
+		// — the same reasoning as `static-preview` above, generalised to all
+		// three engines instead of just Chromium.
+		{
+			name: 'cross-browser-chromium',
+			use: { ...devices['Desktop Chrome'], baseURL: previewBaseURL },
+			testMatch: /cross-browser\.spec\.ts/,
+		},
+		{
+			name: 'cross-browser-firefox',
+			use: { ...devices['Desktop Firefox'], baseURL: previewBaseURL },
+			testMatch: /cross-browser\.spec\.ts/,
+		},
+		{
+			name: 'cross-browser-webkit',
+			use: { ...devices['Desktop Safari'], baseURL: previewBaseURL },
+			testMatch: /cross-browser\.spec\.ts/,
+		},
+		// Wave 6 (R-5.2 AC1): a dedicated project so the fixed
+		// `--remote-debugging-port` launch arg (needed by playwright-lighthouse
+		// to attach to this exact browser instance) is scoped only to
+		// `lighthouse.spec.ts` and never applied to any other project's
+		// browser. Runs against the built static output for the same reason
+		// as `static-preview`/`cross-browser-*` above — Lighthouse must score
+		// what Cloudflare Pages actually serves, not the dev server. This
+		// project's spec deliberately contains exactly one test (the
+		// production home page, per R-5.2 AC1's own scope) so it never needs
+		// more than one worker and can never race itself for the fixed port.
+		{
+			name: 'lighthouse',
+			use: {
+				...devices['Desktop Chrome'],
+				baseURL: previewBaseURL,
+				launchOptions: { args: [`--remote-debugging-port=${LIGHTHOUSE_CDP_PORT}`] },
+			},
+			testMatch: /lighthouse\.spec\.ts/,
 		},
 	],
 	webServer: [
