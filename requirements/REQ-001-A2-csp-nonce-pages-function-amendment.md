@@ -1,14 +1,28 @@
 # REQ-001-A2 — Amendment: CSP Nonce via Cloudflare Pages Function (Option B)
 
-**Status: DRAFT — pending owner approval.** The owner has instructed, first-hand:
-*"proceed with option B then hand off to @project-manager."* That instruction
-selects the direction (a Pages Function generating a per-request nonce,
-rather than adding `'unsafe-inline'` or disabling Bot Fight Mode). It is not
-yet approval of this document's specific acceptance criteria, the disclosed
-trust-dependency (§2, E15), or the fail-safe/drift rules in §3.1 — those are
-what this document asks the owner to approve, consistent with how
-REQ-001-A1 separated "the direction is chosen" from "these specific ACs are
-approved."
+**Status: APPROVED — 2026-09-16.** The owner approved this amendment
+directly, in-session, in two decisions recorded verbatim in merge commit
+`5a8f4990` (PR #7): *"Approve e14"* (E14 — adopting a Cloudflare Pages
+Function as this site's first server-side, request-time component, and
+moving R-7.5's CSP header off `public/_headers` onto that Function's
+per-request output), followed immediately by *"Approve E15 then merge or
+#7"* (E15 — knowingly accepting the disclosed trust-dependency in §2: the
+CSP's guarantee changes from "nothing inline executes" to "nothing inline
+executes except what Cloudflare stamps," and this program cannot audit
+what runs under that nonce before it executes). Both are first-hand owner
+approval, not a relay, and were given as two distinct decisions rather than
+one — which is why this document separated them in §0.
+
+Its content — the R-7.5 AC1a–AC1f amendments, the new R-7.8, the R-5.2 AC2
+evidence correction, U13–U19, and E14/E15/E16's escalation records — is now
+incorporated into `requirements/REQ-001-mvp-public-website.md` itself,
+which is the operative specification from this point forward. This
+amendment file now stands as the historical record of *why* the change was
+made — the gap assessment (§1), the honest interrogation of whether a
+nonce weakens the policy (§2), and the Cloudflare documentation evidence
+(§0.1, §0.3) — rather than as an operative requirements document in its
+own right. Where this file and REQ-001 disagree on wording, REQ-001
+governs.
 
 Amends: `requirements/REQ-001-mvp-public-website.md` (R-7.5, R-5.2 AC2)
 Cross-references: `status/QA-005-production-hostname-test-gap.md`,
@@ -230,6 +244,15 @@ told the whole truth.
 
 ## 3. Proposed amendment text
 
+Everything in this section was proposed new/changed text for
+`requirements/REQ-001-mvp-public-website.md`, at the time this was drafted
+and not yet approved. **Update, 2026-09-16: it has since been approved
+(E14, E15) and incorporated into REQ-001 itself** — see that document's
+header note, R-5.2 AC2, R-5.3 AC1, R-7.5, the new R-7.8, §4 (Test data),
+§5 (U13–U19) and §6 (E14–E16). The text below is left as originally
+drafted, as the record of what was proposed; REQ-001 is now the operative,
+and occasionally slightly reworded, version.
+
 ### 3.1 Amendment to R-7.5 (add AC1a–AC1f; clarify AC1/AC2)
 
 **R-7.5** Baseline security response headers are served.
@@ -384,6 +407,11 @@ E13 (`status/E13-zone-token-write-grants.md`); this amendment adds E14–E16.
 | E15 (new) | Owner must accept, as a disclosed consequence of E14 rather than a hidden side effect, the trust-dependency identified in §2: a nonce-based CSP delegates to Cloudflare's edge the decision of which inline script content is authorized on every response, for as long as JavaScript Detections/Bot Fight Mode is enabled on this zone, and this program cannot inspect or constrain that content before it executes in a visitor's browser. §2's conclusion is that this is not a weakening of the CSP's defense against the threat it was principally written for (attacker-injected script), but it is a new reliance this program did not previously have. | Nothing today is blocked pending this specifically (the owner already chose Option B), but the owner should be recorded as having been told explicitly, not left to discover it later |
 | E16 (new — conditional) | If, during implementation, deploying a Pages Function is found to require a Cloudflare permission grant beyond CI's existing scoped token (R-6.6), that is a credentials/access escalation under CLAUDE.md and must stop for owner action rather than be resolved by unilaterally broadening the token's scope. Not yet known to be triggered (§4 U19) — recorded here so it is not missed if it arises mid-implementation. | Nothing today; only relevant if a broader grant turns out to be needed |
 
+**Update, 2026-09-16:** E14 and E15 above are **APPROVED** — see this
+document's status line at the top, and REQ-001 §6 for the full verbatim
+record (merge commit `5a8f4990`). E16 remains conditional and not yet
+triggered.
+
 ---
 
 ## 6. Risks worth naming
@@ -461,3 +489,9 @@ new/amended ACs in §3 (R-7.5 AC1a–AC1f, the new R-7.8, and the R-5.2 AC2
 evidence correction). E16 is conditional and does not block today. Nothing
 here touches E1/E2 (DNS, already open and unrelated) or any already-resolved
 item in REQ-001 §6.
+
+**Update, 2026-09-16 — all of the above is now approved.** E14 and E15 were
+both given first-hand, verbatim, in this session (see the status line at
+the top of this document and REQ-001 §6). This document's ACs are folded
+into REQ-001 and REQ-001 is now the operative specification; this file
+remains as the historical record of why.
