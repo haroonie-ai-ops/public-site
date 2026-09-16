@@ -1,6 +1,30 @@
 # Workstream Status — haroonie.ai Public Website
 
-Last updated: 2026-09-15 — **Six corrections/additions, none of them code,
+Last updated: 2026-09-16 — **REQ-001-A2 drafted (DRAFT, not owner-approved):
+CSP nonce via Cloudflare Pages Function, resolving QA-005.** QA-005 (raised
+2026-09-16, own file: `status/QA-005-production-hostname-test-gap.md`)
+found R-7.5 AC2 and R-5.3 AC1 **FAILING against the real production
+hostname** `https://www.haroonie.ai/` — Cloudflare's Bot Fight Mode /
+JavaScript Detections injects an inline script the static CSP correctly
+blocks — even though PR #4 (R-7.5 static headers) and PR #5 (Wave 6
+perf/cross-browser audit) both merged clean and green on 2026-09-15. This
+is a **regression discovered in already-shipped work**, not a gap in
+unstarted scope: neither PR's suites ever exercised the real proxied
+hostname (QA-005 Finding 2, also High). The Business Analyst has drafted
+`requirements/REQ-001-A2-csp-nonce-pages-function-amendment.md` (Option B:
+a Pages Function minting a per-request nonce) per the owner's first-hand
+direction *"proceed with option B then hand off to @project-manager"* —
+that instruction selects the direction only; the amendment's specific ACs,
+its disclosed trust-dependency, and its fail-safe/drift rules remain
+**DRAFT, pending owner approval**. New escalations **E14, E15, E16**
+recorded below, continuing this document's own E-series from E13. See
+`status/PM-004-program-status-assessment.md` for full sequencing, and
+Section 7 of `planning/PLAN-001-execution-waves.md` for where this lands in
+the plan (a revision to Wave 4/Wave 6's already-shipped scope, not a new
+wave). Nothing else in this document is changed by this update; the
+six-item 2026-09-15 correction below stands as written.
+
+Prior update, 2026-09-15 — **Six corrections/additions, none of them code,
 DNS, or a merge.** (1) The recurring "`git fetch`/`push` hang — a sandbox/
 environment characteristic" narrative carried across PM-002, PM-003, and
 QA-004's regression review is corrected: it is an **authentication
@@ -930,9 +954,9 @@ weaker, of the two.
 | 2a | Shared layout, nav, SEO plumbing | **QA-002 passed with findings; Finding 2 remediated and independently regression-confirmed by QA-003** (which reproduced the original failure mode live and confirmed the fix holds) | Nothing |
 | 2b | Home/Services/About/Contact/Privacy/Terms page content | **Merged (`e64ac08e`) and deployed to production (run #15).** QA-004 Finding 1 (PRODUCT_DEFECT, High) remediated and **independently Tester regression-verified CLOSED**; Finding 2 (TEST_DEFECT, Medium, against the regression test's own coverage) raised by that same review and remediated (218 total, 214 passed, 4 skipped, 0 failed on CI). Live-verified in production | R-2.3 AC1 blocked on E6 (biography); production temporarily forced non-indexable (owner decision, see "Production non-indexable gate") until E6 lands |
 | 3 | CI/CD pipeline | **Implemented, independently reviewed (QA-003, pass with findings, zero PRODUCT_DEFECT), PR #1 merged, three successful production deploys since. Not yet formally Accepted** | E8 (branch-protection plan gate) — owner decision pending |
-| 4 | Domain and hosting configuration | Not started | Blocked on E1, E2 |
+| 4 | Domain and hosting configuration | **R-7.1–R-7.4, R-7.6 live; R-7.5 (security headers) merged (PR #4, 2026-09-15) as `public/_headers`.** REQ-001-A1 folded into REQ-001 (PR #6), E11/E12/E13 resolved. **New, 2026-09-16 (QA-005 Finding 1): R-7.5 AC2 FAILS on the real production hostname** — Cloudflare's Bot Fight Mode injects a script the static CSP blocks. Fix drafted as REQ-001-A2 (DRAFT, not approved) — see E14/E15 below. This is a revision to already-shipped Wave 4 scope, tracked as Wave 4-R1 in PLAN-001 §7, not a wave restart. | E14/E15 (owner) block the fix; nothing else in Wave 4 is affected |
 | 5 | Enquiry form completion | Not started | Wave 2b (Contact skeleton); blocked on E4 |
-| 6 | Performance and cross-browser hardening | Not started | Wave 2 |
+| 6 | Performance and cross-browser hardening | **Merged (PR #5, 2026-09-15).** Production measured: Lighthouse Performance 100 all six pages, LCP 856-1204ms, 0 bytes client JS at merge time (`status/PERF-001-wave6-audit.md`). **New, 2026-09-16:** QA-005 found the production hostname now carries ~938 bytes of Cloudflare-injected script (R-5.2 AC2 evidence correction, §3.3 of REQ-001-A2 — AC2 still passes, well inside the 50KB budget) and R-5.3 AC1 (no console errors) currently fails on production for the same CSP reason as R-7.5 AC2. R-7.8 AC4 (in REQ-001-A2, DRAFT) requires R-5.2 AC1's Lighthouse budget to be re-verified once the Function ships, not assumed unaffected. | E14/E15 (owner) block the re-verification work; the existing PERF-001 baseline stands as recorded until then |
 | 7 | Go-live and acceptance | Not started | Waves 3 + 4 + 6 |
 
 ## Open blockers (owner action required)
@@ -948,6 +972,19 @@ weaker, of the two.
 | E8 | **R-6.1 AC2 is unimplementable as specified**: branch protection and rulesets are unavailable on private repos on GitHub Free. Owner must choose public repo, GitHub Pro, or an AC change. **Now assessed higher priority than E10** — `main` is unprotected and two PRs (#4, #5) are mergeable while red (see E8 section below) | Blocks Wave 3 exit, not Wave 3 start | New 2026-09-11; reprioritized 2026-09-15 |
 | E10 | **Wave 4's planned Cloudflare access path is PROVEN non-functional, not merely "does not appear to reach"** (2026-09-15) — the OAuth session sees zero zones on the same account a working zone token confirms is active. **One option is now half-resolved**: a scoped `CLOUDFLARE_ZONE_TOKEN` is read-confirmed (DNS, rulesets, settings, Pages) but zone-write is untested pending `REQ-001-A1`, and has no expiry set. See "E10" below | Blocks Wave 4 write execution; read verification now unblocked | New 2026-09-14; updated 2026-09-15 |
 | E11 | `CLOUDFLARE_API_TOKEN` (CI Pages-deploy secret) scope was never independently verified, and cannot be verified by any agent (`GET /user/tokens` / `GET /accounts/{id}/tokens` both return `9109 Unauthorized`; the CI secret's value cannot be read back). More consequential now the zone carries live MX/SPF for a working mailbox | Owner dashboard check only; no agent verification path exists | New 2026-09-15 |
+| E14 | **Owner must approve the architecture change**: adopting a Cloudflare Pages Function (`functions/_middleware.ts` or equivalent) as this site's first server-side, request-time execution component, moving R-7.5's CSP off `public/_headers` onto that Function's output. Full detail: `requirements/REQ-001-A2-csp-nonce-pages-function-amendment.md` §0, §5. | Blocks all of REQ-001-A2's ACs (R-7.5 AC1a–AC1f, R-7.8) — nothing in Wave 4-R1 (PLAN-001 §7) may be implemented before this | New 2026-09-16 |
+| E15 | **Owner must accept, as a disclosed consequence of E14, the trust-dependency identified in REQ-001-A2 §2**: a nonce-based CSP delegates to Cloudflare's edge the decision of which inline script content is authorized on every response, for as long as JavaScript Detections/Bot Fight Mode is enabled on this zone, and this program cannot inspect or constrain that content before it executes in a visitor's browser. Not a weakening of the CSP's defense against attacker-injected script — a new, narrow reliance this program did not previously have. | Nothing blocked today (the owner already chose Option B's direction); recorded so it is disclosed, not discovered later | New 2026-09-16 |
+| E16 | **Conditional.** If deploying the Pages Function is found to require a Cloudflare permission grant beyond CI's existing scoped token (R-6.6), that is a credentials/access escalation under CLAUDE.md and must stop for owner action, not be resolved by unilaterally broadening the token's scope. Not yet known to be triggered (REQ-001-A2 §4 U19). | Nothing today; only relevant if a broader grant turns out to be needed during implementation | New 2026-09-16 (conditional) |
+
+**Numbering note:** E14–E16 continue this document's own escalation series
+(highest prior number E13, `status/E13-zone-token-write-grants.md`) per
+REQ-001-A2 §5's explicit instruction to do so. They are distinct from
+REQ-001 §6's own separate, already-resolved local E7/E8 pair (spec/design
+approval, resolved 2026-09-10) — a pre-existing collision between the two
+numbering schemes (this document's own E8, "R-6.1 AC2 unimplementable," is
+unrelated to REQ-001 §6's E7/E8) already flagged, not newly introduced, by
+PR #6's merge commit. Not resolved here; recorded so a future reader does
+not conflate the two schemes.
 
 Row struck through, not deleted, per this table's own convention elsewhere
 (E2/E3/E5) of recording resolution without erasing the original entry —
@@ -1368,6 +1405,73 @@ an over-scoped token changed the moment the zone became real. **Recorded
 as an owner dashboard check** — the Cloudflare dashboard's own token
 detail view can show the token's actual permissions where the API cannot.
 Credit: the `public-site-94` session.
+
+## E14–E16 — REQ-001-A2: CSP nonce architecture change, disclosed trust-dependency, conditional permission gap (New, 2026-09-16)
+
+**Trigger.** QA-005 Finding 1 (PRODUCT_DEFECT, High): R-7.5 AC2 and R-5.3
+AC1 fail against `https://www.haroonie.ai/` in all three engines, on all
+six routes — Cloudflare's Bot Fight Mode / JavaScript Detections injects an
+inline bootstrap script the static `script-src 'self'` CSP correctly
+blocks. Full evidence: `status/QA-005-production-hostname-test-gap.md`.
+The owner has decided the direction, first-hand: *"proceed with option B
+then hand off to @project-manager"* — a Cloudflare Pages Function minting a
+per-request nonce, rather than `'unsafe-inline'` or disabling Bot Fight
+Mode (both rejected by QA-005/the amendment as assertion- or
+security-weakening). The Business Analyst has drafted the amendment
+(`requirements/REQ-001-A2-csp-nonce-pages-function-amendment.md`,
+committed locally, not yet on `origin/main` at the time of this entry).
+
+**Status: DRAFT.** The owner's instruction selected the *direction*
+(Option B), not the amendment's specific acceptance criteria (R-7.5
+AC1a–AC1f, new R-7.8), its disclosed trust-dependency, or its fail-safe/
+drift rules. Those remain pending approval. This entry, and PLAN-001 §7,
+sequence the work; neither authorizes starting it.
+
+**E14 — architecture change approval.** This site has been purely static
+through every prior wave; a Pages Function is the first server-side,
+request-time code it would run. CLAUDE.md reserves "architecture changes
+with significant impact" to the owner. Blocks: R-7.5 AC1a–AC1f, R-7.8, and
+any Engineer/PM work sequenced against them (PLAN-001 §7's Group A/B/C).
+
+**E15 — disclosed trust-dependency acceptance.** REQ-001-A2 §2 concludes,
+after interrogating both threat models separately: a correctly-implemented
+nonce is **not weaker** than today's policy against an attacker injecting
+arbitrary script (arguably stronger — textbook nonce-based CSP reasoning),
+and **no test's assertion is loosened anywhere** (R-8.3 AC1's gate is not
+triggered). But it **does** create a new, narrow dependency that did not
+exist before: the same mechanism that authorizes Cloudflare's JS Detections
+script would authorize *any* inline script Cloudflare's edge chooses to
+inject and stamp with that response's nonce, and this program cannot
+inspect or constrain that content before it executes in a visitor's
+browser. The owner is asked to accept this knowingly, as a distinct
+decision from E14, not discover it later. Blocks nothing today (the
+direction is already chosen) — recorded for disclosure, not as a live gate.
+
+**E16 — conditional, not yet triggered.** REQ-001-A2 §4 U19 assumes Pages
+Functions deploy through the same GitHub Actions → Cloudflare Pages path
+(R-6.3) already in use, requiring no grant beyond CI's existing scoped
+token (R-6.6, Pages: Edit). Unverified by this program specifically for
+Functions. If a deployment attempt is rejected for a permissions reason,
+that is a credentials/access escalation under CLAUDE.md and stops for
+owner action — it is not a problem to route around by widening the token's
+scope unilaterally.
+
+**What remains executable while E14/E15 stand open, per CLAUDE.md's
+instruction to continue other work rather than halt the program:**
+everything not touching `public/_headers`, `functions/`, or the
+production-hostname CSP mechanism. Concretely: Wave 5 (blocked only on
+E4), E6 copy work, QA-002 Probe 4 and QA-003 Finding 1 (both cheap
+Business-Analyst decisions, aging), E1/E10/E11's remaining Cloudflare
+access-scope threads, and any Wave 7 preparation that does not depend on
+R-7.5/R-7.8. The one thing that does **not** proceed is implementation of
+REQ-001-A2's own ACs — that is the one piece E14/E15 actually gate. Full
+sequencing, contention risks and exit criteria: PLAN-001 §7 and
+`status/PM-004-program-status-assessment.md`.
+
+**Not evaluated here and not this document's call:** whether the
+amendment's specific ACs, ambiguity resolutions (U13–U19), or risk framing
+are technically sound — that is a Business Analyst/owner matter. This
+entry records the escalation and its blocking scope only.
 
 ## Recommended immediate next step
 
