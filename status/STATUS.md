@@ -1,6 +1,53 @@
 # Workstream Status — haroonie.ai Public Website
 
-Last updated: 2026-09-16 — **Wave 4-R1 implemented, PR #9 open, not
+Last updated: 2026-09-15 — **Wave 4-R1 merged (`ab2b0018`, PR #9) and
+confirmed working in production; `post-deploy-verify`'s first-run failure
+was a test defect, now fixed (QA-005 Finding 3), PR open pending review.**
+
+**The headline is counterintuitive: production works.** Option B (per-
+response CSP nonce via a Cloudflare Pages Function) is empirically confirmed
+on `https://www.haroonie.ai/`: Cloudflare's own injected script now carries
+the matching nonce, and an independent Playwright probe across
+chromium/firefox/webkit x 6 routes found 0 CSP violations and 0 console
+errors — down from 18/18 before this shipped. R-7.5 AC2 and R-5.3 AC1 both
+PASS on the real hostname. QA-005 Finding 1 is RESOLVED.
+
+**But `post-deploy-verify` (CI) still went red** on the very next run, and
+that failure was misleading on its face — a bare `expect(200).toBe(403)`
+that superficially looks like a broken deployment. It was an automation
+defect: the test's precondition check used Playwright's non-browser
+`APIRequestContext`, which Cloudflare's Bot Fight Mode (deliberately kept,
+E14/E15 — the entire reason this nonce work exists) challenges from a
+GitHub Actions runner IP. The 15 real-browser checks in that same CI run
+were not challenged and all passed. No rollback was performed or is
+warranted; the job's rollback suggestion was a false alarm. Full analysis:
+`status/QA-005-production-hostname-test-gap.md` Finding 3.
+
+**Fix (this session):** `tests/production-security.spec.ts`'s header/status
+assertions now read from a real browser navigation response
+(`page.goto()`), not a separate API call — more faithful to what a visitor
+receives, and immune to the Bot Fight Mode 403. AC1f's "exactly one CSP
+header" duplicate-detection was preserved, not weakened or dropped —
+verified against Playwright's own installed source that a browser
+response's async `headersArray()` still preserves duplicate header
+instances across all three engines. Locally verified against live
+production: `npm run typecheck` 0 errors; `npm run test:production` 33
+passed / 15 skipped (both skip categories pre-existing and disclosed) / 0
+failed. This local run does not by itself prove CI will pass — the CI
+runner's IP is the whole reason this defect existed; the real proof is the
+next `post-deploy-verify` run on `main` after merge. Remaining
+`request.get()`-based checks (nonce-uniqueness, cdn-cgi same-origin) were
+left on the API client (converting them to browser navigation risks trading
+this failure mode for a download-triggered `net::ERR_ABORTED`) but now wrap
+every call in a Cloudflare-challenge detector so a future recurrence fails
+with a diagnosis, not a bare status mismatch.
+
+Awaiting: PR review and merge (`main` is protected; this session cannot
+merge), then the real `post-deploy-verify` CI result as final confirmation.
+
+---
+
+Prior update, 2026-09-16 — **Wave 4-R1 implemented, PR #9 open, not
 merged.** E14 and E15 (below, in this same document) were approved by the
 owner (merge `5a8f4990`, PR #7) and REQ-001-A2's ACs were folded into
 `requirements/REQ-001-mvp-public-website.md` as APPROVED (PR #8) earlier
