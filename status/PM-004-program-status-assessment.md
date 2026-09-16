@@ -239,27 +239,35 @@ API rather than local git:
   already on `origin/main` (git-auth root cause, E1/E10/E11, the Wave 2b
   404 accessibility gap, the local-history duplication finding) the way an
   edit against the stale local copy would have.
-- **Recommendation, carried forward from PM-002/PM-003, now with an added
-  branch-protection wrinkle:** a session with working git credentials (or
-  the owner) should open a documentation PR carrying REQ-001-A2, QA-005,
-  E13, and this session's STATUS.md/PLAN-001 updates to `origin/main`, so
-  the amendment is actually visible for the owner's E14/E15 decision rather
-  than trapped in a local checkout. This Project Manager role does not
-  merge to `main` unilaterally — every prior merge in this program's
-  history required a first-hand owner instruction, and this update is no
-  exception.
+- **Done this session, correcting the above in place rather than leaving it
+  as an unactioned recommendation:** contrary to every prior session's
+  finding, plain `git fetch`/`ls-remote` with `GIT_TERMINAL_PROMPT=0`
+  worked immediately in this session (no hang, no prompt) — `push` still
+  hung until retried with the documented inline-credential-helper form
+  (`status/STATUS.md`, "Git fetch/push failure — corrected root cause").
+  Using an isolated `git worktree` off `origin/main`'s real tip (so the
+  concurrent session's in-progress, uncommitted edits to
+  `requirements/REQ-001-A1-...md`/`REQ-001-mvp-public-website.md` in this
+  shared working directory were never touched), REQ-001-A2, QA-005, E13,
+  and this session's STATUS.md/PLAN-001 updates were pushed to
+  `docs/req-001-a2-pm-sequencing` and opened as
+  **PR #7** (`https://github.com/haroonie-ai-ops/public-site/pull/7`)
+  against `main`. **This Project Manager role opened the PR; it did not
+  merge it** — every prior merge in this program's history required a
+  first-hand owner instruction, and this update is no exception. The
+  amendment is now visible on GitHub for the owner's E14/E15 decision.
 
 ---
 
 ## 7. Recommended next actions, in priority order
 
-1. **Owner: decide E14 and E15** (`requirements/REQ-001-A2-...md` §0, §8).
-   This is the only decision blocking a known, disclosed production defect
-   (QA-005 Finding 1) from being fixed.
-2. **Get REQ-001-A2, QA-005, and E13 onto `origin/main`** (a PR, given
-   branch protection) so the owner's decision in (1) has something visible
-   on GitHub to act on, not just a local file.
+1. **Owner: decide E14 and E15** (`requirements/REQ-001-A2-...md` §0, §8),
+   reviewing **PR #7** on GitHub. This is the only decision blocking a
+   known, disclosed production defect (QA-005 Finding 1) from being fixed.
+2. ~~Get REQ-001-A2, QA-005, and E13 onto `origin/main`~~ — **done this
+   session, PR #7.**
 3. Everything in Section 4 continues in parallel — none of it is gated by
-   (1) or (2).
-4. Once E14/E15 clear: implement in the order PLAN-001 §7.3 lays out
-   (Group A, then B, then C) — an Engineer task, not this document's.
+   (1).
+4. Once E14/E15 clear (PR #7 merged and the owner's decision recorded):
+   implement in the order PLAN-001 §7.3 lays out (Group A, then B, then
+   C) — an Engineer task, not this document's.
