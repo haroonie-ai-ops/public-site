@@ -2,8 +2,8 @@
 
 **Raised:** 2026-09-16
 **Classification:** PRODUCT_DEFECT (Finding 1) + TEST_DEFECT (Finding 2) + TEST_DEFECT (Finding 3)
-**Severity:** Finding 1 High (RESOLVED) · Finding 2 High · Finding 3 High
-**Status:** OPEN (Finding 2 and Finding 3 remediation tracked; Finding 1 RESOLVED)
+**Severity:** Finding 1 High (RESOLVED) · Finding 2 High (RESOLVED) · Finding 3 High (remediation complete, pending final `post-deploy-verify` confirmation on `main`)
+**Status:** Finding 1 RESOLVED; Finding 2 RESOLVED; Finding 3 fix for the remaining 6 CI failures implemented and locally verified — see 2026-09-16 update below. Final proof is the next `post-deploy-verify` run on `main` after merge (this program has no merge authority; PR pending review).
 
 ## Finding 1 — PRODUCT_DEFECT (High) — RESOLVED 2026-09-15: CSP blocks a Cloudflare-injected script on every production page
 
@@ -243,6 +243,165 @@ No rollback was performed or recommended — `post-deploy-verify`'s rollback
 recommendation on the original 403s was a false alarm, per the analysis
 above.
 
-**Status:** Fix implemented and locally verified against production; open
-in a PR pending review and merge (main is protected). See
-`status/STATUS.md` for the PR number once opened.
+**Status (superseded by the 2026-09-16 update below):** Fix implemented and
+locally verified against production; open in a PR pending review and merge
+(main is protected). See `status/STATUS.md` for the PR number once opened.
+
+### Engineer update, 2026-09-16 — PR #10 merged (`07f3e5f6`): 18→6. PR #11 (this update) closes the remaining 6.
+
+**PR #10's real-browser conversion for the R-7.8 AC1/AC2 block worked
+exactly as designed and is not being revisited or reversed here.** It
+merged as `07f3e5f6` and the next `post-deploy-verify` run
+(https://github.com/haroonie-ai-ops/public-site/actions/runs/35056161382)
+confirmed it empirically: all 18 of the original 18/18 failures were gone —
+every real-browser check (R-7.8 AC1/AC2, all 6 routes × 3 engines) passed
+from the CI runner IP. The run's final tally was **6 failed, 27 passed, 15
+skipped** — every one of the 6 remaining failures was the two
+`request.get()`-based nonce checks (R-7.5 AC1a/AC1c), × 3 engines, each
+self-diagnosing via the `cloudflareChallengeMessage()` helper PR #10 added:
+
+```
+/ (request 0): HTTP 403 with Cloudflare markers (cf-ray=a3bd31dcaf0a0585-IAD,
+cf-mitigated=challenge, server=cloudflare) — almost certainly Bot Fight Mode
+challenging this verification client's IP/fingerprint reputation (QA-005
+Finding 3), not a product defect.
+```
+
+`cf-mitigated=challenge` is Cloudflare stating the cause outright: from a
+CI runner IP this is not intermittent, it is deterministic — every future
+`post-deploy-verify` run would fail on every deploy, on exactly these two
+checks, forever, unless fixed. A job that always fails is worse than no job
+at all: it gets ignored, and ignoring it would also mask any real
+regression the job would otherwise catch. This is why the owner directed
+completing the conversion rather than tolerating the remaining 6 (or
+weakening/removing the checks, which R-8.3 forbids regardless).
+
+**Fix: both nonce checks converted from `APIRequestContext` to real browser
+navigations (`page.goto()`),** the same fix PR #10 already proved works for
+the AC1/AC2 block, applied to the last two holdouts
+(`tests/production-security.spec.ts`).
+
+*Why PR #10 didn't already do this for these two:* PR #10's stated reason
+was that a raw script-file response risks Chrome treating a navigation as a
+download and aborting with `net::ERR_ABORTED`. Re-examined rather than
+taken on faith, because the owner asked for that specifically: **this risk
+does not apply to either nonce check**, and never did — both only ever need
+an HTML document's own CSP response header, never a raw script file. The
+actual raw-script-file case is the *separate* R-7.5 AC1d check (see below),
+and even there, direct empirical testing (2026-09-15, chromium, firefox,
+webkit, against `https://www.haroonie.ai/cdn-cgi/challenge-platform/scripts/
+jsd/main.js` from this session's unchallenged IP) did **not** reproduce
+`net::ERR_ABORTED` — the response has `content-type: application/javascript`
+with no `Content-Disposition: attachment`, and all three engines navigated
+to it and rendered it as a normal 200 response. So PR #10's specific
+download-abort justification does not hold as stated in the current
+Playwright/browser versions, for any of the three checks it was cited for.
+That correction is recorded here rather than quietly repeated.
+
+**Caching — the real correctness risk in this conversion, addressed
+deliberately, not assumed away.** Repeated `page.goto()` calls to the same
+URL risk the browser silently replaying an earlier cached response instead
+of making a fresh request, which could make a uniqueness check compare two
+copies of the same response. Investigated directly against production
+before writing the fix:
+
+- Production serves `Cache-Control: public, max-age=0, must-revalidate`
+  with **no `ETag` or `Last-Modified`** on `/`. With no validator, a
+  compliant cache cannot issue a conditional revalidation request — it must
+  either treat the entry as unusable or refetch in full. Empirically
+  (2026-09-15, 4 repeated same-URL/same-context navigations, all three
+  engines): every navigation returned a distinct nonce; zero repeats. So
+  today's header configuration already defeats this risk on its own.
+- That is *today's* configuration, not a contract this test should quietly
+  depend on forever, so the fix does not rely on it: every navigation in
+  both tests now appends a unique cache-busting query string
+  (`cacheBustedUrl()`, `tests/support/cloudflare.ts`), which guarantees a
+  distinct cache key structurally, independent of `Cache-Control` now or
+  after any future change to it. Confirmed this cannot silently route to a
+  different page: Astro/Cloudflare Pages route matching ignores the query
+  string (verified — cache-busted requests to `/` still served the actual
+  home page in every trial).
+
+**Proof the uniqueness check is not vacuous, not just internally
+consistent.** The concern named in the assignment: a test that quietly
+compares two cached copies of the same response could *pass* while proving
+nothing. Verified directly rather than argued: the exact `page.goto()` +
+cache-busting mechanics were run against two throwaway local HTTP
+servers — one minting a fresh nonce per response (positive control), one
+deliberately serving a **fixed, repeated** nonce on every response
+(negative control, simulating a real regression such as `generateNonce()`
+being accidentally memoized). Result: the positive control's
+`new Set(nonces).size === nonces.length` check passed (6/6 unique); the
+negative control's same check correctly reported `unique=1/6` and the
+assertion failed. The mechanism genuinely discriminates a real per-response
+nonce from a broken, static one — it is not a check that would pass
+regardless of what the server does.
+
+**R-7.5 AC1d relocated out of the CI-gated suite, per owner direction —
+not deleted, and not left without a verification story.** The
+`/cdn-cgi/challenge-platform/` same-origin check was "the one genuinely
+awkward fetch": a bare internal script path reached via a redirect chain,
+with none of the referrer/session context a real page load carries — even
+though it didn't reproduce `net::ERR_ABORTED` in testing (above), it is
+exactly the kind of "cold," context-free client request Bot Fight Mode is
+likeliest to score as suspicious from a datacenter IP, the same failure
+mode the nonce checks just got fixed for. Rather than gate every deploy on
+a third check exposed to that same risk, it now has two verification paths:
+
+1. **Primary, CI-gated, continuous, already in production since PR #9/#10:**
+   the R-7.8 AC1/AC2 "zero CSP violations" assertion. Confirmed by reading
+   the actual injected bootstrap script's source
+   (`curl https://www.haroonie.ai/` output, 2026-09-15): it dynamically
+   appends `<script nonce="..." src="/cdn-cgi/challenge-platform/scripts/
+   jsd/main.js">` inside a same-origin iframe that inherits the page's CSP.
+   If `'self'` did not authorize that path, loading it would itself raise a
+   `securitypolicyviolation` event that the existing zero-violations
+   assertion — already gating every route, every engine, every deploy —
+   would catch immediately. This is a stronger guarantee than a point-in-
+   time status-code probe: it proves the path is actually *used*
+   successfully under the real CSP by a real browser, continuously, not
+   merely reachable at one point in time.
+2. **Secondary, manual, on demand:** the original isolated same-origin
+   request, moved verbatim to `tests/production-challenge-platform.manual.spec.ts`
+   (new `playwright.production-manual.config.ts`, run via
+   `npm run test:production:manual`). Structurally excluded from both
+   `playwright.config.ts` (the fast pre-merge gate) and
+   `playwright.production.config.ts` (`post-deploy-verify`'s required
+   gate) — verified by listing tests under both configs and confirming
+   zero matches — so it can never accidentally start gating a deploy, while
+   remaining fully discoverable and runnable for anyone who wants the
+   direct check (e.g. after a Cloudflare-side change to this path).
+
+**Verification performed (this session).**
+- `npm run typecheck` (`astro check` + both `tsc --noEmit` projects): 0
+  errors.
+- `npm run test:production` against live `https://www.haroonie.ai/`, three
+  engines: **30 passed, 15 skipped, 0 failed** (down from 45 total in PR
+  #10's run because the AC1d test — 3 of those — moved to its own config;
+  the remaining skips are AC3's chromium-only-by-design non-chromium runs
+  and the pre-existing, disclosed `csp-nonce-failsafe.spec.ts` self-skip).
+- `npm run test:production:manual`: 3 passed, 0 failed (the relocated AC1d
+  check, all three engines).
+- Listed tests under both `playwright.config.ts` and
+  `playwright.production.config.ts` and confirmed zero matches for
+  `production-challenge-platform.manual.spec.ts` in either — the exclusion
+  is structural, not merely a naming convention.
+- **This local run does NOT prove the CI job will pass**, for the same
+  reason recorded in the previous update: it ran from this session's
+  residential-class IP, which Cloudflare does not challenge — the exact
+  asymmetry this finding documents throughout. The only real proof is the
+  next `post-deploy-verify` run on `main` after this PR merges.
+
+**Not touched, on purpose:** Cloudflare zone settings (including Bot Fight
+Mode — never disabled, never weakened, no WAF bypass added), HSTS, and the
+R-7.5 AC1d requirement text itself (`requirements/` was not edited; only
+where and how AC1d is verified changed, not what it requires).
+
+**Status:** Fix for the remaining 6 CI failures implemented and locally
+verified against production (0 failures locally, both the CI-gated suite
+and the relocated manual check). Open in a PR pending review and merge
+(`main` is protected; this program has no merge authority). The 18→6
+improvement from PR #10 is real, confirmed on `main`, and unaffected by
+this change — this is the completion of that fix, not a reversal of it.
+Final confirmation is the next `post-deploy-verify` run on `main` after
+merge. See `status/STATUS.md` for the PR number.

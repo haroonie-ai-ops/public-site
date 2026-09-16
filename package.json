@@ -15,7 +15,8 @@
     "lint": "astro check && tsc --noEmit -p tsconfig.json && tsc --noEmit -p functions/tsconfig.json",
     "test": "playwright test",
     "test:ui": "playwright test --ui",
-    "test:production": "playwright test --config=playwright.production.config.ts"
+    "test:production": "playwright test --config=playwright.production.config.ts",
+    "test:production:manual": "playwright test --config=playwright.production-manual.config.ts"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.7.4",

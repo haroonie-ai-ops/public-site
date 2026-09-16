@@ -1,6 +1,48 @@
 # Workstream Status — haroonie.ai Public Website
 
-Last updated: 2026-09-15 — **Wave 4-R1 merged (`ab2b0018`, PR #9) and
+Last updated: 2026-09-16 — **PR #11 open: closes the remaining 6
+`post-deploy-verify` failures left after PR #10 (18→6). Not yet merged;
+CI's real gate is the next `post-deploy-verify` run on `main`.**
+
+PR #10 (merged `07f3e5f6`) fixed 18 of 24 CI failures by reading R-7.8
+AC1/AC2 headers from a real `page.goto()` response instead of
+`APIRequestContext` — confirmed on `main`
+(https://github.com/haroonie-ai-ops/public-site/actions/runs/35056161382:
+27 passed, 6 failed, 15 skipped). That fix stands untouched. The 6
+remaining failures were the two R-7.5 AC1a/AC1c nonce-uniqueness checks,
+still on `APIRequestContext`, deterministically 403-challenged by Bot
+Fight Mode from the CI runner IP (`cf-mitigated=challenge` — Cloudflare
+naming the cause outright). Per owner direction, PR #11
+(https://github.com/haroonie-ai-ops/public-site/pull/11,
+`fix/production-nonce-checks-browser-navigation`) converts both to real
+browser navigations the same way PR #10 did for AC1/AC2, defeats browser
+caching deliberately with a per-navigation cache-busting query string
+(`cacheBustedUrl()`, `tests/support/cloudflare.ts`) rather than relying on
+production's current `Cache-Control` header, and verified the uniqueness
+check is not vacuous by reproducing a failure against a throwaway server
+serving a fixed, repeated nonce. R-7.5 AC1d (the `/cdn-cgi/challenge-
+platform/` same-origin check) is relocated out of the CI-gated suite per
+owner direction — not deleted — to `tests/production-challenge-
+platform.manual.spec.ts` (`npm run test:production:manual`), with its
+primary verification now the existing, already-passing R-7.8 AC1/AC2
+zero-CSP-violations assertion (Cloudflare's own injected script loads a
+nested script from exactly that path inside a same-origin iframe
+inheriting the page's CSP). Full detail:
+`status/QA-005-production-hostname-test-gap.md` Finding 3.
+
+Local verification (does NOT prove CI will pass — this session's IP is not
+Bot-Fight-Mode-challenged, the exact asymmetry this workstream is about):
+`npm run typecheck` 0 errors; `npm test` 311 passed/16 skipped/0 failed;
+`npm run test:production` 30 passed/15 skipped/0 failed; `npm run
+test:production:manual` 3 passed/0 failed.
+
+Awaiting: PR #11 review and merge (`main` is protected; this session
+cannot merge), then the real `post-deploy-verify` CI result as final
+confirmation — expected 0 failed, down from 6.
+
+---
+
+Prior update, 2026-09-15 — **Wave 4-R1 merged (`ab2b0018`, PR #9) and
 confirmed working in production; `post-deploy-verify`'s first-run failure
 was a test defect, now fixed (QA-005 Finding 3), PR open pending review.**
 

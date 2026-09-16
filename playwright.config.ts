@@ -41,7 +41,7 @@ export default defineConfig({
 			// and must never join this fast, deployment-independent pre-merge
 			// gate (R-7.8 AC6). They run only under
 			// playwright.production.config.ts (`npm run test:production`).
-			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts|production-security\.spec\.ts|csp-nonce-failsafe\.spec\.ts/,
+			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts|production-security\.spec\.ts|csp-nonce-failsafe\.spec\.ts|production-challenge-platform\.manual\.spec\.ts/,
 		},
 		{
 			name: 'firefox',
@@ -51,7 +51,7 @@ export default defineConfig({
 			// and must never join this fast, deployment-independent pre-merge
 			// gate (R-7.8 AC6). They run only under
 			// playwright.production.config.ts (`npm run test:production`).
-			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts|production-security\.spec\.ts|csp-nonce-failsafe\.spec\.ts/,
+			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts|production-security\.spec\.ts|csp-nonce-failsafe\.spec\.ts|production-challenge-platform\.manual\.spec\.ts/,
 		},
 		{
 			name: 'webkit',
@@ -61,7 +61,7 @@ export default defineConfig({
 			// and must never join this fast, deployment-independent pre-merge
 			// gate (R-7.8 AC6). They run only under
 			// playwright.production.config.ts (`npm run test:production`).
-			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts|production-security\.spec\.ts|csp-nonce-failsafe\.spec\.ts/,
+			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts|production-security\.spec\.ts|csp-nonce-failsafe\.spec\.ts|production-challenge-platform\.manual\.spec\.ts/,
 		},
 		{
 			name: 'static-preview',
