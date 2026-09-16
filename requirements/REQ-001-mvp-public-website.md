@@ -4,13 +4,22 @@ Status: Approved
 Depends on: ADR-0001 (Option B selected 2026-09-10)
 Author: Business Analyst
 Date: 2026-09-10
-Amendments incorporated: REQ-001-A1 (DNS zone coexistence) — approved by
-the owner 2026-09-15, folded in below. The amendment file itself now stands
-as the historical record of *why*; this document is the operative
-specification. See `requirements/REQ-001-A1-dns-coexistence-amendment.md`.
+Amendments incorporated:
+- REQ-001-A1 (DNS zone coexistence) — approved by the owner 2026-09-15,
+  folded in below. See
+  `requirements/REQ-001-A1-dns-coexistence-amendment.md`.
+- REQ-001-A2 (CSP nonce via Cloudflare Pages Function) — approved by the
+  owner 2026-09-16 (E14, E15; verbatim quotes in §6), folded in below. See
+  `requirements/REQ-001-A2-csp-nonce-pages-function-amendment.md`.
+
+Both amendment files now stand as the historical record of *why* each
+change was made; this document is the operative specification.
 
 Selected architecture: Astro static site, Markdown content, hosted on
 Cloudflare Pages, served at `https://www.haroonie.ai`, deployed from GitHub.
+As of REQ-001-A2 (2026-09-16), a Cloudflare Pages Function also executes
+per-request to mint the CSP nonce (R-7.5) — the site's first server-side,
+request-time component; every other page remains statically built.
 
 ---
 
@@ -231,10 +240,31 @@ collections in the repository, not from hard-coded markup in components.
   Paint is under 2.5 seconds.
 - AC2 — Given any page, When loaded, Then total transferred JavaScript is
   under 50 KB compressed.
+- Note (2026-09-16, REQ-001-A2 §3.3 — corrects recorded evidence, not
+  AC2's text or threshold): the previously recorded measurement ("0 bytes
+  of JS") was accurate for `haroonie-ai-public-site.pages.dev` at the time
+  it was recorded, but is not the correct figure for the hostname visitors
+  actually use. `https://www.haroonie.ai/services/` measured ~938 bytes of
+  Cloudflare-injected script (JavaScript Detections / Bot Fight Mode)
+  during QA-005's investigation (2026-09-16). **AC2 still PASSES** — 938
+  bytes remains far inside the 50 KB budget. R-7.8 AC3 requires all future
+  measurements to target the production hostname specifically, so this
+  kind of silent drift (a true figure when recorded, invalidated later by
+  an unrelated Cloudflare-side configuration change) is caught going
+  forward rather than discovered incidentally, as it was here.
 
 **R-5.3** Cross-browser rendering.
 - AC1 — Given the site, When rendered in current Chromium, Firefox and
   WebKit, Then layout is intact and no console errors occur.
+- Note (2026-09-16, QA-005 Finding 1 / REQ-001-A2): AC1 currently **FAILS**
+  against the real production hostname `https://www.haroonie.ai/` — 18 CSP
+  violations logged as console errors, 3 engines × 6 routes — because
+  Cloudflare's JavaScript Detections injects an inline bootstrap script
+  the static CSP correctly blocks (R-7.5 AC2 fails identically, same root
+  cause). This is an outstanding failure, not a satisfied criterion,
+  pending Wave 4-R1 (PLAN-001 §7) implementing R-7.5 AC1a–AC1f / R-7.8.
+  Every suite that reported AC1 passing before QA-005 targeted build
+  output or the `pages.dev` origin, never the proxied production hostname.
 
 ### R-6 — CI/CD from GitHub to Cloudflare Pages
 
@@ -346,12 +376,89 @@ block publication.
 - AC2 — Given an HTTPS response, When headers are inspected, Then
   Strict-Transport-Security is present.
 
-**R-7.5** Baseline security response headers are served.
-- AC1 — Given any production page response, When headers are inspected, Then
-  `X-Content-Type-Options: nosniff`, a `Referrer-Policy`, and a
-  `Content-Security-Policy` are present.
-- AC2 — Given the CSP, When the site is browsed, Then no page produces a CSP
-  violation in the console.
+**R-7.5** Baseline security response headers are served. (Mechanism amended
+2026-09-16, REQ-001-A2 — owner-approved: E14, the architecture change;
+E15, the disclosed trust-dependency. Verbatim: *"Approve e14"*, then
+*"Approve E15 then merge or #7"* — both recorded in merge commit
+`5a8f4990`; see §6 for the full record.)
+
+- AC1 — Given any production page response, When headers are inspected,
+  Then `X-Content-Type-Options: nosniff`, a `Referrer-Policy`, and a
+  `Content-Security-Policy` are present. **Clarifying note (REQ-001-A2):**
+  as of this amendment, these headers' authoritative source is a
+  Cloudflare Pages Function (`functions/_middleware.ts` or equivalent) —
+  this site's first server-side, request-time execution (E14) — not the
+  static `public/_headers` file. `public/_headers`'s overlapping CSP /
+  `X-Content-Type-Options` / `Referrer-Policy` lines are deleted, not kept
+  as a fallback (see AC1f; U15).
+- AC1a — Given two separate requests to the same production URL, When each
+  response's `Content-Security-Policy` header is inspected, Then the
+  `nonce-` token's value in `script-src` differs between the two
+  responses, proving per-response generation rather than a cached or fixed
+  value.
+- AC1b — Given the `Content-Security-Policy` header's `script-src`
+  directive, When inspected, Then it contains `'self'` and exactly one
+  `nonce-<value>` token, and never contains `'unsafe-inline'` — including
+  on the fail-safe path (AC1e) — since a browser that does not honor the
+  nonce would otherwise silently fall back to authorizing all inline
+  script. `'unsafe-inline'` remains rejected under R-8.3, as it was when
+  QA-005 considered and discarded it.
+- AC1c — Given a sample of at least 20 consecutive production responses,
+  When their nonce values are compared, Then no two repeat, and each
+  decodes to at least 128 bits (16 bytes) of randomness from a
+  cryptographically secure source (e.g. Web Crypto
+  `crypto.getRandomValues`) — not `Math.random()`, a counter, a timestamp,
+  or any value already visible elsewhere in the response (e.g. the Ray
+  ID).
+- AC1d — Given a request to any path under
+  `/cdn-cgi/challenge-platform/`, When the CSP is inspected, Then that
+  path resolves under `'self'` (same-origin) — the specific allowance
+  Cloudflare's documentation states this feature requires.
+- AC1e — Given the Pages Function fails to execute for any reason
+  (unhandled exception, runtime error, timeout), When the response is
+  nonetheless served, Then it still carries a `Content-Security-Policy` at
+  least as strict as the pre-amendment static policy (`script-src 'self'`,
+  no `'unsafe-inline'`, no nonce), and the response is not a 500/error
+  page solely because of this fallback — a Function fault degrades CSP
+  strictness back to today's already-tolerated behaviour, not availability
+  (R-7.2 AC1) or CSP presence at all (AC1f).
+- AC1f — Given any production page response, When its raw headers are
+  inspected, Then exactly one `Content-Security-Policy` header is present
+  — never zero (the Function silently not running and nothing else
+  supplying it), never two (the Function and a stale `public/_headers`
+  entry both firing on the same response).
+- AC2 — Given the CSP, When the site is browsed, Then no page produces a
+  CSP violation in the console. **Currently FAILS on production
+  (2026-09-16, QA-005 Finding 1):** 18 CSP violations, 3 engines × 6
+  routes, against `https://www.haroonie.ai/` — Cloudflare's JavaScript
+  Detections injects an inline bootstrap script the static, nonce-less
+  policy correctly blocks. The CSP is behaving as designed; the defect is
+  the injection. This is an outstanding failure pending Wave 4-R1
+  (PLAN-001 §7) implementing AC1a–AC1f above, not a satisfied criterion —
+  it is only meaningfully verified against the real production hostname
+  (R-7.8), which no suite exercised before QA-005.
+- Trust-dependency disclosure (E15, owner-accepted 2026-09-16): a
+  per-response nonce is not weaker than today's `'self'`-only policy
+  against attacker-injected script — by the standard justification for
+  nonce-based CSP, arguably stronger, since an attacker who injects a
+  `<script>` tag still cannot execute it without also learning that
+  response's unpredictable nonce — but it does introduce a new, narrow
+  dependency this program did not previously have: the same mechanism
+  that authorizes Cloudflare's JavaScript Detections script would also
+  authorize any other inline script Cloudflare's edge chooses to inject
+  and stamp with that response's nonce, and this program cannot inspect or
+  constrain that content before it executes in a visitor's browser. The
+  owner accepted this knowingly and explicitly, as a decision distinct
+  from E14 (merge commit `5a8f4990`).
+- Verified by: AC1a–AC1d and AC1f are testable against any deployed Pages
+  environment that runs the Function (preview or production alike, since
+  the Function itself generates the nonce); AC1e is testable by
+  deliberately forcing a Function error in a non-production deployment and
+  inspecting the fallback response; AC2 is testable **only** against the
+  real production hostname (R-7.8), since JavaScript Detections' injection
+  is a zone-level, Bot-Fight-Mode-gated behaviour absent from
+  `*.pages.dev`. None of AC1a–AC1f, AC2 or R-7.8 is implemented yet —
+  sequenced as Wave 4-R1 (PLAN-001 §7).
 
 **R-7.6** The Pages project serves the built output with correct routing.
 - AC1 — Given any in-scope path without a trailing slash, When requested,
@@ -451,6 +558,47 @@ never a routine implementation decision.
   regression test. AC1a is verified once, at credential-selection time, by
   confirming which mechanism was actually used.
 
+**R-7.8 — Automated verification of security headers and script execution
+runs against the real production hostname, not build output or the
+`pages.dev` origin.** (Added 2026-09-16, REQ-001-A2, approved by the
+owner — E14.) Closes QA-005 Finding 2, and closes R-7.5 AC1's standing
+deploy-time gap (no automated coverage against a live response existed
+before this requirement).
+
+- AC1 — Given a completed production deployment (R-6.4), When the
+  post-deployment smoke suite runs, Then it additionally requests
+  `https://www.haroonie.ai/` — not `*.pages.dev`, not local build output —
+  across Chromium, Firefox and WebKit, and asserts zero CSP violations and
+  zero console errors on each of the six R-2 routes.
+- AC2 — Given the same production smoke run, When response headers are
+  inspected, Then `X-Content-Type-Options`, `Referrer-Policy` and
+  `Content-Security-Policy` (R-7.5 AC1) are verified present on the live
+  response itself, not inferred from `_headers` file content or local
+  build output.
+- AC3 — Given the same production smoke run, When total transferred
+  JavaScript is measured per page, Then the figure is recorded against the
+  production hostname specifically (R-5.2 AC2), superseding any figure
+  recorded only against `*.pages.dev` or local output.
+- AC4 — Given this amendment is deployed to production, When R-5.2 AC1's
+  existing Lighthouse Performance / LCP audit is next executed, Then it is
+  re-run against the post-Function production hostname and compared to
+  the most recent pre-Function baseline, with any regression reported
+  rather than silently absorbed as "still passing" without a stated
+  comparison.
+- AC5 — Given this suite exists, When it fails, Then the failure is
+  surfaced as a CI failure and a rollback recommendation is recorded, per
+  R-6.4 AC2's existing pattern — not merely logged.
+- AC6 — Given this new production-hostname suite exists alongside the
+  pre-existing build-output suites (`cross-browser.spec.ts`,
+  `lighthouse.spec.ts`, `security-headers.spec.ts`), When both run, Then
+  the build-output suites are retained unchanged as fast pre-merge gates —
+  they were never wrong, only insufficient alone (QA-005) — and the new
+  suite is additive, not a replacement.
+- Verified by: a new Playwright spec (naming is an Engineer decision)
+  executed as part of the post-deployment job in `ci-cd.yml`, gated the
+  same way R-6.4's existing smoke suite is gated. Not yet implemented —
+  sequenced as Wave 4-R1 (PLAN-001 §7).
+
 ### R-8 — Quality gates and traceability
 
 **R-8.1** Every acceptance criterion above maps to at least one automated
@@ -466,6 +614,14 @@ check or an explicitly recorded manual verification.
 **R-8.3** Assertions are not weakened to achieve a pass.
 - AC1 — Given any change to a test that reduces assertion strength, When
   reviewed, Then it carries a recorded justification approved by the owner.
+- Note (2026-09-16, REQ-001-A2 §2): the R-7.5 CSP-nonce mechanism was
+  interrogated against this gate before adoption. Conclusion: it does not
+  trigger AC1 — R-7.5 AC2's text is unchanged and remains strict; the
+  fix makes production conform to the existing strict assertion, rather
+  than loosening the assertion to tolerate production. `'unsafe-inline'`
+  was the alternative that would have triggered this gate, and was
+  rejected for that reason. Recorded here so the analysis is traceable
+  from the gate it was checked against, not only from the amendment.
 
 ---
 
@@ -490,6 +646,10 @@ check or an explicitly recorded manual verification.
 | `CLOUDFLARE_ZONE_TOKEN` (user token, prefix `cfut_`, no expiry set) | Read confirmed across DNS records, rulesets, zone settings, Pages. Write untested. **Selected as Wave 4's credential by owner decision 2026-09-15 (E13)** — see R-7.7 AC1a/AC2 for the untested-write and required-sequencing consequences | Verified read-only by a separate session 2026-09-15; write status remains unverified until Wave 4's first write |
 | GitHub ruleset on `main` | Ruleset `23484592`, active — `required_status_checks` ("Install, lint, build, Playwright", strict up-to-date), `non_fast_forward`, `deletion` protection | Owner/Engineer, confirmed 2026-09-15 (E8 resolution, `status/STATUS.md` numbering) |
 | Repository visibility | Public (`haroonie-ai-ops/public-site`); all 91 commits secret-scanned clean beforehand | Owner, confirmed 2026-09-15 (E8 resolution) |
+| Cloudflare documentation citations (JS Detections + Bot Fight Mode + CSP) | `developers.cloudflare.com/cloudflare-challenges/challenge-types/javascript-detections/`; `developers.cloudflare.com/bots/get-started/bot-fight-mode/` | Fetched via Cloudflare documentation search, 2026-09-16 (REQ-001-A2 §0.3 on evidentiary weight) |
+| Current CSP baseline (pre-REQ-001-A2), for the "only `script-src` changes" rule (U16) | `default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'` | `public/_headers`, R-7.5 (as merged to `main`, PR #4) |
+| Measured injected-script size, production hostname | ~938 bytes, `www.haroonie.ai/services/` | QA-005, 2026-09-16 |
+| Minimum nonce entropy | 128 bits (16 bytes), CSPRNG-sourced | W3C CSP Level 3 recommendation; a security-engineering default applied per U14, not owner-supplied |
 
 ---
 
@@ -511,6 +671,13 @@ check or an explicitly recorded manual verification.
 | U10 (2026-09-15) | Is `www.haroonie.ai` already used by anything (a SaaS binding, a Microsoft vanity domain, etc.)? | Resolved by direct evidence: no A/AAAA/CNAME exists at `www` today. Treated as clear. If a future need for `www` conflicts with this program, that is a conflict to raise when it happens, not now. |
 | U11 (2026-09-15) | Is the zone/record data behind R-7.7 independently verified, or a single unverified report? | Single query, single session, at drafting time. Safest default: usable for drafting requirements against, but Wave 4 must independently re-query and diff the live zone (R-7.7 AC1) before making any change; no prior report is itself AC1's evidence. |
 | U12 (2026-09-15) | What exact permission scope must Wave 4's Cloudflare credential carry, and is the existing `CLOUDFLARE_ZONE_TOKEN` the right instrument? | **Resolved 2026-09-15 (owner decision, E13): use the existing `CLOUDFLARE_ZONE_TOKEN`.** Its write grants are untested and it has no expiry set — both recorded as live risk, not closed by this decision. Consequence: R-7.7 AC2's create-only rule requires the first write to be the `www` record, never the apex, so a missing grant surfaces on a name carrying nothing. Post-Wave-4 revocation of this token is recommended (non-binding — see §6 E13). Cloudflare's interactive OAuth path remains confirmed non-viable for this account (R-7.7 AC1a). |
+| U13 (2026-09-16) | Should the CSP-nonce Function's route-matching be global (`functions/_middleware.ts` applying to every request) or scoped only to HTML document routes? | Global. CSP headers on non-document responses (assets, `sitemap.xml`, etc.) are inert in browsers, not harmful; excluding paths adds complexity — and a new class of "did we forget a path" bug — for no protective benefit. R-7.5 AC1's "any production page response" reads most naturally as global anyway. |
+| U14 (2026-09-16) | Nonce generation source and minimum entropy — no owner or prior-document guidance exists on this. | `crypto.getRandomValues()` (Web Crypto, available in the Pages Functions runtime), at least 16 random bytes (128 bits), base64-encoded. Not `crypto.randomUUID()` (fewer effective random bits than a raw 128-bit CSPRNG value, per its version/variant bits), not `Math.random()`, not derived from any value already visible in the response. |
+| U15 (2026-09-16) | Should `public/_headers`'s `Content-Security-Policy`, `X-Content-Type-Options` and `Referrer-Policy` lines be deleted once the Function takes over, or left in place as a "backup"? | Deleted. R-7.5 AC1f requires exactly one CSP header per response; no Cloudflare documentation was found establishing a defined precedence between a Pages Function's headers and a static `_headers` file for the same header name (searched 2026-09-16, no result — see U17), so "leave both and hope one wins predictably" is not treated as safe. Deleting the overlapping lines removes the ambiguity outright. |
+| U16 (2026-09-16) | Is REQ-001-A2's CSP change scoped to `script-src` only, or an invitation to revisit the whole policy? | `script-src` only. Every other directive (`default-src`, `style-src`, `img-src`, `font-src`, `connect-src`, `form-action`, `frame-ancestors`, `base-uri`, `object-src`) carries over unchanged, verbatim, from the current `public/_headers` baseline (§4), so this does not become an undisclosed, unreviewed CSP rewrite riding on an architecture-change approval. |
+| U17 (2026-09-16) | What is Cloudflare's actual precedence/interaction rule between a Pages Function's response headers and a static `_headers` file rule for the same header name? | Not established (queried 2026-09-16; no result). Safest default: do not rely on an assumed precedence at all. R-7.5 AC1f's "exactly one header, empirically verified against a live deployed response" is the requirement, regardless of which mechanism a reader might expect to "win" — any deviation is a build/deploy defect to fix, not a surprising-but-acceptable outcome to explain away. |
+| U18 (2026-09-16) | Which direction should the Function fail in if it errors — degrade strictness, degrade availability, or ship with no CSP? | Degrade strictness (R-7.5 AC1e): fall back to the pre-amendment static policy value. Never zero CSP, never a 500 solely because of this fallback. |
+| U19 (2026-09-16) | Does deploying a Pages Function require any Cloudflare permission beyond CI's existing scoped token (R-6.6, Pages: Edit)? | Assume no new grant is required — Functions ship as part of the same Pages deployment artifact, through the same GitHub Actions → Cloudflare Pages path (R-6.3) already in use — but this is unverified by this program specifically for Functions. If a deployment attempt is rejected for a permissions reason, that is E16 (§6), not a problem to work around by unilaterally broadening the token's scope. |
 
 ---
 
@@ -540,9 +707,9 @@ continued numbering from E1, so its E7 and E8 refer to different, later,
 operational items. This is a pre-existing numbering collision between the
 two documents, not something introduced or resolved here; it is flagged
 rather than silently fixed, consistent with §5's treatment of U2. Every
-"E8", "E11", "E12" and "E13" reference below is to `status/STATUS.md`'s
-numbering, per the owner's 2026-09-15 instruction — not to this table's
-own already-resolved local E8 above.
+"E8", "E11", "E12", "E13", "E14", "E15" and "E16" reference below is to
+`status/STATUS.md`'s numbering, per the owner's 2026-09-15 instruction —
+not to this table's own already-resolved local E8 above.
 
 | # | Item | Blocks |
 |---|------|--------|
@@ -550,6 +717,9 @@ own already-resolved local E8 above.
 | ~~E11~~ | ~~Owner must explicitly confirm the mail/Microsoft 365 DNS records (§4) are to remain permanently, with no agent authorized to alter or remove them under any circumstance~~ — **Resolved 2026-09-15 (owner decision):** confirmed permanent. Wave 4's relationship to the MX record, both apex TXT records, and the three Microsoft CNAMEs is create-only, permanently — not only for Wave 4's duration — and any future change to them is its own escalation, never a routine implementation decision. See A9, U7, R-7.7. | resolved |
 | ~~E12~~ | ~~Owner must decide whether mail-continuity verification (R-7.3 AC4 / R-7.7 AC4) may include an actual end-to-end test email send~~ — **Resolved 2026-09-15 (owner decision): no.** Verification is DNS-record-level only — byte-identical before/after record comparison via the Cloudflare API plus an external `dig`. No test email is sent; doing so would itself be a separate outbound-email escalation under CLAUDE.md, which is the reasoning the owner upheld in choosing the narrower option over an end-to-end send test. | resolved (nothing was blocked pending this — the default already satisfied the ACs without a send) |
 | ~~E13~~ | ~~Owner must confirm the exact permission scope for Wave 4's Cloudflare credential, and whether the existing `CLOUDFLARE_ZONE_TOKEN` is the intended instrument~~ — **Resolved 2026-09-15 (owner decision): use the existing `CLOUDFLARE_ZONE_TOKEN`.** Its write grants are untested and it has no expiry set — recorded as live risk, not closed by this decision. Sequencing consequence carried into R-7.7 AC2: the first write Wave 4 performs must create the `www` record, never the apex, so a missing grant surfaces on a name carrying nothing rather than mid-change on the name carrying live mail. Post-Wave-4 revocation of this token is recommended (non-binding — an implementation follow-up for whoever executes Wave 4, not itself a new AC). | resolved — still blocks Wave 4 *execution* of any DNS write until Wave 4 actually begins (nothing in this document authorizes starting Wave 4) |
+| ~~E14~~ | ~~Owner must approve the architecture change itself: adopting a Cloudflare Pages Function as a new, server-side, request-time execution component of what has been a purely static site through every prior wave, and moving R-7.5's CSP header off `public/_headers` onto that Function's output~~ — **Approved 2026-09-16 (owner decision).** Verbatim: *"Approve e14."* Recorded in merge commit `5a8f4990` (PR #7). See R-7.5, R-7.8. | resolved — implementation not yet started; sequenced as Wave 4-R1 (PLAN-001 §7) |
+| ~~E15~~ | ~~Owner must accept, as a disclosed consequence of E14 rather than a hidden side effect, the trust-dependency identified in REQ-001-A2 §2: a nonce-based CSP delegates to Cloudflare's edge the decision of which inline script content is authorized on every response, for as long as JavaScript Detections/Bot Fight Mode is enabled on this zone, and this program cannot inspect or constrain that content before it executes in a visitor's browser~~ — **Approved 2026-09-16 (owner decision).** Verbatim: *"Approve E15 then merge or #7."* The owner knowingly accepts that the CSP's guarantee changes from "nothing inline executes" to "nothing inline executes except what Cloudflare stamps." Approved as a decision distinct from E14. Recorded in merge commit `5a8f4990` (PR #7). See R-7.5. | resolved |
+| E16 (conditional) | If, during implementation, deploying a Pages Function is found to require a Cloudflare permission grant beyond CI's existing scoped token (R-6.6), that is a credentials/access escalation under CLAUDE.md and must stop for owner action rather than be resolved by unilaterally broadening the token's scope. | not yet triggered (U19) — blocks nothing today; only relevant if a broader grant turns out to be needed |
 
 Agents will proceed with all work not dependent on the above, and will not
 create accounts, register domains, or handle credentials autonomously.
