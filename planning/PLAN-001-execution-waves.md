@@ -259,6 +259,12 @@ generic "*.ns.cloudflare.com" pattern.
 - Security headers present on every response; zero CSP console violations
   across R-2's pages
 
+**Status, 2026-09-16 (see §7): R-7.1–R-7.4, R-7.6 and R-7.5 (as a static
+`public/_headers` file, PR #4) merged 2026-09-15. R-7.5 AC2 subsequently
+found FAILING against the real production hostname (QA-005) — see §7 for
+the revision this drives. This exit-criteria list describes the wave as
+originally scoped; §7 is the current word on R-7.5's status.**
+
 ---
 
 ### Wave 5 — Enquiry form completion
@@ -287,6 +293,14 @@ WebKit pass with no console errors).
 
 **Exit criteria:** budgets met on the deployed preview URL, and again on
 production during Wave 7's smoke pass.
+
+**Status, 2026-09-16 (see §7): merged 2026-09-15 (PR #5) — Lighthouse
+Performance 100/six pages, LCP 856-1204ms, `status/PERF-001-wave6-audit.md`.
+QA-005 (2026-09-16) subsequently found R-5.3 AC1 (no console errors) failing
+on the real production hostname for the same CSP-injection reason as R-7.5
+AC2, and R-5.2 AC2's recorded "0 bytes JS" evidence stale for that hostname
+(~938 bytes measured, still inside budget). See §7 — this wave's numbers
+require a second pass once REQ-001-A2 ships, not a reopening of this wave.**
 
 ---
 
@@ -346,6 +360,12 @@ mechanism for actually configuring the zone once E1/E2 cleared — so Wave
 delegation, unconfirmed zone, and no working access path to configure it
 regardless." Full detail: `status/STATUS.md` (E1/E2, E10).
 
+**Row added 2026-09-16 — see §7 for full detail:**
+
+| Blocker | Impact radius | What proceeds regardless |
+|---|---|---|
+| E14/E15 (REQ-001-A2 architecture approval / trust-dependency acceptance) — owner, not yet resolved | Blocks Wave 4-R1 (§7) — the CSP-nonce fix for QA-005 Finding 1 — only | Every other wave: 1, 2, 3, 5 (E4-gated), and Wave 6/7 work not dependent on the CSP mechanism |
+
 No single outstanding item halts the program. Per CLAUDE.md failure policy,
 any wave that hits three unsuccessful repair cycles is logged as a blocker
 in `status/` with evidence and a recommended action, and unrelated waves
@@ -375,3 +395,146 @@ highest-leverage action for Wave 4 today is deciding E10's three options
 (scoped token / `wrangler login` / manual dashboard work), not E1/E2,
 which are effectively settled or near-settled. Full detail:
 `status/STATUS.md` (E1/E2, E10).
+
+**Updated 2026-09-16, not silently replaced:** E1, E2, E10 are all
+superseded by events — Wave 4's DNS/TLS/redirect work is live (R-7.1–R-7.4,
+R-7.6), REQ-001-A1 folded into REQ-001 with E11/E12/E13 resolved, and
+`public/_headers` (R-7.5) shipped (PR #4). The highest-leverage owner
+action right now is **E14+E15** (§7): approving REQ-001-A2's architecture
+change and acknowledging its disclosed trust-dependency is what unblocks
+the one currently-known production defect (QA-005 Finding 1) from being
+fixed. Nothing else in the plan is gated by this decision.
+
+---
+
+## 7. Amendment — REQ-001-A2 (CSP nonce via Cloudflare Pages Function)
+
+Status: **DRAFT amendment, not yet owner-approved** (E14/E15 open,
+`requirements/REQ-001-A2-csp-nonce-pages-function-amendment.md`). Nothing
+in this section authorizes implementation; it records where this work
+sequences once approved, so sequencing is not re-derived from scratch
+mid-approval or, worse, skipped.
+
+### 7.1 What this is, in plan terms
+
+QA-005 Finding 1 found R-7.5 AC2 and R-5.3 AC1 failing against production.
+That is a **defect discovered in already-shipped work** (R-7.5 static
+headers, PR #4; Wave 6 perf/cross-browser audit, PR #5 — both merged
+2026-09-15), not unstarted greenfield scope. REQ-001-A2 is therefore a
+**revision to Wave 4 and Wave 6's already-delivered ACs**, not a new
+numbered wave. It is tracked here as **Wave 4-R1** to keep it distinct from
+Wave 4's original (closed-in-practice) scope, while making clear it is a
+patch, not a fresh wave with independent entry criteria.
+
+### 7.2 Dependency graph addition
+
+```
+Wave 3 (CI/CD, merged) ---\
+                            +--> Wave 4-R1 (REQ-001-A2: CSP nonce Function) --> Wave 6 re-verification (R-7.8 AC4)
+Wave 4 (R-7.5 static headers, merged) --/
+        ^
+        |
+   E14 + E15 (owner) -- hard gate, nothing below executes without both
+```
+
+Reasoning:
+- **Wave 4 (merged)** created the Cloudflare Pages project and the zone the
+  Function must attach to, and is the thing being revised (R-7.5's
+  authoritative CSP source moves off `public/_headers`).
+- **Wave 3 (merged CI/CD)** is a real dependency, not a coincidence: the
+  Function ships through the same GitHub Actions → Cloudflare Pages deploy
+  path (R-6.3) Wave 3 built, and R-7.8's new suite is gated as a
+  post-deployment CI job the same way R-6.4's existing smoke suite is
+  (amendment §3.2 AC5).
+- **Wave 6 (merged perf/cross-browser audit)** is a downstream dependent,
+  not an upstream one: R-7.8 AC4 requires R-5.2 AC1's Lighthouse budget to
+  be *re-verified*, not assumed unaffected, once the Function is live — so
+  Wave 6's numbers get a second pass after Wave 4-R1, they are not a
+  precondition for it to start.
+- **E14 (architecture approval) and E15 (trust-dependency acknowledgment)**
+  gate the entire wave. Per CLAUDE.md, "architecture changes with
+  significant impact" and disclosed trust-dependencies are owner-reserved,
+  not routine implementation decisions.
+- **E16 (conditional)** does not gate the wave's start — it is only live if
+  a Cloudflare permission gap surfaces during deployment (amendment §4
+  U19).
+- **No dependency on Wave 5** (enquiry form / E4) or **E6** (copy) — this
+  amendment touches only response headers and script authorization, never
+  page content or the mailbox.
+
+### 7.3 Execution grouping once approved (not started)
+
+If/when E14 and E15 are resolved, this decomposes into three groups. None
+may start before approval; they are recorded now so implementation does not
+stall re-deriving sequencing after the fact.
+
+**Group A (sequential, one engineer — must land first):**
+`functions/_middleware.ts` (or equivalent) generating the per-response
+nonce; deletion of the overlapping `Content-Security-Policy` /
+`X-Content-Type-Options` / `Referrer-Policy` lines from `public/_headers`
+per amendment §4 U15 (kept as one change, not two, because AC1f's
+single-header guarantee is only meaningful once both halves move
+together). This is the one piece everything else needs.
+
+**Group B (parallel, once Group A merges — different files, safe
+together):**
+- R-7.8's new production-hostname Playwright suite (new spec file; touches
+  `ci-cd.yml`'s post-deployment job only additively, per AC6 — does not
+  modify the existing pre-merge suites).
+- R-7.5 AC1e's fail-safe test (forcing a Function error in a
+  non-production deployment) — a distinct test target from AC1a–d/AC1f, no
+  file overlap with R-7.8's spec.
+
+**Group C (after Group A+B pass in a real deployment):** R-7.8 AC4's
+Lighthouse re-verification against the post-Function production hostname,
+compared to the PERF-001 baseline. Sequenced last because it needs the
+Function actually live and stable, not synthetic.
+
+### 7.4 Contention risks
+
+- **`public/_headers`** — the one file both the original Wave 4 R-7.5 work
+  and this amendment's Group A touch. No other workstream should edit it
+  concurrently; U15's resolution (delete the overlapping lines, don't leave
+  two sources) is why this must land as a single coordinated change, not
+  two independent edits racing each other.
+- **`ci-cd.yml`'s post-deployment job** — shared with R-6.4's existing
+  smoke suite. R-7.8 AC6 requires the new suite be additive; whoever
+  implements Group B should pull the current file state immediately before
+  editing, not a cached copy, given this program's demonstrated pattern of
+  stale-branch edits colliding (see PR #4/#5's own merge-order notes).
+- **No mailbox, no auth-artifact contention** — this amendment touches
+  CSP/response headers and CI only; it shares no state with Wave 5
+  (enquiry form) or any credential used elsewhere.
+- **No content-collection contention** — no page markup changes.
+
+### 7.5 Exit criteria for Wave 4-R1 (once approved and implemented)
+
+- R-7.5 AC1a–AC1f pass against a real deployed Pages environment (nonce
+  per-response and unguessable, no `'unsafe-inline'` ever including on the
+  fail-safe path, `/cdn-cgi/challenge-platform/` under `'self'`, exactly
+  one CSP header, defined fail-safe verified by deliberately forcing a
+  Function error).
+- R-7.5 AC2 passes against the real production hostname specifically
+  (R-7.8 AC1), not `pages.dev` or local build output.
+- R-7.8 AC1–AC6 all pass in CI as a post-deployment gate.
+- R-5.2 AC1's Lighthouse budget is re-verified against the post-Function
+  production hostname and compared to the PERF-001 baseline, with any
+  regression reported, not silently absorbed.
+- R-5.2 AC2's recorded evidence reflects the production-hostname figure
+  (~938 bytes, still inside the 50KB budget), per amendment §3.3.
+- No new blocker (E16) triggered by a Cloudflare permission gap; if
+  triggered, it is escalated, not resolved by broadening a token's scope
+  unilaterally.
+
+### 7.6 Blockers and what proceeds regardless
+
+| Blocker | Impact radius | What proceeds regardless |
+|---|---|---|
+| E14 not yet approved (architecture change: Pages Function as new request-time code) | Blocks all of Wave 4-R1 (Groups A/B/C) | Every other wave already in flight — Wave 5 (E4-gated), E6 copy work, QA-002 Probe 4 / QA-003 Finding 1 (BA items), any unrelated Wave 7 prep |
+| E15 not yet acknowledged (disclosed trust-dependency on Cloudflare's injection scope) | Nothing blocked today per the amendment's own text (owner already chose Option B's direction) — recorded so it is not discovered later, not because anything waits on it | Everything |
+| E16 (conditional — Cloudflare permission gap) | Not yet triggered; would block only the Function's actual deployment step if it fires | Everything else in Wave 4-R1 not yet at the deploy step |
+| QA-005 Finding 1 itself, unresolved until E14/E15 clear | Production continues to show the known, disclosed CSP console error (R-7.5 AC2/R-5.3 AC1) — a known, already-diagnosed condition, not a new incident, and does not regress availability, security below today's baseline, or any other requirement | Everything not dependent on the CSP mechanism |
+
+No wave elsewhere in this plan is affected by REQ-001-A2 being blocked. Per
+CLAUDE.md's failure/blocker policy, this document does not recommend
+halting any other workstream because this one is owner-gated.
