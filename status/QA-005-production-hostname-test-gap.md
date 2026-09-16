@@ -87,3 +87,22 @@ Finding 1 was discovered incidentally while verifying R-7.6 (trailing-slash
 canonicalization), via an unexplained body-hash difference between two URL
 forms. R-7.6 AC1 itself PASSES: all five routes 308 to the slashed form and
 only one form serves 200.
+
+### Engineer update, 2026-09-16 — implementation open in PR #9, not yet merged
+
+Both findings addressed via REQ-001-A2 (E14/E15 owner-approved), Wave 4-R1
+(`planning/PLAN-001-execution-waves.md` §7): `functions/_middleware.ts`
+mints a per-response CSP nonce so Cloudflare's own injected script is
+authorized without `'unsafe-inline'` (Finding 1's fix), and
+`tests/production-security.spec.ts` + `playwright.production.config.ts`
+give this program its first suite that ever requests the real production
+hostname (Finding 2's fix), wired into `ci-cd.yml` as a new
+`post-deploy-verify` job.
+
+Engineering self-test against current (unpatched) production reproduced
+Finding 1's exact numbers with the new suite: 18/18 CSP-violation failures
+(3 engines × 6 routes), confirming the new suite genuinely detects what
+this report describes, not a suite that would have passed regardless. This
+is expected to reach 0 once PR #9 merges and deploys — not something this
+session can do (no merge authority). Full detail: PR #9,
+`status/STATUS.md`'s top entry.

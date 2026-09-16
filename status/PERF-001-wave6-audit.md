@@ -11,6 +11,23 @@ environmental finding that materially shaped how this wave was executed,
 and one flaky-test finding. Every number below was measured, not assumed —
 see "Methodology" for exactly how.
 
+**Correction (REQ-001-A2 §3.3, 2026-09-16):** R-5.2 AC2's "0 bytes of JS"
+figure below was accurate for `haroonie-ai-public-site.pages.dev` at the
+time it was recorded, but is not the correct figure for the hostname
+visitors actually use. QA-005 (2026-09-16) measured ~938 bytes of
+Cloudflare-injected script (JavaScript Detections / Bot Fight Mode) on
+`https://www.haroonie.ai/services/` — a zone-level configuration effect
+external to this program's own build, not a regression in anything Wave 6
+shipped. **AC2 still PASSES** — 938 bytes is far inside the 50KB budget —
+but the recorded evidence is corrected here rather than silently left
+wrong. `tests/production-security.spec.ts` (REQ-001-A2 R-7.8 AC3, added
+this session) now measures this figure against the real production
+hostname on every post-deployment run, so this kind of drift is caught
+going forward instead of discovered incidentally. R-7.8 AC4 (re-verifying
+R-5.2 AC1's Lighthouse budget against the post-Function production
+hostname) is sequenced after Wave 4-R1's Function actually ships
+(PLAN-001 §7.3 Group C) — not yet done as of this correction.
+
 ---
 
 ## 1. Headline result
@@ -181,8 +198,8 @@ in production.
   context, rather than assuming a stale-tree pass transfers automatically.
 - **Update:** this PR rebases the durable checks (and playwright.config.ts,
   package.json, package-lock.json) onto the real, current `origin/main`
-  tip via the GitHub API — the only working path given the authentication
-  failure above — rather than local git. See the pull request description
+  tip via the GitHub API (the only working path given the authentication
+  failure above) — rather than local git. See the pull request description
   for the exact merge reasoning on each modified file. Fixing the
   underlying git credential issue itself remains an owner escalation
   (CLAUDE.md: credentials/access require owner approval); this session did
