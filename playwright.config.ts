@@ -36,17 +36,32 @@ export default defineConfig({
 			// output from it would misrepresent what Cloudflare Pages actually
 			// serves). Each has its own project against `previewBaseURL`
 			// below, so it must not also run here against the dev server.
-			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts/,
+			// REQ-001-A2 / R-7.8 — also ignore the production-hostname suites
+			// here: they talk to a real, already-deployed URL over the network
+			// and must never join this fast, deployment-independent pre-merge
+			// gate (R-7.8 AC6). They run only under
+			// playwright.production.config.ts (`npm run test:production`).
+			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts|production-security\.spec\.ts|csp-nonce-failsafe\.spec\.ts/,
 		},
 		{
 			name: 'firefox',
 			use: { ...devices['Desktop Firefox'] },
-			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts/,
+			// REQ-001-A2 / R-7.8 — also ignore the production-hostname suites
+			// here: they talk to a real, already-deployed URL over the network
+			// and must never join this fast, deployment-independent pre-merge
+			// gate (R-7.8 AC6). They run only under
+			// playwright.production.config.ts (`npm run test:production`).
+			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts|production-security\.spec\.ts|csp-nonce-failsafe\.spec\.ts/,
 		},
 		{
 			name: 'webkit',
 			use: { ...devices['Desktop Safari'] },
-			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts/,
+			// REQ-001-A2 / R-7.8 — also ignore the production-hostname suites
+			// here: they talk to a real, already-deployed URL over the network
+			// and must never join this fast, deployment-independent pre-merge
+			// gate (R-7.8 AC6). They run only under
+			// playwright.production.config.ts (`npm run test:production`).
+			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts|production-security\.spec\.ts|csp-nonce-failsafe\.spec\.ts/,
 		},
 		{
 			name: 'static-preview',

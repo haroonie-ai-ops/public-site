@@ -1,6 +1,63 @@
 # Workstream Status — haroonie.ai Public Website
 
-Last updated: 2026-09-16 — **REQ-001-A2 drafted (DRAFT, not owner-approved):
+Last updated: 2026-09-16 — **Wave 4-R1 implemented, PR #9 open, not
+merged.** E14 and E15 (below, in this same document) were approved by the
+owner (merge `5a8f4990`, PR #7) and REQ-001-A2's ACs were folded into
+`requirements/REQ-001-mvp-public-website.md` as APPROVED (PR #8) earlier
+this session. The Engineer then built and pushed Wave 4-R1 per
+`planning/PLAN-001-execution-waves.md` §7: PR #9,
+`feat/wave4-r1-csp-nonce-pages-function` → `main`, two commits (Group A —
+the Function; Group B — the production-hostname suite), CI running at time
+of this entry.
+
+**Spike result, plainly:** the specific claim "Cloudflare stamps our nonce
+onto its own injected script" could NOT be proven before merging, and this
+is a structural limitation, not a shortcut taken. QA-005's own evidence
+(and this session's own `curl` checks) confirm Cloudflare's JavaScript
+Detections injection is a **zone-level** behavior — it fires only on the
+real proxied `www.haroonie.ai`, never on any `*.pages.dev` URL (verified:
+zero injected script on `haroonie-ai-public-site.pages.dev`). No PR
+preview, and no throwaway Cloudflare Pages project (this session had
+read-only Cloudflare API access to the account, no zone access at all —
+`GET /zones` returned empty, consistent with not being authorized to touch
+zone settings anyway), can exercise that specific behavior. What WAS
+proven pre-merge: the Function's own mechanics (nonce generation, header
+construction, uniqueness, fail-safe branching) — `tests/csp-module.spec.ts`
+(unit-level) and the mechanically-provable half of
+`tests/production-security.spec.ts`. The actual stamping claim remains
+open until this deploys to production; `post-deploy-verify` (new CI job,
+this PR) is where that first real evidence will appear, with AC1e's
+fail-safe as the safety net if it doesn't hold.
+
+**Engineering self-test against current (unpatched) production**
+(`npm run test:production` against real `https://www.haroonie.ai/`, before
+this PR's Function is live): 24 failures — 18 CSP-violation failures (6
+routes × 3 engines, matching QA-005's reported figure exactly) + 6 from the
+two new nonce-mechanic checks (no nonce yet, Function not deployed). This
+confirms the new suite correctly detects the still-open defect; expected to
+reach 0 once this PR is reviewed, merged, and deployed — none of which this
+session can do (no merge authority, `main` is protected).
+
+**Known gap, disclosed:** `tests/csp-nonce-failsafe.spec.ts` (AC1e's
+"forced Function error on a real deployment" check) self-skips.
+Setting the test-only `FORCE_CSP_MIDDLEWARE_ERROR` flag requires a
+Cloudflare Pages **project-level** preview environment variable (the
+direct-upload deployment API has no per-deployment env var field), which
+would force every in-flight PR preview into the fail-safe path at once —
+bigger than a routine implementation decision to make unilaterally. The
+fallback branch's pure logic is unit-tested; only "does the real Functions
+runtime reach it" remains unverified. Recommend: a second, dedicated
+Cloudflare Pages project (or a Worker-level environment binding) scoped
+only to this one test, as a follow-up PM/Engineer item — not urgent, since
+R-7.5 AC1e's logic is otherwise covered.
+
+**What proceeds regardless:** everything not touching CSP/response headers
+or CI — this matches PLAN-001 §7.6's own blocker-impact table. Nothing
+merged, no Cloudflare zone/DNS setting touched, HSTS untouched.
+
+---
+
+Prior update, 2026-09-16 — **REQ-001-A2 drafted (DRAFT, not owner-approved):
 CSP nonce via Cloudflare Pages Function, resolving QA-005.** QA-005 (raised
 2026-09-16, own file: `status/QA-005-production-hostname-test-gap.md`)
 found R-7.5 AC2 and R-5.3 AC1 **FAILING against the real production
@@ -972,8 +1029,8 @@ weaker, of the two.
 | E8 | **R-6.1 AC2 is unimplementable as specified**: branch protection and rulesets are unavailable on private repos on GitHub Free. Owner must choose public repo, GitHub Pro, or an AC change. **Now assessed higher priority than E10** — `main` is unprotected and two PRs (#4, #5) are mergeable while red (see E8 section below) | Blocks Wave 3 exit, not Wave 3 start | New 2026-09-11; reprioritized 2026-09-15 |
 | E10 | **Wave 4's planned Cloudflare access path is PROVEN non-functional, not merely "does not appear to reach"** (2026-09-15) — the OAuth session sees zero zones on the same account a working zone token confirms is active. **One option is now half-resolved**: a scoped `CLOUDFLARE_ZONE_TOKEN` is read-confirmed (DNS, rulesets, settings, Pages) but zone-write is untested pending `REQ-001-A1`, and has no expiry set. See "E10" below | Blocks Wave 4 write execution; read verification now unblocked | New 2026-09-14; updated 2026-09-15 |
 | E11 | `CLOUDFLARE_API_TOKEN` (CI Pages-deploy secret) scope was never independently verified, and cannot be verified by any agent (`GET /user/tokens` / `GET /accounts/{id}/tokens` both return `9109 Unauthorized`; the CI secret's value cannot be read back). More consequential now the zone carries live MX/SPF for a working mailbox | Owner dashboard check only; no agent verification path exists | New 2026-09-15 |
-| E14 | **Owner must approve the architecture change**: adopting a Cloudflare Pages Function (`functions/_middleware.ts` or equivalent) as this site's first server-side, request-time execution component, moving R-7.5's CSP off `public/_headers` onto that Function's output. Full detail: `requirements/REQ-001-A2-csp-nonce-pages-function-amendment.md` §0, §5. | Blocks all of REQ-001-A2's ACs (R-7.5 AC1a–AC1f, R-7.8) — nothing in Wave 4-R1 (PLAN-001 §7) may be implemented before this | New 2026-09-16 |
-| E15 | **Owner must accept, as a disclosed consequence of E14, the trust-dependency identified in REQ-001-A2 §2**: a nonce-based CSP delegates to Cloudflare's edge the decision of which inline script content is authorized on every response, for as long as JavaScript Detections/Bot Fight Mode is enabled on this zone, and this program cannot inspect or constrain that content before it executes in a visitor's browser. Not a weakening of the CSP's defense against attacker-injected script — a new, narrow reliance this program did not previously have. | Nothing blocked today (the owner already chose Option B's direction); recorded so it is disclosed, not discovered later | New 2026-09-16 |
+| ~~E14~~ | ~~Owner must approve the architecture change~~: adopting a Cloudflare Pages Function (`functions/_middleware.ts`) as this site's first server-side, request-time execution component, moving R-7.5's CSP off `public/_headers` onto that Function's output. **APPROVED 2026-09-16 (owner decision, verbatim "Approve e14"), recorded in merge `5a8f4990` (PR #7).** Implemented in PR #9 (Wave 4-R1, this session) — see the top-of-document entry. | Resolved — implementation open in PR #9, not yet merged | New 2026-09-16; approved and implemented same day |
+| ~~E15~~ | ~~Owner must accept the trust-dependency identified in REQ-001-A2 §2~~: a nonce-based CSP delegates to Cloudflare's edge the decision of which inline script content is authorized on every response. **APPROVED/ACKNOWLEDGED 2026-09-16 (owner decision, verbatim "Approve E15 then merge or #7"), recorded in merge `5a8f4990` (PR #7).** | Resolved | New 2026-09-16; approved same day |
 | E16 | **Conditional.** If deploying the Pages Function is found to require a Cloudflare permission grant beyond CI's existing scoped token (R-6.6), that is a credentials/access escalation under CLAUDE.md and must stop for owner action, not be resolved by unilaterally broadening the token's scope. Not yet known to be triggered (REQ-001-A2 §4 U19). | Nothing today; only relevant if a broader grant turns out to be needed during implementation | New 2026-09-16 (conditional) |
 
 **Numbering note:** E14–E16 continue this document's own escalation series
@@ -1284,7 +1341,7 @@ raised the OAuth grant's scope: the session is read-only, and per the E1
 finding immediately above, does not appear to cover zone resources even
 for **reading**, let alone the **writes** Wave 4 actually needs:
 - R-7.2 — a DNS record (`www` canonical + TLS)
-- R-7.3 — a redirect rule (permission name "Dynamic Redirect", not "Single
+- R-7.3 — a redirect rule (permission name "Dynamic Redirect," not "Single
   Redirect," per PLAN-001's own E5 note)
 - R-7.4 — zone TLS settings
 

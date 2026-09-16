@@ -3,10 +3,14 @@
 // neither `astro dev` nor `astro preview` understand this file at all (it's
 // a Cloudflare-specific mechanism, not an Astro one), so nothing served
 // locally ever actually carries these headers. This helper parses the file
-// directly so tests can assert on its declared content, and
-// security-headers.spec.ts separately re-enforces that exact content as a
-// real response header locally (via route interception) to verify R-7.5
-// AC2 (no CSP violation browsing the site) in a real browser.
+// directly.
+//
+// REQ-001-A2 (U15): as of Option B, `public/_headers` no longer declares
+// Content-Security-Policy, X-Content-Type-Options or Referrer-Policy at all
+// — functions/_middleware.ts is their sole authoritative source now (see
+// that file and src/lib/csp.ts). `parseHeadersFile()` below is kept because
+// security-headers.spec.ts's structural guard test still needs it, to prove
+// those three headers never quietly reappear here.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -49,13 +53,4 @@ export function parseHeadersFile(): HeaderBlock[] {
 	}
 
 	return blocks;
-}
-
-/** The headers block that applies to every route (the catch-all `/*` pattern). */
-export function siteWideHeaders(): Record<string, string> {
-	const block = parseHeadersFile().find((b) => b.pattern === '/*');
-	if (!block) {
-		throw new Error('public/_headers has no site-wide "/*" pattern block');
-	}
-	return block.headers;
 }

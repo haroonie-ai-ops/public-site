@@ -1,6 +1,6 @@
 # CI/CD pipeline — R-6.1, R-6.2, R-6.3, R-6.6, R-6.7 (REQ-001).
 #
-# One workflow, three jobs:
+# One workflow, four jobs:
 #   validate        — install, lint, build, Playwright (R-6.1 AC1). Runs on
 #                      every PR into main and on every push to main.
 #   deploy-preview   — PR-only. Builds with SITE_ENV=preview (R-4.4 / R-6.2
@@ -18,6 +18,20 @@
 #                      see the "TEMPORARY E6 GATE" comment on that job's
 #                      Build step for the owner decision, why, and the exact
 #                      condition under which to remove it.
+#   post-deploy-verify — main-only, gated on deploy-production succeeding.
+#                      REQ-001-A2 / R-7.8: runs the production-hostname
+#                      Playwright suite (playwright.production.config.ts)
+#                      against the real https://www.haroonie.ai/ — the ONLY
+#                      point in this pipeline that traverses the real
+#                      Cloudflare zone proxy, where Bot Fight Mode's script
+#                      injection (and therefore R-7.5 AC2) actually occurs
+#                      (QA-005 Finding 2). Scoped ONLY to R-7.8's checks —
+#                      it is not R-6.4's still-unbuilt, separately-planned
+#                      "all pages 200 + heading present" smoke suite
+#                      (deferred to Wave 7 per PLAN-001); this job exists
+#                      because R-7.8 explicitly requires a post-deployment
+#                      gate and none existed yet for it to attach to
+#                      additively (R-7.8 AC6).
 #
 # R-6.1 AC2's enforcement half ("cannot be merged") is NOT implemented here.
 # It requires branch protection / a repository ruleset with a required
@@ -324,3 +338,82 @@ jobs:
             pages deploy dist
             --project-name=${{ env.CLOUDFLARE_PAGES_PROJECT }}
             --branch=main
+
+  post-deploy-verify:
+    name: Verify production hostname (R-7.8, REQ-001-A2)
+    needs: deploy-production
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Set up Node (pinned via .nvmrc)
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies (npm ci)
+        run: npm ci
+
+      - name: Install Playwright browsers (+ OS deps)
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      # R-7.8 — the only suite in this pipeline that ever requests the real
+      # production hostname through the Cloudflare zone proxy (QA-005
+      # Finding 2). A deliberately separate Playwright config
+      # (playwright.production.config.ts) from the `validate` job's
+      # `npm test` above — this never runs as part of the fast pre-merge
+      # gate (R-7.8 AC6).
+      - name: Run production-hostname verification suite (R-7.8)
+        run: npm run test:production
+        env:
+          PRODUCTION_BASE_URL: https://www.haroonie.ai
+
+      - name: Upload production verification report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: playwright-report-production
+          path: |
+            playwright-report-production/
+            test-results/
+          retention-days: 14
+          if-no-files-found: ignore
+
+      # R-7.8 AC5 — a failing run must be surfaced as a CI failure (the step
+      # above already does that by exiting non-zero, which fails this job)
+      # AND a rollback recommendation must be RECORDED, not merely logged in
+      # a scrollable step log. Written to the job summary so it is the first
+      # thing a human sees, and persists as long as the run does.
+      #
+      # R-6.5 (a documented rollback procedure) does not exist yet as of
+      # this commit (deferred to Wave 7 per PLAN-001) — the interim guidance
+      # below is the Cloudflare Pages dashboard's own rollback feature and
+      # API, not a wrapper this program has built or verified.
+      - name: Record rollback recommendation on failure
+        if: failure()
+        run: |
+          {
+            echo "## Production verification FAILED (R-7.8 / REQ-001-A2)"
+            echo ""
+            echo "The post-deployment production-hostname suite failed against"
+            echo "https://www.haroonie.ai/ after deploying commit \`${{ github.sha }}\`."
+            echo "This can mean a CSP regression, a missing security header, or a"
+            echo "JS-transfer/console-error regression on the real production"
+            echo "hostname — R-7.5 AC2 and R-7.8 AC1 are explicit acceptance"
+            echo "criteria, not soft warnings."
+            echo ""
+            echo "RECOMMENDED ACTION: roll back the Cloudflare Pages production"
+            echo "deployment to the last known-good deployment. R-6.5's own"
+            echo "documented rollback procedure does not exist yet (deferred to"
+            echo "Wave 7); in the interim, use the Cloudflare dashboard"
+            echo "(Workers & Pages -> haroonie-ai-public-site -> Deployments ->"
+            echo "select the last known-good deployment -> Rollback to this"
+            echo "deployment), or the Cloudflare API's"
+            echo "\`POST /accounts/{account_id}/pages/projects/haroonie-ai-public-site/deployments/{deployment_id}/rollback\`"
+            echo "endpoint."
+          } >> "$GITHUB_STEP_SUMMARY"

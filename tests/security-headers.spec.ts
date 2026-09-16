@@ -1,62 +1,51 @@
 import { test, expect } from '@playwright/test';
 import { allRoutes } from './support/routes';
-import { siteWideHeaders } from './support/headers';
+import { parseHeadersFile } from './support/headers';
+import { buildCsp, generateNonce } from '../src/lib/csp';
 
-// REQ-001 R-7.5 — baseline security response headers.
-//
-// AC1 requires X-Content-Type-Options, Referrer-Policy and a
-// Content-Security-Policy on every production page response.
-// `public/_headers` is Cloudflare Pages' own header mechanism
-// (https://developers.cloudflare.com/pages/configuration/headers/) — it is
-// not understood by `astro dev` or `astro preview`, so no local server ever
-// actually serves these headers. The "declared content" block below is the
-// only part of AC1 verifiable from this machine; a real HTTP response
-// carrying these headers can only be confirmed against a deployed
-// Cloudflare Pages URL (preview or production) — see this workstream's
-// status note for that follow-up.
-//
-// AC2 ("browsing the site produces no CSP violation in the console") *can*
-// be verified locally and in a real browser: the "policy enforced" block
-// re-applies the exact CSP string from `public/_headers` to every response
-// via route interception, then listens for the `securitypolicyviolation`
-// DOM event (the authoritative signal browsers raise for a CSP breach —
-// more reliable than scraping console text) while visiting every R-2 route.
+// REQ-001-A2 — R-7.5's authoritative source for X-Content-Type-Options,
+// Referrer-Policy and Content-Security-Policy moved off `public/_headers`
+// onto `functions/_middleware.ts` (U15/AC1f): a static file cannot mint a
+// per-response nonce, and Cloudflare's own docs say the nonce must arrive
+// via the response header, not a <meta> tag. Neither `astro dev` nor
+// `astro preview` run Pages Functions at all, so nothing served locally
+// ever exercises the real Function — AC1a-AC1d/AC1f/AC2's real, request-time
+// behavior can only be verified against a deployed environment:
+// tests/production-security.spec.ts (preview or production, via
+// playwright.production.config.ts) and tests/csp-nonce-failsafe.spec.ts
+// (AC1e specifically). What remains testable from this machine splits into
+// two concerns, both below:
+//   1. A structural guard — not a comment — that public/_headers can never
+//      silently reintroduce these three headers (the double-emission/drift
+//      risk REQ-001-A2 §6 risk 2 names).
+//   2. The pre-existing local, in-browser check that browsing the built
+//      static output under the real CSP *shape* produces zero
+//      securitypolicyviolation events — still meaningful locally because
+//      this site's build has no executable inline script that would ever
+//      need the nonce (only non-executing ld+json), so this exercises the
+//      CSP's structural validity, not the nonce-authorization mechanism
+//      itself.
 
-test.describe('public/_headers declared content (R-7.5 AC1)', () => {
-	test('applies to every route via a site-wide "/*" block', () => {
-		const headers = siteWideHeaders();
+test.describe('public/_headers structural guard (REQ-001-A2 U15 / AC1f)', () => {
+	test('never reintroduces Content-Security-Policy, X-Content-Type-Options or Referrer-Policy on any pattern', () => {
+		const blocks = parseHeadersFile();
+		const reintroduced: string[] = [];
 
-		expect(headers['X-Content-Type-Options']).toBe('nosniff');
-		expect(headers['Referrer-Policy']).toBeTruthy();
-		expect(headers['Content-Security-Policy']).toBeTruthy();
-	});
-
-	test('Content-Security-Policy is present and meaningfully restrictive', () => {
-		const csp = siteWideHeaders()['Content-Security-Policy'];
-
-		// Non-empty directives covering the fetch types this site actually
-		// uses, each anchored to 'self' rather than left to default-src alone
-		// or opened up with a wildcard.
-		for (const directive of ['default-src', 'script-src', 'style-src', 'img-src']) {
-			expect(csp).toContain(directive);
+		for (const block of blocks) {
+			for (const name of ['Content-Security-Policy', 'X-Content-Type-Options', 'Referrer-Policy']) {
+				if (name in block.headers) {
+					reintroduced.push(`${block.pattern} -> ${name}`);
+				}
+			}
 		}
 
-		// Guardrails against the policy being quietly weakened over time.
-		expect(csp).not.toContain('*'); // no wildcard source anywhere
-		expect(csp).not.toMatch(/script-src[^;]*unsafe-inline/);
-		expect(csp).not.toMatch(/script-src[^;]*unsafe-eval/);
-		expect(csp).toContain("object-src 'none'");
-		expect(csp).toContain("frame-ancestors 'none'");
-	});
-
-	test('does not set Strict-Transport-Security (R-7.4 scope, not R-7.5)', () => {
-		// Deliberate scope boundary (see public/_headers comments): HSTS
-		// belongs with the domain/TLS work in Wave 4, owner-blocked on
-		// E1/E2. Update this test alongside R-7.4's implementation, not
-		// before — an HSTS header shipped ahead of the zone/TLS setup is far
-		// harder to safely undo than anything else in this file.
-		const headers = siteWideHeaders();
-		expect(headers['Strict-Transport-Security']).toBeUndefined();
+		expect(
+			reintroduced,
+			'functions/_middleware.ts is the sole authoritative source for these headers (REQ-001-A2 U15/AC1f). ' +
+				'public/_headers must never declare them again, on any pattern, or the deployed response can carry ' +
+				'two conflicting values for the same header name (AC1f) with no established Cloudflare precedence ' +
+				'rule between them (U17).',
+		).toEqual([]);
 	});
 });
 
@@ -73,17 +62,23 @@ test.describe('public/_headers declared content (R-7.5 AC1)', () => {
 const PREVIEW_PORT = process.env.PW_PREVIEW_PORT ?? '4322';
 const PREVIEW_ORIGIN = `http://localhost:${PREVIEW_PORT}`;
 
-test.describe('CSP enforced in a real browser produces no violations (R-7.5 AC2)', () => {
-	const csp = siteWideHeaders()['Content-Security-Policy'];
+test.describe('CSP shape produces no violations against the built static output, local half (R-7.5 AC2)', () => {
 	const routesUnderTest = [...allRoutes, { path: '/this-page-does-not-exist/', navLabel: '404' }];
 
 	for (const route of routesUnderTest) {
-		test(`${route.path} loads under the real CSP with zero securitypolicyviolation events`, async ({
+		test(`${route.path} loads under the real CSP shape with zero securitypolicyviolation events`, async ({
 			page,
 		}) => {
-			// Re-apply public/_headers' exact CSP to every response so the
-			// browser enforces precisely what Cloudflare Pages will enforce in
-			// production, without depending on a deployment to do it.
+			// Re-apply the exact CSP shape functions/_middleware.ts produces
+			// (a fresh nonce, same as a real response would carry) to every
+			// response so the browser enforces precisely what Cloudflare Pages
+			// will enforce in production, without depending on a deployment to
+			// do it. See tests/production-security.spec.ts for the real
+			// zone-hostname half of AC2 that this local check cannot cover
+			// (Bot Fight Mode's injection only occurs on the proxied production
+			// hostname, never in this local build).
+			const csp = buildCsp(generateNonce());
+
 			await page.route('**/*', async (interceptedRoute) => {
 				const response = await interceptedRoute.fetch();
 				await interceptedRoute.fulfill({

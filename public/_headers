@@ -2,48 +2,35 @@
 # Everything in `public/` is copied verbatim into the build output, so this
 # file ships as-is to Cloudflare Pages — no build step touches it.
 #
-# REQ-001 R-7.5 — baseline security response headers, on every production
-# page response (AC1: X-Content-Type-Options, Referrer-Policy, CSP; AC2: the
-# CSP must not break any real page — see the derivation note below).
+# REQ-001-A2 (E14/U15) — X-Content-Type-Options, Referrer-Policy and
+# Content-Security-Policy used to be declared here (R-7.5). They are NOT
+# anymore, and must never be added back here while functions/_middleware.ts
+# exists.
 #
-# Deliberately NOT included here: Strict-Transport-Security. That is R-7.4
-# AC2, which belongs with the domain/TLS work (Wave 4, owner-blocked on
-# E1/E2) — an HSTS header shipped before the zone/TLS setup is finished is
-# far harder to safely undo than any header in this file, so it stays out
-# until R-7.4 lands deliberately, not as a side effect of this change.
+# Why: Cloudflare's edge injects an inline JavaScript Detections / Bot
+# Fight Mode bootstrap script into every proxied HTML response on this
+# zone, which a static, nonce-less `script-src 'self'` cannot authorize
+# without weakening it to `'unsafe-inline'` (QA-005 Finding 1). A nonce has
+# to be minted per-request, which a static file cannot do — only a Pages
+# Function can, so `functions/_middleware.ts` is now the sole authoritative
+# source for these three headers (REQ-001-A2 R-7.5 AC1's clarifying note).
 #
-# CSP derivation (inspected the live production responses at
-# https://haroonie-ai-public-site.pages.dev/ across every R-2 route — home,
-# services, about, contact, privacy, terms, 404 — rather than guessing):
-#   - No external scripts, stylesheets, fonts, images, or XHR/fetch targets
-#     exist anywhere in the built output. Every page is self-hosted static
-#     HTML/CSS from this one origin.
-#   - The only <script> element is `application/ld+json` structured data on
-#     the home page. CSP's script-src does not govern non-JS "data block"
-#     script types (application/ld+json, application/json, importmap), so
-#     it does not need `'unsafe-inline'` and stays locked to 'self'.
-#   - The Contact page's "Book a time to talk" link is a plain, same-tab-
-#     opening-in-new-tab <a href> to https://www.haroonie.ai/booking, not an
-#     iframe/script embed — it needs no CSP allowance at all, it's a normal
-#     top-level navigation.
-#   - Astro inlines each page's scoped component CSS as a <style> element in
-#     <head> (not `style="..."` attributes — none exist). A static
-#     Cloudflare Pages _headers file can't mint a per-response nonce, and
-#     hashing every inline style block would need regenerating on every
-#     content/CSS change, so `style-src` carries 'unsafe-inline' as a
-#     deliberate, scoped exception — inline CSS injection cannot execute
-#     script, unlike `script-src 'unsafe-inline'`, which this policy does
-#     not have.
-#   - The contact form has no `action` and its submit button is disabled
-#     (not wired up yet — R-3.1/Wave 5). `form-action 'self'` is set now on
-#     the reasonable assumption the eventual handler is same-origin; revisit
-#     this directive when Wave 5 wires up real submission.
+# A static `_headers` block and the Function are two independent mechanisms
+# capable of emitting the same header name on the same response, with no
+# established, documented Cloudflare precedence rule between them (REQ-001-A2
+# U17). Rather than lean on an assumed "one wins" behavior, this file simply
+# never declares these three headers at all, so there is only ever one
+# source, structurally, not by discipline. See
+# tests/security-headers.spec.ts's guard test, which fails the build if any
+# of the three ever reappear here — that test is the enforcement mechanism
+# this comment is not.
 #
-# Revisit this file whenever new content adds a real third-party dependency
-# (analytics, a booking *embed* rather than a link, a webfont host, etc.) —
-# nothing here should be loosened speculatively ahead of that.
-
-/*
-  X-Content-Type-Options: nosniff
-  Referrer-Policy: strict-origin-when-cross-origin
-  Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'
+# Nothing else has ever needed a header from this file (no other route
+# pattern, no other header name has been declared here to date), so this
+# file currently declares nothing. It stays in the repo, not deleted,
+# because Cloudflare Pages' own `_headers` mechanism is still the right tool
+# for any FUTURE header that isn't request-time-dependent (i.e. doesn't need
+# a nonce or other per-response value) — deleting the file would just get
+# rewritten the moment such a need arises. Whoever adds a header here next
+# must re-read this file's history: never add CSP / X-Content-Type-Options /
+# Referrer-Policy back here while the Function owns them.
