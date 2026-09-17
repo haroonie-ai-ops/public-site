@@ -133,6 +133,29 @@ primary call to action.
 **R-2.4 Contact** — enables an enquiry.
 - AC1 — Given a visitor, When `/contact/` loads, Then a contact email address
   and a booking link are visible and both are actionable.
+- **AC1 booking-link clause — WAIVED, interim, owner decision 2026-09-17.**
+  Verbatim: *"b: proceed with the waiver for now."*, following *"A: ignore
+  for now"* (do not pursue a scheduling URL yet). The email half of AC1 is
+  **unchanged and still fully asserted**; only the booking-link half is
+  waived.
+
+  Why: no scheduling account exists, and the reserved `/booking` path
+  returns 404. **AC1's booking clause was therefore already failing in
+  production** — the link was visible but not actionable — from Wave 2b
+  until 2026-09-17. This waiver does not create that gap; it records it
+  honestly and removes the dead link rather than continuing to ship it.
+  The prior automated check could not detect the failure: it compared the
+  `href` string and never requested the URL (the same class of gap as
+  QA-005 Finding 2).
+
+  Scope and exit: the waiver covers **absence** of a booking link, not a
+  broken one — `tests/contact.spec.ts` now actively asserts no dead booking
+  affordance is rendered. It lapses as soon as a scheduling URL is
+  supplied; restoring the link is two content-file lines plus a
+  `public/_redirects` entry for `/booking` (the owner-chosen path), with no
+  component change. The full AC1 assertion is retained as a `test.fixme` —
+  in a **stronger** form than the one it replaces, fetching the target
+  instead of string-comparing the href — to be flipped on at that point.
 - AC2 — Given the Contact page, When the enquiry form is present, Then it has
   name, email and message fields, each with a programmatically associated
   label.
