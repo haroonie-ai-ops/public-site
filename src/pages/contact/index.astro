@@ -6,6 +6,14 @@
 // (R-3.1) is Wave 5, blocked on E4 (a transactional email credential); do
 // not add validation, an action endpoint, or a submit handler here.
 //
+// Booking link (2026-09-17): rendered only when both `bookingUrl` and
+// `bookingLabel` are set. They are currently unset — R-2.4 AC1's
+// booking-link clause is under an explicit interim owner waiver (REQ-001
+// R-2.4), because no scheduling account exists and the reserved `/booking`
+// path 404s. A dead link failed AC1's "actionable" requirement anyway, so
+// no link is rendered rather than a broken one. Setting both fields in the
+// content file restores it with no change here.
+//
 // QA-004-class remediation (sweep, PRODUCT_DEFECT, High): this note used
 // to also live as a raw HTML comment in the markup below, which — unlike
 // this frontmatter comment — compiles straight into the shipped HTML and
@@ -28,9 +36,11 @@ const { heading, email, bookingUrl, bookingLabel, formIntro, metaDescription } =
 			<li>
 				Email: <a href={`mailto:${email}`}>{email}</a>
 			</li>
-			<li>
-				<a href={bookingUrl} target="_blank" rel="noopener noreferrer">{bookingLabel}</a>
-			</li>
+			{bookingUrl && bookingLabel && (
+				<li>
+					<a href={bookingUrl} target="_blank" rel="noopener noreferrer">{bookingLabel}</a>
+				</li>
+			)}
 		</ul>
 	</section>
 

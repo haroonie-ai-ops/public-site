@@ -35,6 +35,8 @@ specific facts §1.3 bans. See each row's notes.
 | P15 | Home (`/`) | `servicesSummary` (`src/content/home/index.md`) | Agent-drafted: "Artificial intelligence, data, cloud and custom software — three service areas built around what your business actually needs." Replaced pre-E6 wording that described the OLD positioning and contradicted the three new service areas. Derived only from the owner's approved service titles; invents nothing | Owner confirmation of wording (proposed in `status/E6-copy-for-review.md` §2, not yet nodded) | 2026-09-17 Engineer |
 | P16 | About (`/about/`) | `metaDescription` (`src/content/about/index.md`) | Agent-drafted, derived strictly from the owner's own approved biography body; introduces no new claim. Required by the collection schema, and the owner supplied a heading and body but no meta description | Owner confirmation of wording (proposed in `status/E6-copy-for-review.md` §3.3, not yet nodded) | 2026-09-17 Engineer |
 
+| P17 | Contact (`/contact/`) | `bookingUrl`/`bookingLabel` (`src/content/contact/index.md`) | **Removed — no booking link renders.** R-2.4 AC1's booking clause is under an explicit interim owner waiver (2026-09-17, verbatim *"b: proceed with the waiver for now."*). The prior value `https://www.haroonie.ai/booking` returned 404, so AC1 was already failing — visible but not actionable | A real scheduling URL (Calendly / Microsoft Bookings / similar). Owner parked this: *"A: ignore for now"*. Restoring is two content lines + a `/booking` entry in `public/_redirects`; the full AC1 assertion waits as a `test.fixme` | 2026-09-17 Engineer |
+
 ## Notes
 
 - None of the above invents client names, testimonials, outcomes,

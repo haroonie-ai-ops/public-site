@@ -1,8 +1,9 @@
 # E6 — Owner-supplied copy, for review before implementation
 
-**Status: FOR OWNER REVIEW. Nothing in this file has been applied to
-`src/content/`.** No page copy changed. Approve this document (or correct it)
-and the values below drop into the named files and fields as written.
+**Status: APPLIED 2026-09-17 (PR #14).** This began as a review document and
+is now the historical record of the copy and the decisions behind it. Every
+value below is live in `src/content/`; every decision carries the owner's
+verbatim instruction.
 
 Source: owner-supplied copy, 2026-09-17, first-hand in-session.
 Register this resolves against: `status/placeholder-content.md`.
@@ -11,29 +12,24 @@ Register this resolves against: `status/placeholder-content.md`.
 
 ## 0. Headline — read this first
 
-**Updated 2026-09-17: the legal entity name and business address have been
-supplied (§5). Both go-live blockers are cleared.** This copy now closes 11
-of the 13 open placeholder rows.
+**All E6 copy is applied and every decision is settled.** Nine placeholder
+rows closed on owner-supplied copy; R-2.3 AC1 (the About biography) went from
+unassertable to asserted for the first time.
 
-Two rows remain, neither a hard blocker:
+**Decisions, all 2026-09-17, all first-hand:** §5.1 entity name →
+`haroonie.ai LLC` · §5.2 d/b/a clause dropped, address normalised · §4.2
+mailbox → keep `dev@haroonie.ai` · §6 brand → lowercase throughout · §4.1
+booking link → option B, removed under an explicit interim waiver of R-2.4
+AC1's booking clause.
 
-| Still missing | Row | Consequence |
+**Four rows remain open on the register — none a hard blocker:**
+
+| Row | What | Why it is open |
 |---|---|---|
-| Open Graph share image (1200×630) | P7 | Social shares fall back to a favicon. Cosmetic; waivable. |
-| Scheduling destination URL | P4 | `/book` currently 404s — see §4.1. Would ship a broken link. |
-| *(About `metaDescription`)* | P3 (part) | Proposal in §3.3 closes it on your nod. |
-
-**Decisions resolved 2026-09-17:** §5.1 entity name → `haroonie.ai LLC`;
-§5.2 → d/b/a clause dropped, address normalised; §4.2 mailbox → keep
-`dev@haroonie.ai`; §6 brand → lowercase throughout.
-
-**One input still outstanding:**
-
-- **§4.1** — the booking **path** is now decided (`/booking`), but the
-  **destination** is not. That path still 404s, so the link is still broken.
-  §4.1 offers three ways forward; **recommended: ship with the booking link
-  removed (option B) and add the redirect once a scheduling account exists
-  (option A).**
+| P7 | Open Graph share image (1200×630) | No image supplied; shares fall back to a favicon. Cosmetic. |
+| P15 | Home `servicesSummary` | **Agent-drafted, not owner-supplied.** The old wording contradicted the new service areas, so it could not stay. Derived only from the owner's approved service titles. Awaits a nod on wording (§2). |
+| P16 | About `metaDescription` | **Agent-drafted, not owner-supplied.** Schema-required; the owner supplied a heading and body but no meta description. Derived strictly from their own approved body copy (§3.3). |
+| P17 | Contact booking link | Removed under the §4.1 waiver, pending a scheduling URL the owner parked (*"A: ignore for now"*). |
 
 **One flag, not a task:**
 
@@ -177,7 +173,30 @@ it invents nothing** (150 chars):
 
 ## 4. Contact page — `src/content/contact/index.md` (row P4)
 
-### 4.1 ⚠️ Booking URL — path chosen, destination still missing
+### 4.1 Booking URL — RESOLVED (option B, under waiver)
+
+**Owner decisions, 2026-09-17.** Verbatim: *"A: ignore for now."* and
+*"b: proceed with the waiver for now."*
+
+Option **B** applied: the booking link is **removed**, and R-2.4 AC1's
+booking-link clause is under an explicit interim owner waiver recorded in
+REQ-001 R-2.4 itself. The email half of AC1 is untouched and still fully
+asserted.
+
+Implementation notes: `bookingUrl`/`bookingLabel` became optional in the
+collection schema and are now unset, so the page renders no booking link
+rather than a broken one. Restoring it later is two content-file lines plus
+a `/booking` entry in `public/_redirects` — no component change. The full
+AC1 assertion is retained as a `test.fixme` in a **stronger** form than the
+one it replaces (it fetches the target instead of string-comparing the
+href), and an active test now guards against any dead booking affordance
+reappearing.
+
+Tracked as register row **P17** until a scheduling URL exists.
+
+---
+
+#### Original analysis, retained for the record
 
 **Owner decision, 2026-09-17: use `/booking`.** Verbatim: *"Use /booking"*.
 So the vanity path is `https://www.haroonie.ai/booking`, not `/book`. Recorded.
