@@ -38,6 +38,22 @@ test.describe('enquiry contact methods (R-2.4 AC1 — booking clause waived 2026
 		await expect(emailLink).toHaveAttribute('href', 'mailto:dev@haroonie.ai');
 	});
 
+	test('the published telephone number is visible and actionable', async ({ page }) => {
+		await page.goto('/contact/');
+
+		// Owner-supplied in answer to E18 (REQ-001-A3). Asserts the tel: href
+		// is E.164 — a human-formatted string in the href does not reliably
+		// dial — while the visible text stays in the readable form.
+		const phoneLink = page.getByRole('link', { name: '(312) 970-9638' });
+		await expect(phoneLink).toBeVisible();
+		await expect(phoneLink).toHaveAttribute('href', 'tel:+13129709638');
+
+		// Guard: the brand sheet's business card carries (312) 555-0100, which
+		// is in the NANP reserved fictional range and must never be published
+		// (REQ-001 §1.3). Fails loudly if it is ever copied in from the sheet.
+		await expect(page.getByText('555-0100')).toHaveCount(0);
+	});
+
 	test.fixme(
 		'a booking link is visible and actionable — WAIVED (owner, 2026-09-17) pending a real scheduling URL',
 		async ({ page }) => {

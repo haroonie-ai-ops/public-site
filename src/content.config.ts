@@ -84,6 +84,14 @@ const contact = defineCollection({
 		/** Enquiry mailbox — actionable via a mailto: link (R-2.4 AC1). */
 		email: z.string(),
 		/**
+		 * Business telephone, digits only in E.164 form for the `tel:` href
+		 * (e.g. "+13129709638"), rendered in a human format by the page.
+		 * Optional: the site shipped without one until 2026-09-17.
+		 */
+		phone: z.string().optional(),
+		/** Human-readable rendering of `phone` (e.g. "(312) 970-9638"). */
+		phoneDisplay: z.string().optional(),
+		/**
 		 * Booking link URL — actionable (R-2.4 AC1).
 		 *
 		 * OPTIONAL as of 2026-09-17. R-2.4 AC1's booking-link clause is

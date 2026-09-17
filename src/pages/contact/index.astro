@@ -24,7 +24,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 
 const contact = await getEntry('contact', 'index');
 if (!contact) throw new Error('Missing required "contact" content collection entry.');
-const { heading, email, bookingUrl, bookingLabel, formIntro, metaDescription } = contact.data;
+const { heading, email, phone, phoneDisplay, bookingUrl, bookingLabel, formIntro, metaDescription } = contact.data;
 ---
 
 <BaseLayout title="Contact — haroonie.ai" description={metaDescription}>
@@ -36,6 +36,11 @@ const { heading, email, bookingUrl, bookingLabel, formIntro, metaDescription } =
 			<li>
 				Email: <a href={`mailto:${email}`}>{email}</a>
 			</li>
+			{phone && phoneDisplay && (
+				<li>
+					Phone: <a href={`tel:${phone}`}>{phoneDisplay}</a>
+				</li>
+			)}
 			{bookingUrl && bookingLabel && (
 				<li>
 					<a href={bookingUrl} target="_blank" rel="noopener noreferrer">{bookingLabel}</a>

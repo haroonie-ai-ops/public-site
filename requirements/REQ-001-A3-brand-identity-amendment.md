@@ -1,13 +1,26 @@
-# REQ-001-A3 — Amendment: Brand Identity, Typography, Colour, Iconography and Theme
+**Status: APPROVED — 2026-09-17.** The owner approved this amendment
+directly, in-session. Verbatim: *"#4 - approved"* (the amendment) and
+*"#5 - approved"* (striking A5 for A10, a material change to an approved
+assumption).
 
-**Status: DRAFT — requires owner approval.** Nothing in this document is in
-force. No requirement in `requirements/REQ-001-mvp-public-website.md` is
-changed by its existence; the amendment is folded in only after the owner
-approves it, per this program's established pattern (REQ-001-A1,
-REQ-001-A2). Until then REQ-001 as merged remains the operative
-specification, and assumption **A5** ("No existing brand assets; minimal
-typographic design, wordmark not logo") remains in force even though this
-document proposes replacing it.
+Its content is now folded into `requirements/REQ-001-mvp-public-website.md`,
+which is the operative specification from this point forward — R-9.1 to
+R-9.9, A10, the amendments to R-2.7/R-4.1/R-5.1/R-5.2, the §4 test-data
+corrections, U20-U33 and E17-E22. This file now stands as the historical
+record of *why*: the gap assessment, the CSP analysis in §2, and above all
+the eleven computed contrast ratios in §3.2 that R-9.5 rests on. Where this
+file and REQ-001 disagree on wording, REQ-001 governs.
+
+**Owner decisions taken against this amendment's escalations, same session:**
+E17 approved (source assets still outstanding — the supplied material remains
+rendered PNGs, not production SVGs); E18 resolved — publish `dev@haroonie.ai`
+and the real phone number `312-970-9638`, confirming refusal of the business
+card's `hello@haroonie.ai`, `(312) 555-0100` and `Chicago, IL`; E19 parked
+("ignore for now") so no Projects route and no "Get Started" CTA; E20
+answered in part — the photographic hero was **replaced by the owner with an
+illustrated skyline**, removing the stock-photo licence question, though
+authorship/assignment of the illustration and logo remains open; E21 not
+triggered (self-hosting adopted); E22 parked — light theme only.
 
 Amends: `requirements/REQ-001-mvp-public-website.md` — §2 (A5 → proposed
 A10), R-2.7, R-4.1 AC3, R-5.1, R-5.2, §4 (test data), §5 (U20–U33), §6
