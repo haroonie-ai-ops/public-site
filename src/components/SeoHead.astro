@@ -19,17 +19,29 @@ export interface Props {
 	ogType?: 'website' | 'article';
 	/**
 	 * Absolute or site-relative path to the Open Graph/Twitter image.
-	 * Defaults to the site-wide placeholder — see
-	 * status/placeholder-content.md for the real asset this awaits.
+	 *
+	 * Defaults to the brand social card (REQ-001-A3, owner-approved
+	 * 2026-09-17), 1200x630 as both Open Graph and `summary_large_image`
+	 * require. This replaced `/favicon.svg`, which was the unmodified Astro
+	 * starter logo AND this site's share image on every page — so shares
+	 * rendered either nothing (the major platforms do not render SVG OG
+	 * images) or Astro's mark as haroonie.ai's identity. Placeholder row P7.
+	 *
+	 * Not on any visitor's critical path: OG images are fetched by crawlers,
+	 * never by the page itself, so this asset's weight does not count
+	 * against R-5.2's performance budget.
 	 */
 	ogImage?: string;
+	/** Accessible description of the share image (Open Graph `og:image:alt`). */
+	ogImageAlt?: string;
 }
 
 const {
 	title,
 	description,
 	ogType = 'website',
-	ogImage = '/favicon.svg',
+	ogImage = '/og-image.jpg',
+	ogImageAlt = 'haroonie.ai — From Ideas to Real-World Impact. Technology, data, automation, and AI solutions designed around your business.',
 } = Astro.props;
 
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
@@ -45,9 +57,14 @@ const ogImageURL = new URL(ogImage, Astro.site);
 <meta property="og:type" content={ogType} />
 <meta property="og:url" content={canonicalURL} />
 <meta property="og:image" content={ogImageURL} />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:type" content="image/jpeg" />
+<meta property="og:image:alt" content={ogImageAlt} />
 <meta property="og:site_name" content="haroonie.ai" />
 
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content={title} />
 <meta name="twitter:description" content={description} />
 <meta name="twitter:image" content={ogImageURL} />
+<meta name="twitter:image:alt" content={ogImageAlt} />
