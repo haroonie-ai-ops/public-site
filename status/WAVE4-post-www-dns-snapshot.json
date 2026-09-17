@@ -1,0 +1,65 @@
+[
+    {
+        "id":  "3da9e11dfb647016a8ac7b265098c9a6",
+        "name":  "autodiscover.haroonie.ai",
+        "type":  "CNAME",
+        "content":  "autodiscover.outlook.com",
+        "proxied":  false,
+        "ttl":  3600,
+        "priority":  null
+    },
+    {
+        "id":  "63b5fc22bf6862e72bc27f60a8a6f885",
+        "name":  "enterpriseenrollment.haroonie.ai",
+        "type":  "CNAME",
+        "content":  "enterpriseenrollment-s.manage.microsoft.com",
+        "proxied":  false,
+        "ttl":  3600,
+        "priority":  null
+    },
+    {
+        "id":  "c833b2b2afb7e99a6086310ff1c1c6c5",
+        "name":  "enterpriseregistration.haroonie.ai",
+        "type":  "CNAME",
+        "content":  "enterpriseregistration.windows.net",
+        "proxied":  false,
+        "ttl":  3600,
+        "priority":  null
+    },
+    {
+        "id":  "72fc9dad6d18e534b3132fd5644d45d5",
+        "name":  "www.haroonie.ai",
+        "type":  "CNAME",
+        "content":  "haroonie-ai-public-site.pages.dev",
+        "proxied":  true,
+        "ttl":  1,
+        "priority":  null
+    },
+    {
+        "id":  "dcacbb9a45f6258c5ab099a394f31453",
+        "name":  "haroonie.ai",
+        "type":  "MX",
+        "content":  "haroonie-ai.mail.protection.outlook.com",
+        "proxied":  false,
+        "ttl":  3600,
+        "priority":  0
+    },
+    {
+        "id":  "d14133de308ca15e042f3298c92d591e",
+        "name":  "haroonie.ai",
+        "type":  "TXT",
+        "content":  "\"MS=ms54040815\"",
+        "proxied":  false,
+        "ttl":  3600,
+        "priority":  null
+    },
+    {
+        "id":  "67294c4cb3359cae4c8cb582f9da8602",
+        "name":  "haroonie.ai",
+        "type":  "TXT",
+        "content":  "\"v=spf1 include:spf.protection.outlook.com ~all\"",
+        "proxied":  false,
+        "ttl":  3600,
+        "priority":  null
+    }
+]
