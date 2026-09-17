@@ -1,15 +1,14 @@
 ---
-title: "Service area 1 — placeholder"
+title: "AI & Intelligent Automation"
 order: 1
-placeholder: true
-# QA-004-class remediation (sweep, PRODUCT_DEFECT, High): the body below
-# previously quoted internal requirement/escalation IDs and a repository
-# path directly into visitor-facing prose. Removed from visitor-facing
-# prose; provenance unchanged, still logged in status/placeholder-content.md
-# (row P9). Real service name and description are pending owner-approved
-# copy. This entry exists only to satisfy the structural requirement that
-# the Services page list distinct service offerings; do not treat the body
-# text below as an actual service description in production.
+placeholder: false
+# Owner-supplied copy (E6), approved 2026-09-17. Full review record and the
+# decisions behind it: status/E6-copy-for-review.md §1.1. Brand is rendered
+# lowercase per the owner's 2026-09-17 house-style decision (that file §6),
+# including sentence-initially — deliberate, not a typo.
 ---
 
-Full details for this service are coming soon.
+Turn AI from an idea into a practical business capability. haroonie.ai helps
+organizations identify high-value use cases, design AI-powered workflows,
+build intelligent assistants, and automate repetitive processes using modern
+cloud and AI technologies.

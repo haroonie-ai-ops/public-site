@@ -34,9 +34,39 @@ placeholder: false
 # banner is shown. Still pending a separate owner/legal review and
 # sign-off before go-live — the retention-period wording in particular
 # is a business policy choice the owner may want to change.
+#
+# Legal entity and registered address supplied by the owner 2026-09-17 and
+# added to the body below (E6; status/E6-copy-for-review.md §5). Entity name
+# is capitalized "haroonie.ai LLC" by explicit owner decision (§5.1) — the
+# one deliberate exception to the lowercase brand house style, because it is
+# a legal identifier rather than the brand. Address normalized to standard US
+# postal format per §5.2; the "doing business as" clause the owner originally
+# proposed was dropped on their approval, since the registered name and the
+# trading name are the same.
+#
+# NOTE, RAISED NOT RESOLVED (review file §5.3): this policy's structured
+# fields are GDPR-framed under REQ-001 assumption A4 (UK/EU GDPR applies).
+# A4 was adopted before any entity information existed; the entity is now
+# known to be a US (Illinois) LLC. That does not make A4 wrong — GDPR can
+# still reach a US entity serving UK/EU data subjects — but the applicable
+# regime now has a concrete fact bearing on it and warrants review by the
+# owner's own adviser before go-live. A4 remains an approved REQ-001
+# assumption and is unchanged by this commit; changing it is a material
+# requirement change, not an implementation decision.
 ---
 
 This policy applies to haroonie.ai's public website and covers the personal
 data described below, in line with the UK GDPR and the EU GDPR. We may
 update this policy from time to time; the version published on this page
 is the one in effect.
+
+## Who we are
+
+This website is operated by:
+
+haroonie.ai LLC
+2501 Chatham Rd, Suite N
+Springfield, IL 62704, USA
+
+You can contact us about anything in this policy, including to exercise the
+rights described above, by emailing dev@haroonie.ai.
