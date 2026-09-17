@@ -42,7 +42,7 @@ const PRODUCTION_ORIGIN = process.env.PRODUCTION_BASE_URL ?? 'https://www.haroon
 // console-error checks (previously two separate HTTP requests; now one).
 // This shipped and fixed 18/18 of the original failures.
 //
-// Remaining 6 (PR #11, this change) — the two nonce-uniqueness checks below
+// Remaining 6 (PR #11) — the two nonce-uniqueness checks below
 // were deliberately left on `APIRequestContext` in PR #10, on the theory
 // that converting them to `page.goto()` would trade one failure mode (bot
 // challenge) for another (`net::ERR_ABORTED` when a response is treated as
@@ -50,10 +50,15 @@ const PRODUCTION_ORIGIN = process.env.PRODUCTION_BASE_URL ?? 'https://www.haroon
 // chromium/firefox/webkit): navigating to an HTML document never risks
 // this — only a raw non-HTML file response (e.g. a bare script file) can be
 // download-sniffed, and neither nonce check ever needed to fetch one; both
-// only ever needed the HTML document's own CSP header. So both are now
-// real browser navigations too, which closes the remaining 6 CI failures
-// the same way PR #10 closed the first 18: a client with a real browser
-// fingerprint is not challenged by Bot Fight Mode.
+// only ever needed the HTML document's own CSP header. So both became
+// real browser navigations too, which closed 5 of the remaining 6 CI
+// failures the same way PR #10 closed the first 18: a client with a real
+// browser fingerprint is not challenged by Bot Fight Mode.
+//
+// The 6th did not yield to that, and is no longer in this suite: AC1c's
+// 20-sample burst moved to tests/production-nonce-entropy.manual.spec.ts
+// on 2026-09-17 (see that file's header). Request VOLUME, not client type,
+// was what Bot Fight Mode scored there.
 //
 // Caching risk, deliberately defeated rather than assumed away: repeated
 // `page.goto()` calls to the same URL, in the same browsing context, risk
@@ -181,8 +186,24 @@ test.describe('R-7.8 AC1/AC2 — production hostname: zero CSP violations, zero 
 	}
 });
 
-test.describe('R-7.5 AC1a/AC1c — nonce is per-response, unique, and CSPRNG-length, on the real production hostname', () => {
-	test('nonce differs between two separate requests to the same URL', async ({ page }) => {
+// R-7.5 AC1a, plus AC1c's entropy floor. AC1c's 20-sample statistical
+// uniqueness audit used to live here too; it moved to
+// tests/production-nonce-entropy.manual.spec.ts on 2026-09-17 per owner
+// direction (that file's header carries the full reasoning and the run #51
+// evidence). Short version: 20 rapid cache-busted requests from a datacenter
+// IP is a bot signature Bot Fight Mode challenges regardless of client, so
+// it was failing every deploy on an environmental trigger — the exact
+// "job that always fails and gets ignored" outcome PR #11 existed to avoid.
+//
+// AC1c is NOT left to a manual-only check. Its >= 128-bit entropy floor is
+// asserted below on every nonce this CI-gated test observes, on every
+// deploy, at zero extra request cost — only the part that inherently needs
+// request VOLUME was relocated. Nothing asserted here or there was
+// weakened (R-8.3 AC1); REQ-001's AC1c text is unchanged.
+test.describe('R-7.5 AC1a/AC1c — nonce is per-response and CSPRNG-length, on the real production hostname', () => {
+	test('nonce differs between two separate requests to the same URL, and each carries >= 128 bits', async ({
+		page,
+	}) => {
 		const nonceOf = (csp: string | undefined) => csp?.match(/'nonce-([^']+)'/)?.[1];
 
 		const firstResponse = await page.goto(cacheBustedUrl(PRODUCTION_ORIGIN + '/', 'a'), { waitUntil: 'commit' });
@@ -203,26 +224,16 @@ test.describe('R-7.5 AC1a/AC1c — nonce is per-response, unique, and CSPRNG-len
 		expect(n1, 'first response must carry a nonce').toBeTruthy();
 		expect(n2, 'second response must carry a nonce').toBeTruthy();
 		expect(n1).not.toBe(n2);
-	});
 
-	test('20 consecutive responses: no repeated nonce, each decodes to >= 128 bits from a real deployment', async ({
-		page,
-	}) => {
-		const nonces: string[] = [];
-		for (let i = 0; i < 20; i += 1) {
-			// eslint-disable-next-line no-await-in-loop -- deliberately sequential: proves per-request generation, not batch/cached.
-			const response = await page.goto(cacheBustedUrl(PRODUCTION_ORIGIN + '/', i), { waitUntil: 'commit' });
-			assertNavigationOk(response, `/ (request ${i})`);
-			const csp = (await response.headersArray()).find((h) => h.name.toLowerCase() === 'content-security-policy')
-				?.value;
-			const nonce = csp?.match(/'nonce-([^']+)'/)?.[1];
-			expect(nonce, `response ${i} missing a nonce token`).toBeTruthy();
-			nonces.push(nonce as string);
-		}
-
-		expect(new Set(nonces).size, 'no two of 20 consecutive nonces repeat').toBe(nonces.length);
-		for (const nonce of nonces) {
-			expect(Buffer.from(nonce, 'base64').length, `nonce ${nonce}`).toBeGreaterThanOrEqual(16);
+		// AC1c's entropy floor, kept CI-gated and continuous. These two
+		// nonces were already fetched for the uniqueness check above, so
+		// asserting on them costs no additional requests — and therefore
+		// carries none of the bot-scoring risk that forced the 20-sample
+		// audit out of this suite.
+		for (const nonce of [n1, n2] as string[]) {
+			expect(Buffer.from(nonce, 'base64').length, `nonce ${nonce} must decode to >= 128 bits`).toBeGreaterThanOrEqual(
+				16,
+			);
 		}
 	});
 });
