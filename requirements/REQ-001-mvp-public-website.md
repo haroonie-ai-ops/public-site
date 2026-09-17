@@ -5,6 +5,9 @@ Depends on: ADR-0001 (Option B selected 2026-09-10)
 Author: Business Analyst
 Date: 2026-09-10
 Amendments incorporated:
+- REQ-001-A3 (brand identity, typography, colour, iconography, theme) —
+  approved by the owner 2026-09-17, folded in below. See
+  `requirements/REQ-001-A3-brand-identity-amendment.md`.
 - REQ-001-A1 (DNS zone coexistence) — approved by the owner 2026-09-15,
   folded in below. See
   `requirements/REQ-001-A1-dns-coexistence-amendment.md`.
@@ -66,11 +69,12 @@ The owner may overturn any of them; doing so is a material requirement change.
 | A2 | Owner and agents edit content via Markdown in the repository |
 | A3 | Enquiries arrive by email to the owner, plus an external booking link |
 | A4 | UK GDPR and EU GDPR apply |
-| A5 | No existing brand assets; minimal typographic design, wordmark not logo |
+| A5 | ~~No existing brand assets; minimal typographic design, wordmark not logo~~ — **superseded 2026-09-17 by A10 (REQ-001-A3).** Correct when written (2026-09-10): no brand identity existed, or was known to be coming. Left visible rather than deleted, because every "minimal by design" choice in `BaseLayout.astro` traces to this assumption and a later reader needs to know why they were made. |
 | A6 | Recurring cost under $20/month excluding the domain |
 | A7 | English only |
 | A8 | Canonical host is `www.haroonie.ai`; apex redirects to it |
 | A9 | The existing Microsoft 365 / Exchange Online mail configuration on `haroonie.ai` (MX, both SPF-shaped apex TXT records, and the `autodiscover`/`enterpriseenrollment`/`enterpriseregistration` CNAMEs) is permanent infrastructure, confirmed by the owner 2026-09-15 (E11). No requirement or plan in this program authorizes modifying or removing it, at any point, not only for the duration of Wave 4; any future change to these records is its own escalation. See U7, R-7.7. |
+| A10 (2026-09-17) | A brand identity exists and is owner-supplied: a five-colour palette (`#0A2A87`, `#155BEF`, `#2E83FF`, `#66B4FF`, `#F5F8FF`), the Manrope typeface in three weights, a horizontal logo lockup with on-dark, mark-only, stacked, monochrome and app-icon variants, a line-icon set, and a favicon specification. The site applies this identity rather than a generic minimal treatment. The identity is supplied as **design direction in rendered form**; production-quality source assets are a separate, outstanding owner action (**E17**). Adopting the identity changes no page's purpose, route set, or copy. |
 
 ---
 
@@ -181,7 +185,10 @@ primary call to action.
 
 **R-2.7 Navigation and footer** — consistent across all pages.
 - AC1 — Given any page, When rendered, Then the header exposes links to Home,
-  Services, About and Contact, and the current page is indicated.
+  Services, About and Contact, and the current page is indicated. The header's home link may render the brand logo in place of a text
+  wordmark; where it does, R-9.3 AC2 governs its accessible name, so this
+  criterion's "links to Home" remains satisfiable by name and not merely by
+  position. (REQ-001-A3, 2026-09-17.)
 - AC2 — Given any page, When rendered, Then the footer shows the company
   name, a copyright year, and the legal links from R-2.5 AC2.
 
@@ -223,6 +230,11 @@ collections in the repository, not from hard-coded markup in components.
   points to the `https://www.haroonie.ai` form of that URL.
 - AC3 — Given any page, When inspected, Then Open Graph title, description,
   type, url and image tags are present.
+  **(REQ-001-A3, 2026-09-17.)** "Image tags are present" is satisfied by
+  presence alone; R-9.7 AC3 additionally constrains the value to a 1200x630
+  raster image, because the value in force until that amendment
+  (`/favicon.svg`) is an SVG the major social platforms do not render,
+  producing no image at all in practice. Closes register row P7.
 
 **R-4.2** Machine-readable site structure is published.
 - AC1 — Given the generated sitemap path on the production host, When
@@ -256,6 +268,16 @@ collections in the repository, not from hard-coded markup in components.
   meets 4.5:1 for body text and 3:1 for large text.
 - AC4 — Given any image, When rendered, Then it has an alt attribute
   (empty for decorative images).
+- AC5 (new, REQ-001-A3) — Given the brand palette is applied, When any
+  text/background pairing on the site is compared against R-9.5's table, Then
+  it is one of the pairings recorded there as passing. R-5.1 AC3's abstract
+  rule is unchanged; this names the concrete pairings that satisfy it.
+- AC6 (new, REQ-001-A3) — Given text rendered over the hero image or any
+  photographic background, When contrast is measured at 320px, 768px and
+  1920px viewport widths, Then it passes at every width (R-9.5 AC3).
+  Automated contrast engines compute against a solid computed background and
+  cannot evaluate text over an image; this is explicitly the gap axe does not
+  cover, not a restatement of AC1.
 
 **R-5.2** Performance budget.
 - AC1 — Given the production home page on a simulated mobile connection, When
@@ -275,6 +297,18 @@ collections in the repository, not from hard-coded markup in components.
   kind of silent drift (a true figure when recorded, invalidated later by
   an unrelated Cloudflare-side configuration change) is caught going
   forward rather than discovered incidentally, as it was here.
+- AC3 (new, REQ-001-A3) — Given the home page on a simulated mobile
+  connection, When audited, Then Cumulative Layout Shift is under 0.1. Not
+  previously stated because nothing on the page could shift — the site had no
+  images and no web fonts. Both arrive with the brand, and they are the two
+  canonical CLS sources.
+- AC4 (new, REQ-001-A3) — Given the brand is deployed, When R-5.2 AC1 is next
+  executed, Then it is compared against the pre-brand baseline per R-9.8 AC6,
+  with any regression reported rather than absorbed.
+- Note to AC2 (its 50 KB threshold is unchanged): R-9.8 AC7 additionally
+  requires the site's OWN JavaScript to remain 0 bytes. AC2's budget would
+  tolerate a brand shipping 49 KB of script; this program's actual position is
+  that it ships none, and that is stated rather than inferred from the margin.
 
 **R-5.3** Cross-browser rendering.
 - AC1 — Given the site, When rendered in current Chromium, Firefox and
@@ -648,6 +682,259 @@ check or an explicitly recorded manual verification.
 
 ---
 
+### R-9 — Brand identity, typography, colour and theme
+
+*(Added 2026-09-17 by REQ-001-A3, owner-approved. The amendment file is the
+historical record of the analysis — notably the eleven computed contrast
+ratios in its §3.2, which R-9.5 depends on.)*
+
+#### R-9.1 — Brand tokens have a single source, as page copy does (R-2.8's analogue)
+
+All brand values — colour, typeface family and weight, type scale, spacing
+scale, radii — originate from one token definition in the repository. No
+component declares a raw colour value, font family or font weight of its
+own.
+
+- **AC1** — Given the token source's value for the primary brand colour is
+  changed and nothing else is edited, When the site is rebuilt, Then every
+  page that renders that colour reflects the new value in its computed
+  styles, and no page anywhere on the site still renders the previous
+  value.
+- **AC2** — Given the repository, When every `.astro` component and page is
+  inspected, Then no hex colour literal, `rgb()`/`hsl()` colour literal, or
+  `font-family` declaration appears outside the token source — brand values
+  are referenced through tokens only.
+- **AC3** — Given any page, When the computed `font-family` is read from a
+  rendered heading and from a rendered paragraph, Then both resolve through
+  the token-defined stack rather than a component-local declaration.
+- Rationale: identical in kind to R-2.8. R-2.8 exists so a copy change
+  never requires touching a component; R-9.1 exists so a brand change never
+  does either. Without it, five palette values scatter across however many
+  components need them, and "change the brand blue" becomes a repo-wide
+  search-and-hope.
+- Verified by: AC1 and AC3 by Playwright reading computed styles before and
+  after a token edit; AC2 by a repository/build-artifact check, in the same
+  class as R-1.4's secret scan.
+
+#### R-9.2 — Typography is Manrope, self-hosted, with no CSP change
+
+- **AC1** — Given any page, When a rendered heading's computed
+  `font-family` is inspected, Then the first resolved family is Manrope,
+  and Manrope is likewise the first resolved family for body text.
+- **AC2** — Given any page load, When every network request is recorded,
+  Then no request is made to any origin other than the site's own —
+  specifically none to `fonts.googleapis.com` or `fonts.gstatic.com` — and
+  every font file is served from the site's own origin.
+- **AC3** — Given the deployed `Content-Security-Policy` header, When
+  compared to the policy in force immediately before this amendment ships,
+  Then it is **byte-identical**. This amendment changes no directive.
+- **AC4** — Given the shipped font files, When inspected, Then each is
+  `woff2`, each is subset to the character ranges the site actually uses,
+  and exactly three weights ship (Regular 400, Bold 700, ExtraBold 800) —
+  no weight ships that no page renders.
+- **AC5** — Given a page load with a cold font cache, When the page
+  renders, Then text is visible throughout (no invisible-text period), and
+  layout shift attributable to font swap stays within R-5.2 AC3's budget.
+- **AC6** — Given the LCP element's font weight, When the page's `<head>`
+  is inspected, Then that one font file is preloaded and no other font file
+  is.
+- Verified by: Playwright (computed styles, request interception, header
+  comparison) plus the Lighthouse audit already in
+  `tests/lighthouse.spec.ts`.
+
+#### R-9.3 — The logo replaces the text wordmark, without regressing accessibility or navigation
+
+- **AC1** — Given any page, When the header renders, Then the brand logo is
+  visible in the header and is the site's home link.
+- **AC2** — Given that home link, When its accessible name is computed,
+  Then it is `haroonie.ai` — unchanged in substance from the text wordmark
+  it replaces, so R-2.7 AC1 and R-5.1 AC1 continue to hold with the logo in
+  place. If the logo is an inline `<svg>`, its accessible name comes from a
+  `<title>` or `aria-label`; if an `<img>`, from `alt`.
+- **AC3** — Given the logo is rendered, When the page is viewed at 320px
+  and at 1920px viewport width, Then the logo renders without distortion,
+  without overflowing the header, and without pushing any navigation link
+  out of view — R-2's 320px–1920px responsiveness clause applies to it as
+  to everything else.
+- **AC4** — Given the logo asset, When inspected, Then it is a vector (SVG)
+  at every size the header renders it, so it is resolution-independent and
+  adds no raster weight against R-5.2.
+- **AC5** — Given the logo is a link, When it receives keyboard focus, Then
+  a visible focus indicator appears (R-5.1 AC2), and that indicator meets
+  3:1 contrast against both the header background and the logo's own
+  adjacent pixels.
+- **AC6** — Given the footer, When it renders, Then the company name
+  remains present and readable as text — R-2.7 AC2 is satisfied by text,
+  not by an image alone.
+
+#### R-9.4 — Icons are decorative, accessible, and cost no JavaScript
+
+- **AC1** — Given any icon rendered anywhere on the site, When the
+  accessibility tree is inspected, Then each icon that merely accompanies
+  adjacent visible text is hidden from assistive technology
+  (`aria-hidden="true"`, or `alt=""` for an `<img>`), so no screen reader
+  announces a duplicate of the label beside it — satisfying R-5.1 AC4.
+- **AC2** — Given any icon that is **not** accompanied by visible text,
+  When its accessible name is computed, Then it has one, and it describes
+  the icon's purpose rather than its shape.
+- **AC3** — Given any page containing icons, When total transferred
+  JavaScript is measured, Then it is unchanged by their presence — icons
+  ship as SVG markup or same-origin SVG files, never via an icon font and
+  never via a runtime icon library.
+- **AC4** — Given an icon rendered beside a service heading, When the icon
+  fails to load or render, Then the heading and its description remain
+  fully legible and the layout does not shift — no meaning is carried by an
+  icon alone (WCAG 1.4.1, consistent with the existing "not by colour
+  alone" treatment in `BaseLayout.astro`'s nav).
+- Scope note: the sheet's five "Brand values" icons are labelled *optional*
+  on the sheet itself, and no approved requirement calls for a brand-values
+  section. They are **not** adopted into any page by this amendment;
+  introducing one would be new page content requiring its own approval
+  (§4.4). The three service icons map to the three existing,
+  owner-approved service areas and are adopted.
+
+#### R-9.5 — Colour is applied within the contrast rules its own values impose
+
+- **AC1** — Given body text anywhere on the site, When its foreground and
+  background are compared, Then the ratio is at least 4.5:1 — and
+  specifically, `#2E83FF` and `#66B4FF` are never the foreground of body
+  text on a light background (§3.2 computes them at 3.62:1 and 2.20:1).
+- **AC2** — Given any solid-filled button or other call-to-action, When its
+  label's contrast against its own fill is measured, Then it is at least
+  4.5:1 — so a white label sits on `#155BEF` (5.56:1) or `#0A2A87`
+  (12.40:1), never on `#2E83FF` (3.62:1).
+- **AC3** — Given any text rendered over the hero image or any other
+  photographic or gradient background, When measured against the actual
+  pixels behind each glyph at 320px, 768px and 1920px viewport widths, Then
+  the ratio meets 4.5:1 for body text and 3:1 for large text at **every**
+  one of those widths — a photographic background crops differently at
+  different widths, so a single-width measurement does not establish this.
+- **AC4** — Given any non-text UI element that conveys information — focus
+  indicators, form-field borders, icon-only affordances, the active-nav
+  indicator — When measured against its adjacent background, Then the ratio
+  is at least 3:1 (WCAG 2.2 SC 1.4.11).
+- **AC5** — Given the current-page indicator in the header nav, When
+  rendered, Then it remains distinguishable by something other than colour
+  (weight, underline and `aria-current="page"` are already in place and
+  must survive the restyle).
+- **AC6** — Given any page, When scanned by the existing axe-core suite
+  (`tests/accessibility.spec.ts`), Then zero serious or critical violations
+  are reported, `color-contrast` included — i.e. R-5.1 AC1 continues to
+  hold after the brand is applied.
+- Relationship to R-5.1: R-9.5 does not replace R-5.1 AC3 and does not
+  duplicate the axe scan. R-5.1 AC3 states the abstract rule and axe
+  enforces it generically; R-9.5 states which specific palette pairings
+  satisfy it, so a failure is designed out rather than caught afterwards —
+  and it covers the two cases axe cannot compute at all: text over imagery
+  (AC3), and contrast at viewport widths other than the one scanned (AC3).
+
+#### R-9.6 — Every shipped brand asset has known provenance and a licence permitting commercial use
+
+- **AC1** — Given each binary asset in the repository (logo, favicon set,
+  app icons, Open Graph image, hero image, icons, font files), When the
+  asset register is inspected, Then each has a recorded origin, creator,
+  licence, and a confirmation that the licence permits commercial use on a
+  public company website.
+- **AC2** — Given the shipped font files, When the repository is inspected,
+  Then the font's licence file is present alongside them, and its terms are
+  confirmed to permit self-hosted web distribution.
+- **AC3** — Given any asset whose provenance or licence cannot be
+  established, When it is identified, Then it is **not shipped** — it is
+  raised as an escalation (**E20**), not published on the assumption that
+  an owner-supplied file carries owner-held rights.
+- Rationale: this is the first program wave to ship binary creative assets.
+  A logo whose rights are unclear, or a stock photograph used outside its
+  licence, is a legal exposure on a public commercial site, and unlike a
+  code defect it is not cheap to unwind after publication. §1.3's
+  content-integrity constraint is the same instinct applied to prose; this
+  is its asset equivalent.
+- Verified by: recorded manual check (R-8.1's "explicitly recorded manual
+  verification" path), held as an asset register beside
+  `status/placeholder-content.md`.
+
+#### R-9.7 — Favicon, app icons and the Open Graph image are the brand's, and are real
+
+- **AC1** — Given `/favicon.svg`, When requested, Then it returns the
+  haroonie.ai logo mark — **not** the Astro starter favicon currently
+  shipped (§0.1).
+- **AC2** — Given any page, When the `<head>` is inspected, Then an SVG
+  favicon, an `.ico` fallback carrying 16×16/32×32/48×48, and a 180×180
+  apple-touch-icon are all declared, and each URL returns 200 with the
+  declared content type.
+- **AC3** — Given any page, When the `og:image` and `twitter:image` values
+  are read, Then they resolve to a **raster** image (PNG or JPEG) of
+  exactly 1200×630 pixels served from the site's own origin — not an SVG,
+  which the major social platforms do not render. **This closes register
+  row P7.**
+- **AC4** — Given that Open Graph image, When it is rendered at the
+  thumbnail size social platforms actually display, Then the logo and any
+  text on it remain legible.
+- **AC5** — Given the favicon mark at 16×16, When rendered, Then it is
+  recognisable — the pixel-dissolve detail of the full mark may be
+  simplified or dropped at that size, since the sheet itself shows a
+  simplified favicon treatment.
+- **AC6** — Given the Open Graph image file, When its transferred size is
+  measured, Then it is under 300 KB — a social-platform-facing asset never
+  on the site's own critical path, but still fetched by crawlers.
+
+#### R-9.8 — Brand imagery ships inside the existing performance budget, which is not assumed to survive it
+
+- **AC1** — Given the home page's hero image, When the page loads, Then the
+  image is served in a modern format (AVIF or WebP) with a JPEG/PNG
+  fallback, at a responsive `srcset` covering at least the 320px, 768px and
+  1920px breakpoints, so a phone never downloads a desktop-sized file.
+- **AC2** — Given the hero image element, When the HTML is inspected, Then
+  explicit intrinsic `width` and `height` (or an equivalent aspect-ratio
+  reservation) are present, so its space is reserved before it loads.
+- **AC3** — Given the hero image is the Largest Contentful Paint element,
+  When the HTML is inspected, Then it is eagerly loaded and marked
+  `fetchpriority="high"`, and **no other image on the page is** — every
+  below-the-fold image is `loading="lazy"`.
+- **AC4** — Given the home page on a simulated mobile connection, When the
+  transferred bytes of the hero image variant actually selected at that
+  viewport are measured, Then the figure is under **200 KB**.
+- **AC5** — Given the hero image, When its accessibility is inspected, Then
+  it is marked decorative (`alt=""`) if the heading beside it carries the
+  meaning, or carries a description of its content if it does not — one or
+  the other, never a filename and never `"hero image"` (R-5.1 AC4).
+- **AC6** — Given this amendment is deployed, When R-5.2 AC1's Lighthouse
+  Performance / LCP audit is next executed against the production hostname,
+  Then the result is **compared against the most recent pre-brand
+  baseline** (`status/PERF-001-wave6-audit.md`: Performance 100, LCP
+  ~0.96–1.2s), and any regression is reported explicitly rather than
+  absorbed as "still passing". Deliberately mirrors R-7.8 AC4's pattern,
+  for the same reason: a budget with a stated comparison catches drift that
+  a pass/fail threshold alone hides.
+- **AC7** — Given any page after this amendment, When total transferred
+  JavaScript is measured against the production hostname (R-7.8 AC3), Then
+  the site's **own** JavaScript remains 0 bytes. No part of this brand —
+  fonts, icons, theme, hero — introduces client-side script.
+
+#### R-9.9 — Theme policy: one light theme for MVP
+
+- **AC1** — Given any page, When rendered under `prefers-color-scheme:
+  light`, under `prefers-color-scheme: dark`, and with no preference
+  expressed, Then the page renders **identically** in all three, with the
+  brand's light surfaces and no partially-applied dark treatment.
+- **AC2** — Given the document root, When its `color-scheme` is inspected,
+  Then it declares `light` only. **This is a correction:**
+  `BaseLayout.astro` currently declares `color-scheme: light dark` while
+  hard-coding `--paper: #ffffff`, so it tells the browser it supports a
+  dark rendering it does not actually provide — form controls and
+  scrollbars can be UA-darkened against a permanently white page.
+- **AC3** — Given the on-dark logo variant exists, When the site is
+  inspected, Then it is used **only** where a genuinely dark surface exists
+  (the Open Graph image, app/social icons, and any dark footer or section
+  band the design calls for) — its existence does not imply a site-wide
+  dark theme.
+- **AC4** — Given `/favicon.svg`, When the browser is in dark mode, Then
+  the mark remains legible against dark browser chrome. The current
+  Astro-default file already achieves this with an internal
+  `prefers-color-scheme` rule; the replacement must not lose that
+  behaviour.
+- See §5 for the reasoning, and for the stated cost of the dark theme this
+  requirement defers.
+
 ## 4. Test data and preconditions
 
 | Item | Value | Source |
@@ -656,7 +943,12 @@ check or an explicitly recorded manual verification.
 | Apex host | `haroonie.ai` | Owner |
 | Enquiry destination mailbox | `dev@haroonie.ai` | Owner |
 | Booking link URL | `https://www.haroonie.ai/booking` | Owner |
-| Company legal name and address | 1123 Test St Chicago, IL1 | Owner |
+| ~~Company legal name and address — `1123 Test St Chicago, IL1`~~ | **Superseded 2026-09-17:** `haroonie.ai LLC`, 2501 Chatham Rd, Suite N, Springfield, IL 62704, USA. The struck value was owner-entered *test data*, never real. Corrected because cross-checking the brand sheet's business card against it surfaced that this table still carried the test value after the real one had landed | Owner, 2026-09-17 (E6 §5.2) |
+| Brand palette | `#0A2A87` Deep Navy (Primary); `#155BEF` Royal Blue (Brand); `#2E83FF` Bright Blue (Accent); `#66B4FF` Light Blue (Highlight); `#F5F8FF` Light Gray (Background) | Owner-supplied brand sheet, 2026-09-17 |
+| Computed contrast ratios for that palette | Eleven pairings, computed by the WCAG 2.x relative-luminance formula — see REQ-001-A3 §3.2 | REQ-001-A3, 2026-09-17 |
+| Typeface | Manrope — Regular 400 (body), Bold 700 (headings), ExtraBold 800 (logo). Self-hosted `woff2`, Latin subset | Owner-supplied brand sheet, 2026-09-17; delivery per REQ-001-A3 §2.3 |
+| Pre-brand performance baseline (R-9.8 AC6) | Production home page: Lighthouse Performance **100**, LCP ~0.96-1.2s, site's own JS **0 bytes**, plus ~938 bytes Cloudflare-injected | `status/PERF-001-wave6-audit.md`, as corrected by REQ-001-A2 §3.3 |
+| Pre-brand CSP, for R-9.2 AC3's byte-identical comparison | The policy `src/lib/csp.ts` builds as of `882d73a` — `font-src 'self'`, `style-src 'self' 'unsafe-inline'`, `img-src 'self' data:`, no external origin in any directive | `src/lib/csp.ts`, read 2026-09-17 |
 | Service list and descriptions | `Test;Test1;Test3` | Owner |
 | Owner biography | `Test biography.` | Owner |
 | LinkedIn / social URLs | optional | Owner |
@@ -702,6 +994,20 @@ check or an explicitly recorded manual verification.
 | U18 (2026-09-16) | Which direction should the Function fail in if it errors — degrade strictness, degrade availability, or ship with no CSP? | Degrade strictness (R-7.5 AC1e): fall back to the pre-amendment static policy value. Never zero CSP, never a 500 solely because of this fallback. |
 | U19 (2026-09-16) | Does deploying a Pages Function require any Cloudflare permission beyond CI's existing scoped token (R-6.6, Pages: Edit)? | Assume no new grant is required — Functions ship as part of the same Pages deployment artifact, through the same GitHub Actions → Cloudflare Pages path (R-6.3) already in use — but this is unverified by this program specifically for Functions. If a deployment attempt is rejected for a permissions reason, that is E16 (§6), not a problem to work around by unilaterally broadening the token's scope. |
 
+| U20 | Should Manrope be self-hosted or loaded from Google Fonts? No owner guidance exists. | **Self-hosted** (§2.3). It needs no CSP change at all, is faster, and sends nothing about a visitor to a third party. Google Fonts would widen `style-src` and `font-src` contrary to U16's `script-src`-only rule, and would add a third-party recipient to a GDPR-framed privacy policy (A4). If the owner prefers Google Fonts, that is **E21**, approved on its own terms. |
+| U21 | Which Manrope weights, formats and character subsets ship? The sheet names three weights but says nothing about delivery. | Regular 400, Bold 700, ExtraBold 800 — exactly the three the sheet names, nothing more. `woff2` only (universally supported by every browser this program tests). Latin subset only; the site is English-only per A7. |
+| U22 | Font-loading strategy, and its layout-shift consequence — no guidance exists, and this program has never shipped a web font. | `font-display: swap` with a metrics-matched fallback stack, so text is never invisible and the swap does not reflow the page. Correctness is asserted by measurement, not by the choice: R-5.2 AC3's CLS < 0.1 is the actual gate, and if `swap` cannot hold it, the strategy changes rather than the threshold. |
+| U23 | The palette supplies no neutral or grey text ramp — five blues and an off-white, nothing for body copy or borders. | Retain the existing neutrals already shipping in `BaseLayout.astro` (`#14171a` ink at ~18:1 on white, `#5b6470` muted at ~6.0:1, `#e2e5ea` border) as the neutral ramp, and use `#0A2A87` Deep Navy for headings. Both approved-adjacent facts hold: the palette is applied where it was specified, and body text keeps a neutral that comfortably passes AA. Inventing a new grey ramp when a conforming one already ships would be change for its own sake. |
+| U24 | The palette supplies no semantic status colours, but R-3.1 AC2 requires an inline validation message on the contact form. | Derive one error colour meeting 4.5:1 on the form's background, and never signal validation state by colour alone — the message text, and a programmatic association with the field, carry the meaning (which is what R-3.1 AC2 actually asserts). Recorded rather than left for whoever implements Wave 5 to improvise. |
+| U25 | Should body copy be Deep Navy `#0A2A87` (12.40:1) or a neutral near-black? Both pass contrast. | Neutral near-black for body copy; Deep Navy for headings and the logo. Long passages of saturated colour are harder to read than a neutral at the same measured ratio, and contrast conformance is a floor, not the whole of legibility. Cosmetic and cheap to reverse; stated so it is a decision rather than a drift. |
+| U26 | How may `#2E83FF` Bright Blue and `#66B4FF` Light Blue be used, given both fail AA for body text on light backgrounds (§3.2)? | `#2E83FF`: large text (≥24px, or ≥18.7px bold), non-text UI, and decorative fills only — exactly as the hero banner uses it. `#66B4FF`: non-text decoration only on light surfaces; permitted for text only on `#0A2A87` (5.63:1). Encoded as R-9.5 AC1/AC2 so it is enforced, not remembered. |
+| U27 | Does the site gain a dark theme, given the "logo on dark" variant? | **No, for MVP** (§5, R-9.9). The dark logo variant serves the Open Graph image, app and social icons, and any dark section band — none of which is a site theme. R-9.1's token layer keeps a future dark theme cheap to add. Raised as **E22** for the owner to overrule if they want one. |
+| U28 | Does the header logo replace the text wordmark, or sit beside it? | Replace, using the horizontal lockup (mark + wordmark), which is what the mockup shows and what the sheet calls the primary logo. R-9.3 AC2 keeps the accessible name `haroonie.ai`, so nothing that depends on the wordmark's text — R-2.7 AC1, the a11y scan, the smoke suite — changes behaviour. |
+| U29 | May the taglines and hero copy in the supplied images be published? | Only `IDEAS → SOLUTIONS → IMPACT`, and only as part of the logo artwork it is drawn into (§4.4). The other three lines are unapproved marketing copy and are not adopted. Approved E6 copy governs every page string. |
+| U30 | Should the hero use the supplied photographic banner, or the abstract brand pattern? | Use the owner's banner, within R-9.8's format, dimension and byte budget, and treat it as decorative (`alt=""`) since the `<h1>` beside it carries the meaning. Two things recorded rather than decided unilaterally: the photograph depicts the **Chicago** skyline while the registered entity address is **Springfield, IL** (a decorative image is not a factual claim, so §1.3 is not engaged — but it is worth the owner's eye, given §4.1's city conflict); and if the image cannot meet R-9.8 AC4's 200 KB budget without visible degradation, the brand pattern is the fallback, because the budget is a requirement and the photograph is a preference. |
+| U31 | How do icons ship — inline SVG, a sprite, or an icon library? | Inline SVG or a same-origin SVG sprite, authored from the supplied assets. Never an icon font (a11y and FOIT problems) and never a runtime library (R-9.8 AC7 keeps the site's own JS at 0 bytes). Which of inline-vs-sprite is an Engineer decision, not an owner one. |
+| U32 | Where do brand tokens live, and in what form? | One CSS custom-property definition, imported once by `BaseLayout.astro`, as the single source R-9.1 requires. Form and file path are Engineer decisions; the single-source property is the requirement. |
+| U33 | Do brand assets go through `astro:assets` or straight into `public/`? | `astro:assets` for every raster the pages render (it gives content hashing, responsive `srcset` and intrinsic dimensions — the machinery R-9.8 AC1/AC2 needs, already available since `sharp` ships). `public/` only for files needing a stable, externally-referenced URL: the favicon set, the apple-touch-icon, and the Open Graph image, which crawlers and previously-shared links resolve by fixed path. |
 ---
 
 ## 6. Escalations requiring human action
@@ -743,6 +1049,12 @@ not to this table's own already-resolved local E8 above.
 | ~~E14~~ | ~~Owner must approve the architecture change itself: adopting a Cloudflare Pages Function as a new, server-side, request-time execution component of what has been a purely static site through every prior wave, and moving R-7.5's CSP header off `public/_headers` onto that Function's output~~ — **Approved 2026-09-16 (owner decision).** Verbatim: *"Approve e14."* Recorded in merge commit `5a8f4990` (PR #7). See R-7.5, R-7.8. | resolved — implementation not yet started; sequenced as Wave 4-R1 (PLAN-001 §7) |
 | ~~E15~~ | ~~Owner must accept, as a disclosed consequence of E14 rather than a hidden side effect, the trust-dependency identified in REQ-001-A2 §2: a nonce-based CSP delegates to Cloudflare's edge the decision of which inline script content is authorized on every response, for as long as JavaScript Detections/Bot Fight Mode is enabled on this zone, and this program cannot inspect or constrain that content before it executes in a visitor's browser~~ — **Approved 2026-09-16 (owner decision).** Verbatim: *"Approve E15 then merge or #7."* The owner knowingly accepts that the CSP's guarantee changes from "nothing inline executes" to "nothing inline executes except what Cloudflare stamps." Approved as a decision distinct from E14. Recorded in merge commit `5a8f4990` (PR #7). See R-7.5. | resolved |
 | E16 (conditional) | If, during implementation, deploying a Pages Function is found to require a Cloudflare permission grant beyond CI's existing scoped token (R-6.6), that is a credentials/access escalation under CLAUDE.md and must stop for owner action rather than be resolved by unilaterally broadening the token's scope. | not yet triggered (U19) — blocks nothing today; only relevant if a broader grant turns out to be needed |
+| **E17** (new) | **Production brand source assets must be supplied — the actual files, not renders.** The two images are PNGs; a production SVG cannot be extracted from a rasterised mockup (§0.3). Needed, in rough priority order: **(a)** horizontal logo lockup, SVG, full-colour and on-dark; **(b)** logo mark alone, SVG; **(c)** favicon set — SVG mark, `.ico` carrying 16/32/48, 180×180 apple-touch-icon; **(d)** the Open Graph image, 1200×630 PNG or JPEG (closes **P7**); **(e)** the three service icons as SVG; **(f)** the hero banner at its full source resolution (≥2400px wide) plus its licence (see E20); **(g)** the Manrope `woff2` files with their licence file; **(h)** *optional* — app/social icon rasters (512, 192), monochrome and stacked logo variants, the brand pattern as an SVG tile. Items (a)–(d) are the minimum viable set: the site can be branded without (e)–(h) but not without those four. | R-9.3, R-9.4, R-9.7, R-9.8, and the closure of register row **P7**. Does **not** block R-9.1, R-9.2, R-9.5 or R-9.9 — tokens, typography, colour rules and the theme/`color-scheme` correction are all implementable from the palette and typeface alone, which are already supplied |
+| **E18** (new) | **Confirm the three business-card contact details are not to be published** (§4.1): `hello@haroonie.ai` versus the approved `dev@haroonie.ai`; `(312) 555-0100`, which lies in the NANP's reserved fictional range and cannot be published under §1.3 at all; and `Chicago, IL` versus the registered `Springfield, IL`. If the owner wants a real phone number on the site, it must be supplied — none has ever been given to this program. | Nothing — the default (publish the approved values, publish no phone number) is safe and already live. Recorded so the divergence is a decision on record rather than something a later reader assumes was overlooked |
+| **E19** (new) | **Decide on the two scope items in the header mockup** (§4.2, §4.3): a **"Projects"** nav item, which would be a seventh route and would need client work REQ-001 §1.2 places out of MVP scope and §1.3 forbids inventing; and **"Get Started"**, which bundles a relabel of the owner-approved `Get in touch` CTA with the addition of a second header CTA that would break R-2.1 AC2's "exactly one primary CTA". | Nothing today — the default keeps the six approved routes and the approved CTA. Becomes a material requirement change if the owner wants either |
+| **E20** (new) | **Brand asset provenance and licensing** (R-9.6). Before any binary asset is published on a public commercial site, this program needs, per asset: who created it, under what licence, and whether that licence permits commercial use. The hero photograph is the sharp end — a stock or third-party image used outside its licence is a legal exposure, and unlike a code defect it is not cheap to unwind after publication. This program cannot determine provenance by looking at a PNG; only the owner can say where these came from. | R-9.6, and the publication of any asset whose provenance is unresolved. Assets with confirmed provenance may ship without waiting for the rest |
+| **E21** (new — conditional) | **If the owner prefers Google Fonts over self-hosting** (§2.2), that widens `style-src` with `https://fonts.googleapis.com` and `font-src` with `https://fonts.gstatic.com` — two directives beyond the `script-src`-only scope **U16** recorded when E14 was approved, plus a third-party recipient a GDPR-framed Privacy Policy (A4) would need to disclose. That is a security/architecture decision of its own, approved on its own terms, not something a styling approval carries with it. | Nothing today — the amendment specifies self-hosting, which needs no CSP change. Only relevant if the owner overrides §2.3 |
+| **E22** (new — decision request) | **Does the site gain a dark theme?** (§5). The sheet's "logo on dark" variant raises the question without answering it. This document recommends light-only for MVP and states the cost of the alternative: contrast surface doubles, CI scan surface doubles, the logo becomes a media-query-dependent asset, and a new invisible-in-one-scheme defect class appears. Adopting a dark theme would be a material requirement change (new ACs, not a restyle). | Nothing — R-9.9's light-only default is safe, tested, and leaves a future dark theme cheap to add on top of R-9.1's token layer |
 
 Agents will proceed with all work not dependent on the above, and will not
 create accounts, register domains, or handle credentials autonomously.
