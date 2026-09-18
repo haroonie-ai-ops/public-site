@@ -1,6 +1,62 @@
 # Workstream Status — haroonie.ai Public Website
 
-Last updated: 2026-09-16 — **PR #11 open: closes the remaining 6
+Last updated: 2026-09-17 — **Brand APPLIED across all six pages. PR open on
+`feat/brand-apply-palette-type-scale`, not merged (`main` is protected).**
+
+The brand foundation merged earlier today (`bac4c42`) shipped tokens, the
+self-hosted typeface, the logo header and the icon set — but only the header
+was branded; the six pages still ran the pre-brand layout below it. This
+workstream applies R-9.1's palette, type scale, spacing scale and radii to
+`/`, `/services/`, `/about/`, `/contact/`, `/privacy/` and `/terms/`.
+
+**Engineering verification (local).** `npm run lint` 0 errors. `npm test`
+**410 passed / 16 skipped / 0 failed** — up from 317 passed because this
+change adds coverage, not because any assertion moved. Lighthouse (the
+gated `lighthouse` project, built output, simulated mobile): **Performance
+100**, LCP 0.9s, FCP 0.6s, **CLS 0**, site's own JavaScript **0 bytes** and
+0 JS files on every route. Pre-brand baseline for comparison, as R-9.8 AC6
+requires: Performance 100, LCP ~0.96–1.2s, 0 bytes of own JS. No regression
+on any of them.
+
+**Two defects found by computing ratios rather than by a failing test.**
+Neither was caught by anything in the suite, because axe computes
+`color-contrast` for *text* only and does not attempt WCAG SC 1.4.11 at
+all:
+
+1. **Form-field borders at 1.26:1** (`#e2e5ea` on white), where R-9.5 AC4
+   requires 3:1 for informative non-text UI. Every input on the Contact
+   page. Fixed, and now asserted per field by `tests/brand-tokens.spec.ts`
+   against a real computed style.
+2. **The active nav link at `font-weight: 600`**, outside R-9.2 AC4's
+   approved set of 400/700/800. Form labels and both CTAs were 600 too.
+   All are 700 now; nothing anywhere renders a fourth weight.
+
+**A performance trap, caught by measurement rather than by a threshold.**
+The larger shared stylesheet crossed Astro's default inline threshold and
+became a second render-blocking request per page. Nothing failed —
+Lighthouse still scored 99–100 — but LCP moved 0.9s → 1.2s, the worst end
+of the pre-brand baseline. `build.inlineStylesheets: 'always'` restores it.
+This is exactly the drift R-9.8 AC6 was written to surface.
+
+**Reported, not fixed — for the owner or the Business Analyst to rule on:**
+the registered-address block on `/privacy/` and `/terms/` renders as a
+single run-on line ("haroonie.ai LLC 2501 Chatham Rd, Suite N Springfield,
+IL 62704, USA") because Markdown collapses its soft line breaks. It is a
+formatting defect in owner-approved content files, not a styling one, and
+no CSS can break those lines — so it was left alone rather than edited
+under a brief that closes copy.
+
+**Still blocked on E17 item (e):** the three service icons R-9.4 adopts have
+not been supplied. The Services cards ship without them; nothing was
+invented to fill the gap.
+
+**Awaiting:** independent QA review, then merge.
+
+---
+
+
+
+Prior update, 2026-09-16 — **PR #11 open: closes the remaining 6
 `post-deploy-verify` failures left after PR #10 (18→6). Not yet merged;
 CI's real gate is the next `post-deploy-verify` run on `main`.**
 
