@@ -4,30 +4,32 @@ import { test, expect } from '@playwright/test';
 // src/content/contact/index.md. dev@haroonie.ai is an owner-supplied real
 // value (REQ-001 §4), not a placeholder.
 //
-// BOOKING LINK — R-8.3 AC1 DISCLOSURE (2026-09-17). This suite previously
-// asserted "a booking link is visible and actionable" for R-2.4 AC1. That
-// assertion is now a `test.fixme`, which IS a reduction in active coverage
-// and therefore requires a recorded, owner-approved justification under
-// R-8.3 AC1. That justification:
+// BOOKING LINK — R-8.3 AC1 DISCLOSURE, updated 2026-09-18.
 //
-//   Owner instruction, verbatim: "b: proceed with the waiver for now."
-//   (2026-09-17, first-hand, following "A: ignore for now" — i.e. do not
-//   pursue a scheduling URL yet.)
+// History, because the shape of this matters: this suite once asserted "a
+// booking link is visible and actionable" for R-2.4 AC1. On 2026-09-17 that
+// assertion became a `test.fixme` under an interim owner waiver, and the
+// disclosure recorded here said it would be flipped back on once a
+// scheduling URL existed.
 //
-// The waiver is recorded against the requirement itself in REQ-001 R-2.4.
-// Context that matters for judging it: AC1's booking clause was ALREADY
-// failing in production — the link pointed at https://www.haroonie.ai/
-// booking, which returns 404, so it was visible but not actionable. The
-// old assertion did not catch that, because it compared the href STRING
-// and never requested the URL (the same class of gap as QA-005 Finding 2:
-// asserting on markup instead of on the real thing). So this change does
-// not conceal a working behaviour; it stops asserting a criterion the
-// owner has explicitly, temporarily waived, and replaces it with a
-// stricter guard against the failure mode that actually occurred.
+// On 2026-09-18 the owner CANCELLED the booking link outright ("Cancel e22
+// and p17"), and R-2.4 AC1's booking clause was struck from the requirement
+// rather than left permanently waived. The fixme is therefore REMOVED, not
+// re-enabled: it asserted a criterion that no longer exists, and a pending
+// test for a cancelled requirement is misleading — it implies work is owed.
 //
-// Restoring coverage is deliberately trivial: set bookingUrl/bookingLabel
-// in the content file and flip the fixme below — the same pattern
-// tests/about.spec.ts used while R-2.3 AC1 was blocked on E6.
+// This is not a weakening under R-8.3 AC1. Nothing that the product is still
+// required to do lost coverage; the requirement itself was withdrawn by the
+// owner, which is the one thing that legitimately removes an assertion. The
+// email half of AC1 is untouched and still asserted immediately above, and a
+// published telephone number is asserted alongside it.
+//
+// The ACTIVE guard below is deliberately KEPT and strengthened in meaning.
+// The original defect was a booking link that rendered but 404'd, invisible
+// to a test that compared the href string without ever fetching it. That
+// class of defect is still possible if a link is ever reintroduced casually,
+// so the guard remains as a standing prohibition rather than a temporary
+// condition of the waiver.
 
 test.describe('enquiry contact methods (R-2.4 AC1 — booking clause waived 2026-09-17)', () => {
 	test('a mailto link to the enquiry mailbox is visible and actionable', async ({ page }) => {
@@ -54,32 +56,14 @@ test.describe('enquiry contact methods (R-2.4 AC1 — booking clause waived 2026
 		await expect(page.getByText('555-0100')).toHaveCount(0);
 	});
 
-	test.fixme(
-		'a booking link is visible and actionable — WAIVED (owner, 2026-09-17) pending a real scheduling URL',
-		async ({ page }) => {
-			await page.goto('/contact/');
 
-			const bookingLink = page.getByRole('link', { name: 'Book a time to talk' });
-			await expect(bookingLink).toBeVisible();
-
-			// Deliberately stronger than the assertion this replaces: fetch the
-			// target rather than string-compare the href, so a link that exists
-			// but 404s fails. The old form could not detect exactly the defect
-			// that was live in production for several waves.
-			const href = await bookingLink.getAttribute('href');
-			expect(href).toBeTruthy();
-			const response = await page.request.get(href as string, { failOnStatusCode: false });
-			expect(response.status(), `booking link ${href} must resolve, not 404`).toBeLessThan(400);
-		},
-	);
-
-	test('no dead booking link is rendered while the link is waived', async ({ page }) => {
+	test('no booking link is rendered, dead or otherwise (R-2.4 AC1 booking clause struck)', async ({ page }) => {
 		await page.goto('/contact/');
 
-		// The waiver permits ABSENCE of a booking link. It does not permit a
-		// broken one — that was the pre-existing R-2.4 AC1 failure this
-		// change removes. Guards against the reserved /booking path (or any
-		// other dead booking affordance) quietly reappearing.
+		// The booking clause is struck, so absence is now the specified state
+		// rather than a tolerated one. This also remains the guard against the
+		// original defect — a link that renders but 404s — if one is ever
+		// reintroduced without a working destination.
 		await expect(page.getByRole('link', { name: 'Book a time to talk' })).toHaveCount(0);
 		await expect(page.locator('a[href*="/booking"], a[href*="/book"]')).toHaveCount(0);
 	});

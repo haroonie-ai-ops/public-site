@@ -17,16 +17,12 @@ placeholder: false
 # therefore cannot be published under REQ-001 §1.3 at all; the owner
 # confirmed the refusal and supplied this number instead.
 #
-# Booking link removed 2026-09-17 under an explicit interim owner waiver of
-# R-2.4 AC1's booking-link clause (see REQ-001 R-2.4 and
-# status/E6-copy-for-review.md §4.1). The previous value,
-# "https://www.haroonie.ai/booking", returned 404 — visible but not
-# actionable, so AC1 was already failing. No link now renders at all.
-#
-# TO RESTORE once a scheduling account exists, add these two lines back and
-# point /booking at it via public/_redirects (owner-chosen path, 2026-09-17):
-#   bookingUrl: "https://www.haroonie.ai/booking"
-#   bookingLabel: "Book a time to talk"
+# No booking link. Removed 2026-09-17 under an interim waiver, then
+# CANCELLED outright by owner decision 2026-09-18 ("Cancel e22 and p17"), so
+# R-2.4 AC1's booking clause is struck rather than waived and there is no
+# restore path to keep warm. The previous value returned 404 — visible but
+# not actionable — so the clause had been failing since Wave 2b regardless.
+# Enquiry routes are the published email and telephone above, both actionable.
 # QA-004-class remediation (sweep, PRODUCT_DEFECT, High): formIntro above
 # previously cited an internal requirement ID and wave number directly in
 # visitor-facing prose. Removed; the underlying fact is unchanged — the

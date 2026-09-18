@@ -369,8 +369,21 @@ test.describe('one light theme only (R-9.9)', () => {
 		test(`${route.path} renders identically under a dark colour-scheme preference (R-9.9 AC1)`, async ({
 			page,
 		}) => {
+			// One navigation, three reads. emulateMedia re-evaluates CSS media
+			// queries against the LIVE document, so re-navigating per sample was
+			// never necessary — and it was actively harmful: goto() followed
+			// immediately by evaluate() races the dev server's HMR client, which
+			// can reload the page mid-evaluate and destroy the execution
+			// context. That made this test fail roughly one route per run,
+			// nondeterministically (observed failing on /, /privacy/ and
+			// /terms/ across consecutive runs on 2026-09-18).
+			//
+			// Comparing three reads of the SAME document is also the stricter
+			// test: it isolates the colour-scheme preference as the only
+			// variable, where re-navigating each time left page-to-page
+			// variation in play.
+			await page.goto(route.path);
 			const sample = async () => {
-				await page.goto(route.path);
 				return page.evaluate(() => {
 					const read = (selector: string) => {
 						const element = document.querySelector(selector);
