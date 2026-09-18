@@ -728,6 +728,14 @@ before this requirement).
 check or an explicitly recorded manual verification.
 - AC1 — Given this document, When the traceability matrix is reviewed, Then
   each AC identifier maps to a named test or a recorded manual result.
+- Note (2026-09-18): the matrix exists — `status/R8-TRACEABILITY-MATRIX.md`.
+  **135 acceptance criteria across 48 requirements. 126 map to a named test,
+  a dated manual verification, or enforcing CI configuration; 3 are blocked
+  on E4; 9 are gaps.** AC1 is satisfied in the sense it asks for — every
+  identifier has a verdict — and the nine gaps are enumerated there rather
+  than absorbed, which is what the exercise is for. Four of the nine were
+  previously known and deferred; five were found by building the matrix and
+  had never been recorded anywhere.
 
 **R-8.2** The Tester reviews independently of the Engineer.
 - AC1 — Given an implementation, When the Tester reports, Then each failure
