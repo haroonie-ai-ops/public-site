@@ -96,6 +96,44 @@ env:
   CLOUDFLARE_PAGES_PROJECT: haroonie-ai-public-site
 
 jobs:
+  # R-1.4 AC1 — "no credential material is present; all secrets are referenced
+  # by environment variable... Verified by: secret scan in CI."
+  #
+  # That clause described a control that did not exist. The R-8.1 traceability
+  # matrix found it: there was no scanner in this workflow, and GitHub's own
+  # secret_scanning and push protection were both DISABLED on the repository.
+  # The only clean scan was a one-off manual check of 91 commits before the
+  # repo went public. The criterion had been reading as satisfied on the
+  # strength of a sentence.
+  #
+  # Both halves are now real. The owner enabled secret scanning and push
+  # protection (platform-level, blocks a push containing a known provider
+  # pattern), and this job adds the per-commit gate the AC actually names.
+  # They are complementary rather than redundant: push protection stops known
+  # provider tokens at the boundary, gitleaks scans the diff for generic
+  # high-entropy material and repo-specific patterns, and it runs where a
+  # failure blocks a merge.
+  #
+  # A separate job, not a step in `validate`: it needs full history
+  # (fetch-depth: 0) to scan commits rather than just the working tree, and
+  # `validate` deliberately checks out shallow for speed. It also runs in
+  # parallel, so it costs no wall-clock on the critical path.
+  secret-scan:
+    name: Secret scan (R-1.4)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout (full history — a shallow clone cannot scan commits)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   validate:
     name: Install, lint, build, Playwright
     runs-on: ubuntu-latest
@@ -180,7 +218,7 @@ jobs:
 
   deploy-preview:
     name: Deploy PR preview (Cloudflare Pages)
-    needs: validate
+    needs: [validate, secret-scan]
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
@@ -282,7 +320,7 @@ jobs:
 
   deploy-production:
     name: Deploy production (Cloudflare Pages)
-    needs: validate
+    needs: [validate, secret-scan]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:

@@ -47,7 +47,7 @@ export default defineConfig({
 			// joined this gate because the list named only its sibling - 24
 			// test instances would have hit live production on every pre-merge
 			// run. The naming convention is now the contract.
-			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts|production-[a-z-]+\.spec\.ts|csp-nonce-failsafe\.spec\.ts|service-icons\.spec\.ts|\.manual\.spec\.ts/,
+			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts|production-[a-z-]+\.spec\.ts|keyboard-focus\.spec\.ts|csp-nonce-failsafe\.spec\.ts|service-icons\.spec\.ts|\.manual\.spec\.ts/,
 		},
 		{
 			name: 'firefox',
@@ -63,7 +63,7 @@ export default defineConfig({
 			// joined this gate because the list named only its sibling - 24
 			// test instances would have hit live production on every pre-merge
 			// run. The naming convention is now the contract.
-			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts|production-[a-z-]+\.spec\.ts|csp-nonce-failsafe\.spec\.ts|service-icons\.spec\.ts|\.manual\.spec\.ts/,
+			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts|production-[a-z-]+\.spec\.ts|keyboard-focus\.spec\.ts|csp-nonce-failsafe\.spec\.ts|service-icons\.spec\.ts|\.manual\.spec\.ts/,
 		},
 		{
 			name: 'webkit',
@@ -79,7 +79,7 @@ export default defineConfig({
 			// joined this gate because the list named only its sibling - 24
 			// test instances would have hit live production on every pre-merge
 			// run. The naming convention is now the contract.
-			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts|production-[a-z-]+\.spec\.ts|csp-nonce-failsafe\.spec\.ts|service-icons\.spec\.ts|\.manual\.spec\.ts/,
+			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts|production-[a-z-]+\.spec\.ts|keyboard-focus\.spec\.ts|csp-nonce-failsafe\.spec\.ts|service-icons\.spec\.ts|\.manual\.spec\.ts/,
 		},
 		{
 			name: 'static-preview',
@@ -90,7 +90,13 @@ export default defineConfig({
 			// HMR client scripts that never reach production. Asserted against
 			// the dev server it would fail on scripts that do not exist in the
 			// build.
-			testMatch: /seo-preview\.spec\.ts|service-icons\.spec\.ts/,
+			// keyboard-focus.spec.ts joins this project for the same reason the
+			// others did, and it learned it the hard way: run against `astro
+			// dev`, it picked up the DEV TOOLBAR's own buttons (Menu, Inspect,
+			// Audit, Settings) as unreachable interactive elements, and raced
+			// the HMR client's reload. Neither exists in the build a visitor
+			// gets. A spec about what ships must run against what ships.
+			testMatch: /seo-preview\.spec\.ts|service-icons\.spec\.ts|keyboard-focus\.spec\.ts/,
 		},
 		// Wave 6 (R-5.3): cross-browser layout/console-error pass, one project
 		// per engine, all against the built static output via `previewBaseURL`
