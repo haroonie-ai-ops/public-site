@@ -72,7 +72,12 @@ test.describe('organisation structured data (R-4.3)', () => {
 			.textContent();
 		expect(scriptContent).toBeTruthy();
 
-		const schema = JSON.parse(scriptContent ?? '');
+		// JSON.parse returns `any`, which silently disables type checking on
+		// every property read below. Narrowing to `unknown` fields keeps the
+		// three assertions exactly as they were while making the reads
+		// type-safe: the values are still compared with the same matchers
+		// against the same expected values.
+		const schema = JSON.parse(scriptContent ?? '') as Record<string, unknown>;
 		expect(['Organization', 'ProfessionalService']).toContain(schema['@type']);
 		expect(schema.name).toBe('haroonie.ai');
 		expect(schema.url).toBe(`${SITE}/`);
