@@ -61,13 +61,31 @@ disables, no file-wide suppressions, no weakened assertions (R-8.3 AC1):
    `reportUnusedDisableDirectives` is set to `error` so this cannot
    silently recur.
 
-**Engineering verification (local).** `npm run lint` 0 errors. `npm test`
-**415 passed / 16 skipped / 0 failed** — the exact pre-change baseline, run
-twice (before and after rebasing onto `main` at `8d7660a`). Lighthouse
+**Engineering verification.** `npm run lint` 0 errors. `npm test` **415
+passed / 16 skipped / 0 failed** — the exact pre-change baseline — locally
+and, authoritatively, in CI run `35305258450` on the final rebased head
+(`16 skipped / 415 passed (3.2m)`, read from the raw job log). Lighthouse
 Performance **100** against a threshold of 95. Site's own JavaScript 0
 bytes. Built `dist/` grepped for program document IDs, requirement IDs,
 escalation IDs and internal role names before pushing: **no matches**
 (QA-004 constraint).
+
+**One local failure, classified and recorded rather than omitted.** The
+third local full run (after the second rebase) reported 414 passed / 1
+failed: `[cross-browser-webkit] /terms/ has no horizontal overflow at
+1920px wide`. **Classification: ENVIRONMENTAL, not a product or automation
+defect.** The error captured in the Playwright evidence is
+`browserContext.newPage: Target page, context or browser has been closed` —
+a browser-launch failure, so the overflow assertion never executed and
+nothing about layout was actually measured. Diagnosis: the machine was down
+to ~3.7 GB free virtual memory with 22 concurrent `node` processes from
+parallel agent runs, plus orphaned WebKit processes from earlier runs — the
+same class of problem as QA-002 Finding 2's orphaned `astro preview`. An
+immediate re-run of the same spec and project reproduced it (5 failures,
+all the identical launch error, none an assertion); a second re-run passed
+**18/18**. CI ran the identical commits green three times on clean Linux
+runners. No assertion was touched, no retry count changed, and no test was
+skipped or quarantined to make this go away.
 
 **Recorded, not assumed.** The owner's verbatim instruction is written into
 `status/QA-003-wave3-tester-review.md` Finding 1 (as a resolution block
