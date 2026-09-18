@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <title>Lightbulb — AI &amp; Intelligent Automation</title>
+  <path d="M32 8c-8.3 0-15 6.5-15 14.6 0 5.2 2.7 9.8 6.8 12.4V40c0 2.2 1.8 4 4 4h8.4c2.2 0 4-1.8 4-4v-5c4.1-2.6 6.8-7.2 6.8-12.4C47 14.5 40.3 8 32 8z" stroke="#155BEF" stroke-width="2.2" stroke-linejoin="round"/>
+  <path d="M27 48h10M28.5 52h7" stroke="#2E83FF" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M32 18v8M26 24h12" stroke="#66B4FF" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="48" cy="14" r="2" fill="#2E83FF"/>
+  <rect x="52" y="10" width="3" height="3" rx=".5" fill="#66B4FF" opacity=".7"/>
+</svg>

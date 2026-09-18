@@ -1,5 +1,6 @@
 ---
 title: "Data & Analytics"
+icon: "bar-chart"
 order: 2
 placeholder: false
 # Owner-supplied copy (E6), approved 2026-09-17. See

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <title>Cloud — Software &amp; Cloud Solutions</title>
+  <path d="M44 44H20.5C14.7 44 10 39.4 10 33.8c0-5 3.6-9.2 8.4-10.2C19.3 17.4 24.7 13 31.2 13c6.8 0 12.4 4.7 13.6 11 5.2.4 9.2 4.6 9.2 9.8 0 5.5-4.5 10.2-10 10.2z" stroke="#155BEF" stroke-width="2.2" stroke-linejoin="round"/>
+  <path d="M26 34h12M29 38h6" stroke="#2E83FF" stroke-width="2" stroke-linecap="round"/>
+  <rect x="48" y="16" width="5" height="5" rx="1" fill="#2E83FF"/>
+  <rect x="54" y="12" width="3.5" height="3.5" rx=".6" fill="#66B4FF" opacity=".8"/>
+</svg>
