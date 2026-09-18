@@ -41,7 +41,7 @@ export default defineConfig({
 			// and must never join this fast, deployment-independent pre-merge
 			// gate (R-7.8 AC6). They run only under
 			// playwright.production.config.ts (`npm run test:production`).
-			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts|production-security\.spec\.ts|csp-nonce-failsafe\.spec\.ts|\.manual\.spec\.ts/,
+			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts|production-security\.spec\.ts|csp-nonce-failsafe\.spec\.ts|service-icons\.spec\.ts|\.manual\.spec\.ts/,
 		},
 		{
 			name: 'firefox',
@@ -51,7 +51,7 @@ export default defineConfig({
 			// and must never join this fast, deployment-independent pre-merge
 			// gate (R-7.8 AC6). They run only under
 			// playwright.production.config.ts (`npm run test:production`).
-			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts|production-security\.spec\.ts|csp-nonce-failsafe\.spec\.ts|\.manual\.spec\.ts/,
+			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts|production-security\.spec\.ts|csp-nonce-failsafe\.spec\.ts|service-icons\.spec\.ts|\.manual\.spec\.ts/,
 		},
 		{
 			name: 'webkit',
@@ -61,12 +61,18 @@ export default defineConfig({
 			// and must never join this fast, deployment-independent pre-merge
 			// gate (R-7.8 AC6). They run only under
 			// playwright.production.config.ts (`npm run test:production`).
-			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts|production-security\.spec\.ts|csp-nonce-failsafe\.spec\.ts|\.manual\.spec\.ts/,
+			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts|production-security\.spec\.ts|csp-nonce-failsafe\.spec\.ts|service-icons\.spec\.ts|\.manual\.spec\.ts/,
 		},
 		{
 			name: 'static-preview',
 			use: { ...devices['Desktop Chrome'], baseURL: previewBaseURL },
-			testMatch: /seo-preview\.spec\.ts/,
+			// service-icons.spec.ts joins this project rather than the dev-server
+			// ones for the same reason seo-preview.spec.ts does: it asserts that
+			// the page ships no JavaScript, and `astro dev` injects Vite/Astro
+			// HMR client scripts that never reach production. Asserted against
+			// the dev server it would fail on scripts that do not exist in the
+			// build.
+			testMatch: /seo-preview\.spec\.ts|service-icons\.spec\.ts/,
 		},
 		// Wave 6 (R-5.3): cross-browser layout/console-error pass, one project
 		// per engine, all against the built static output via `previewBaseURL`

@@ -62,6 +62,19 @@ const services = defineCollection({
 		title: z.string(),
 		/** Display order; lower renders first. */
 		order: z.number(),
+		/**
+		 * Decorative icon rendered beside the heading.
+		 *
+		 * A closed set, not a free string, so a typo fails the build instead
+		 * of silently rendering nothing. Each value maps to a file in
+		 * src/icons/. Optional: an entry without one renders as it did before
+		 * icons existed, which is what keeps a new service from being blocked
+		 * on artwork.
+		 *
+		 * Declared here rather than mapped from `order` in the page, so adding
+		 * a service stays a Markdown-only change.
+		 */
+		icon: z.enum(['lightbulb', 'bar-chart', 'cloud']).optional(),
 		placeholder: placeholderField,
 	}),
 	// Markdown body is the entry's description (R-2.2 AC1).

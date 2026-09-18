@@ -1,5 +1,6 @@
 ---
 title: "AI & Intelligent Automation"
+icon: "lightbulb"
 order: 1
 placeholder: false
 # Owner-supplied copy (E6), approved 2026-09-17. Full review record and the

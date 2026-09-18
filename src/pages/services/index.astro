@@ -17,15 +17,21 @@
 // today's three would break the moment a fourth Markdown file lands, which
 // is exactly the coupling R-2.8 exists to prevent.
 //
-// NO SERVICE ICONS. R-9.4 adopts three service icons; they were requested
-// as E17 item (e) and have not been supplied. Nothing is invented to fill
-// the gap — the cards are complete without them, and R-9.4 AC4 requires
-// that a missing icon never cost meaning or shift layout, which is trivially
-// true when none is rendered. Dropping icons into the accent bar later
-// changes this file only.
+// SERVICE ICONS. Supplied 2026-09-18 (E17 item (e)) and now rendered. Which
+// icon an entry gets is declared in its own Markdown frontmatter, not mapped
+// from `order` here, so adding a service remains a Markdown-only change —
+// the same reasoning that makes the grid auto-fit rather than three fixed
+// columns.
+//
+// The icon is decorative and additive: it repeats what the adjacent heading
+// already says, carries no information of its own, and is hidden from
+// assistive technology by ServiceIcon.astro. An entry that declares no icon
+// still renders correctly, which is the AC4 case — the cards were complete
+// without icons and remain so.
 import { getCollection, getEntry, render } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import PlaceholderNotice from '../../components/PlaceholderNotice.astro';
+import ServiceIcon from '../../components/ServiceIcon.astro';
 
 const services = (await getCollection('services')).sort((a, b) => a.data.order - b.data.order);
 const anyPlaceholder = services.some((entry) => entry.data.placeholder);
@@ -49,6 +55,7 @@ const rendered = await Promise.all(
 			rendered.map(({ entry, Content }) => (
 				<li class="service-entry">
 					<span class="service-entry-bar" aria-hidden="true" />
+					{entry.data.icon && <ServiceIcon name={entry.data.icon} />}
 					<h2>{entry.data.title}</h2>
 					<Content />
 				</li>

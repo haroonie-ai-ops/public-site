@@ -1,0 +1,56 @@
+---
+// Decorative service icon, inlined as SVG markup.
+//
+// WHY INLINE rather than <img src="/…​.svg">:
+//   - AC3 is satisfied either way, but inlining costs no extra request.
+//   - AC4 requires that a failed icon never shift layout or cost meaning.
+//     Markup that is already in the document cannot fail to load, so the
+//     failure mode the criterion guards against is designed out rather than
+//     handled. The reserved box below covers the remaining case (an icon
+//     that renders but is not yet painted).
+//
+// WHY aria-hidden IS NOT OPTIONAL HERE: every supplied icon carries a
+// <title> ("Lightbulb — AI & Intelligent Automation"). That is correct for
+// an icon used alone, and exactly wrong here — each one sits beside a
+// visible <h2> saying the same words, so an exposed title makes a screen
+// reader announce the service name twice in a row. AC1 requires the icon be
+// hidden from assistive technology. aria-hidden on the root hides the whole
+// subtree, title included.
+//
+// The <title> is ALSO stripped from the markup. aria-hidden alone would be
+// enough today; stripping means a future edit that drops aria-hidden cannot
+// silently reintroduce the duplicate announcement. Source files under
+// src/icons/ are left byte-identical to what was supplied — the strip
+// happens here, at render time, so provenance survives.
+import { ICONS, type IconName } from '../lib/icons';
+
+interface Props {
+	name: IconName;
+}
+
+const { name } = Astro.props;
+
+const raw = ICONS[name];
+if (!raw) throw new Error(`Unknown service icon "${name}".`);
+
+const markup = raw
+	.replace(/<title>[\s\S]*?<\/title>\s*/i, '')
+	.replace(
+		/<svg\b/i,
+		'<svg aria-hidden="true" focusable="false" class="service-icon" width="40" height="40"',
+	);
+---
+
+<Fragment set:html={markup} />
+
+<style is:global>
+	/* Explicit box so the row height is fixed before paint — the layout half
+	   of AC4. width/height on the element and a matching CSS box mean the
+	   heading beside it never moves. */
+	.service-icon {
+		display: block;
+		width: 2.5rem;
+		height: 2.5rem;
+		flex: none;
+	}
+</style>

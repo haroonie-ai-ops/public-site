@@ -1,5 +1,6 @@
 ---
 title: "Software & Cloud Solutions"
+icon: "cloud"
 order: 3
 placeholder: false
 # Owner-supplied copy (E6), approved 2026-09-17. See
