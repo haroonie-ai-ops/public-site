@@ -46,21 +46,71 @@ const year = new Date().getFullYear();
 // fetches are CORS-mode, so a preload without it is discarded and the file
 // is fetched twice.
 //
-// TOKENS. :root is the single source for every brand value; no component
-// declares a raw colour or font-family. Contrast against white:
+// --------------------------------------------------------------------------
+// TOKENS (R-9.1). The `:root` block in the is:global style below is the
+// SINGLE token source for the whole site. Every other rule in every other
+// component references it through var(); no component declares a raw hex,
+// rgb()/hsl() value, or a literal font family of its own. R-9.1 AC2 is
+// enforced mechanically by tests/brand-tokens.spec.ts, which scans every
+// .astro file in src/ and fails on any literal outside this block.
+//
+// R-9.1 also requires a TYPE SCALE, a SPACING SCALE and RADII in the token
+// source, not just colour - those are below alongside the palette. The
+// brand sheet itself is silent on all three (it is a picture of a logo, not
+// a design system), so the ramps here are this program's defaults derived
+// from the supplied palette and typeface, not invented brand decisions:
+//   - type scale: ~1.2 modular ratio, fluid via clamp() between the 320px
+//     and 1920px bounds R-2 requires, so nothing needs a breakpoint;
+//   - space scale: a 0.25rem-based ramp plus two fluid tokens (--gutter,
+//     --space-section) that absorb the same 320-1920 range;
+//   - radii: four steps plus a pill, so surfaces are consistent.
+//
+// WEIGHTS. Only 400, 700 and 800 are used anywhere. That is not a stylistic
+// preference: R-9.2 AC4 names exactly those three, and the variable font
+// makes it trivially easy to reach for 500 or 600 without noticing that the
+// approved set does not include them. Three pre-existing 600s (the active
+// nav link, form labels, the two CTA buttons) were outside that set and are
+// now 700. Anything wanting a fourth weight is a requirement change.
+//
+// CONTRAST is a usage rule, not a palette. Ratios against white, computed
+// from the palette itself and recorded in R-9.5:
 //   --brand-navy   12.40:1  any text, including AAA
 //   --brand-royal   5.56:1  body text, links, solid buttons with white labels
 //   --brand-bright  3.62:1  LARGE text and non-text UI only
 //   --brand-light   2.20:1  decoration only, never text
 //
-// CONTRAST, learned the hard way in this very change: .brand-dot (the ".ai")
-// was first set in --brand-bright, matching the brand sheet. axe failed it on
+// Applied decision, deliberately stricter than the rule permits:
+// --brand-bright and --brand-light carry NO text anywhere on this site, at
+// any size. Both are wired only to --accent-decor / --accent-decor-soft and
+// appear only in gradient rules and accent bars, which are decoration. The
+// "large text" allowance for --brand-bright is real but sits one font-size
+// edit away from a violation - WCAG large is >=24px regular or >=18.66px
+// bold, and a fluid type scale changes rendered sizes continuously across
+// viewport widths, so a compliant heading at 1920px can become a violation
+// at 480px with no code change at all. Keeping both colours off text
+// entirely removes that failure mode rather than testing for it.
+//
+// Learned the hard way in the preceding change: .brand-dot (the ".ai") was
+// first set in --brand-bright, matching the brand sheet. axe failed it on
 // all six routes in both engines. At 18px bold the wordmark is 13.5pt, just
-// under WCAG's 14pt-bold large-text threshold, so it needs 4.5:1 and reaches
-// only 3.61:1. It now uses --brand-royal at 5.56:1, visually near-identical
-// and conforming. This is precisely the "one token between conforming and
-// not" case the amendment warned about; --brand-bright stays valid for
-// genuinely large display type.
+// under WCAG's 14pt-bold large-text threshold, so it needs 4.5:1 and
+// reaches only 3.61:1. It uses --brand-royal at 5.56:1 - visually
+// near-identical and conforming.
+//
+// NEUTRALS were chosen by computing ratios, not by eye. Against #ffffff and
+// against --brand-bg #f5f8ff respectively:
+//   --ink        #14171a  17.99 / 16.92  body text
+//   --ink-muted  #4f5a6e   6.95 /  6.54  secondary text, on either surface
+//   --line-strong #6e7c97  4.21 /  3.96  form-field borders and other
+//                                        informative non-text UI
+//   --line       #cdd9ee   1.51 /  1.42  DECORATIVE dividers and card edges
+// The --line/--line-strong split exists because of R-9.5 AC4: a form-field
+// border is informative non-text UI and owes 3:1, while a hairline between
+// two sections conveys nothing and does not. The previous single --border
+// (#e2e5ea, 1.26:1 against white) was used for both, so every input on the
+// Contact page had a border three times too faint to meet AC4. axe does not
+// compute that - SC 1.4.11 is not machine-checkable for arbitrary borders -
+// so it was invisible to the suite until the ratios were computed here.
 //
 // HEADER (owner decision, 2026-09-17). The header pairs the logo MARK with
 // the wordmark as real HTML text rather than one lockup SVG: the text stays
@@ -73,13 +123,28 @@ const year = new Date().getFullYear();
 // The mark carries explicit width/height (intrinsic 120x120) so its box is
 // reserved before load and the header cannot shift.
 //
+// TAGLINE. The supplied artwork carries `IDEAS -> SOLUTIONS -> IMPACT`. It
+// is permitted ONLY as part of the logo artwork it is drawn into, and is
+// explicitly not adopted as free-standing page copy, a section heading or a
+// strapline (REQ-001-A3 section 4.4, U29). The header renders the wordmark
+// as HTML text, not the lockup, so there is no artwork here for it to
+// travel with - it is therefore NOT rendered, and adding it would be new
+// visitor-facing copy requiring owner approval.
+//
 // THEME. color-scheme was "light dark", which advertised a dark mode this
 // build never had - --paper was hard-coded #ffffff regardless. MVP is
-// light-only, so the declaration now matches reality.
+// light-only, so the declaration now matches reality. No rule anywhere on
+// the site is inside a prefers-color-scheme query, which is what keeps
+// R-9.9 AC1's "renders identically in all three" true by construction.
 //
 // ICONS. The icon set replaces the Astro starter favicon.svg AND a
 // favicon.ico that was, despite its extension, a PNG - both shipped
-// unchanged since the layout shell landed.
+// unchanged since the layout shell landed. The three SERVICE icons are a
+// different matter: they were requested as E17 item (e) and have not been
+// supplied, so the Services page carries none. No icon is invented here -
+// R-9.4 AC4 wants meaning never carried by an icon alone, and drawing
+// approximations of an unsupplied brand asset is not an implementation
+// decision.
 // --------------------------------------------------------------------------
 ---
 
@@ -171,32 +236,113 @@ const year = new Date().getFullYear();
 		font-display: swap;
 	}
 
+	/* =====================================================================
+	   THE TOKEN SOURCE. Every brand value on the site originates here and
+	   nowhere else. See this component's frontmatter for the reasoning
+	   behind each ramp, and for the measured contrast ratios that decide
+	   which colour is allowed to carry text.
+	   ===================================================================== */
 	:root {
+		/* -- Palette, exactly as supplied ---------------------------------- */
 		--brand-navy: #0a2a87;
 		--brand-royal: #155bef;
 		--brand-bright: #2e83ff;
 		--brand-light: #66b4ff;
 		--brand-bg: #f5f8ff;
 
-		--font-sans: 'Manrope', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-		--weight-body: 400;
-		--weight-heading: 700;
-		--weight-logo: 800;
-	}
-</style>
-
-<style>
-	:root {
-		color-scheme: light;
-		--ink: #14171a;
+		/* -- Neutrals, chosen by measured ratio ---------------------------- */
 		--paper: #ffffff;
-		--muted: #5b6470;
+		--ink: #14171a;
+		--ink-muted: #4f5a6e;
+		--on-brand: #ffffff;
+		--line: #cdd9ee;
+		--line-strong: #6e7c97;
+
+		/* -- Status (the brand sheet defines none) ------------------------- */
+		--warn-surface: #fffbeb;
+		--warn-line: #b45309;
+		--warn-ink: #7c2d12;
+
+		/* -- Semantic roles ------------------------------------------------ */
+		--surface: var(--paper);
+		--surface-subtle: var(--brand-bg);
+		--heading: var(--brand-navy);
+		--link: var(--brand-royal);
+		--link-hover: var(--brand-navy);
 		--accent: var(--brand-royal);
-		--border: #e2e5ea;
+		--accent-strong: var(--brand-navy);
+		--accent-decor: var(--brand-bright);
+		--accent-decor-soft: var(--brand-light);
+		--focus: var(--brand-royal);
+
+		/* -- Typeface and the three approved weights ----------------------- */
+		--font-sans: 'Manrope', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+		--weight-regular: 400;
+		--weight-bold: 700;
+		--weight-extrabold: 800;
+		--weight-body: var(--weight-regular);
+		--weight-heading: var(--weight-bold);
+		--weight-logo: var(--weight-extrabold);
+
+		/* -- Type scale: ~1.2 modular, fluid across 320-1920px ------------- */
+		--text-xs: 0.8125rem;
+		--text-sm: 0.9375rem;
+		--text-base: 1.0625rem;
+		--text-md: clamp(1.0625rem, 1.01rem + 0.28vw, 1.1875rem);
+		--text-lg: clamp(1.1875rem, 1.12rem + 0.34vw, 1.375rem);
+		--text-xl: clamp(1.375rem, 1.24rem + 0.66vw, 1.75rem);
+		--text-2xl: clamp(1.75rem, 1.5rem + 1.25vw, 2.5rem);
+		--text-3xl: clamp(2.125rem, 1.7rem + 2.1vw, 3.5rem);
+
+		--leading-tight: 1.1;
+		--leading-snug: 1.25;
+		--leading-normal: 1.45;
+		--leading-relaxed: 1.65;
+		--tracking-tight: -0.02em;
+		--tracking-snug: -0.01em;
+		--tracking-wide: 0.06em;
+		--measure: 65ch;
+		--measure-narrow: 54ch;
+
+		/* -- Space scale --------------------------------------------------- */
+		--space-3xs: 0.25rem;
+		--space-2xs: 0.5rem;
+		--space-xs: 0.75rem;
+		--space-sm: 1rem;
+		--space-md: 1.5rem;
+		--space-lg: 2rem;
+		--space-xl: 3rem;
+		--space-2xl: 4rem;
+		--space-section: clamp(2.5rem, 6vw, 4.5rem);
+		--gutter: clamp(1.25rem, 4vw, 2rem);
+		--wrap-max: 72rem;
+
+		/* -- Radii and elevation ------------------------------------------- */
+		--radius-xs: 0.25rem;
+		--radius-sm: 0.5rem;
+		--radius-md: 0.75rem;
+		--radius-lg: 1.125rem;
+		--radius-pill: 999px;
+		--shadow-sm: 0 1px 2px rgba(10, 42, 135, 0.06);
+		--shadow-md: 0 14px 34px -22px rgba(10, 42, 135, 0.5);
+
+		/* -- Motion -------------------------------------------------------- */
+		--transition: 150ms ease;
 	}
 
+	/* =====================================================================
+	   Global type system. Deliberately global rather than per-page: the
+	   legal, About and Services pages render their copy from Markdown
+	   through <Content />, whose elements carry no scope attribute, so a
+	   scoped rule cannot reach them. Styling the elements once here is what
+	   makes prose typography identical on a Markdown page and an .astro one.
+	   ===================================================================== */
 	* {
 		box-sizing: border-box;
+	}
+
+	html {
+		-webkit-text-size-adjust: 100%;
 	}
 
 	html,
@@ -208,18 +354,208 @@ const year = new Date().getFullYear();
 	body {
 		font-family: var(--font-sans);
 		font-weight: var(--weight-body);
+		font-size: var(--text-base);
+		line-height: var(--leading-relaxed);
 		color: var(--ink);
-		background: var(--paper);
+		background: var(--surface);
 		display: flex;
 		min-height: 100vh;
 		flex-direction: column;
-		line-height: 1.5;
+		-webkit-font-smoothing: antialiased;
+	}
+
+	h1,
+	h2,
+	h3,
+	h4,
+	h5,
+	h6 {
+		margin-block: 0 var(--space-sm);
+		color: var(--heading);
+		font-weight: var(--weight-heading);
+		line-height: var(--leading-snug);
+		letter-spacing: var(--tracking-snug);
+		text-wrap: balance;
+		overflow-wrap: break-word;
+	}
+
+	h1 {
+		font-size: var(--text-2xl);
+		font-weight: var(--weight-extrabold);
+		line-height: var(--leading-tight);
+		letter-spacing: var(--tracking-tight);
+		margin-block-end: var(--space-md);
+	}
+
+	h2 {
+		font-size: var(--text-xl);
+		margin-block-start: var(--space-lg);
+	}
+
+	h3 {
+		font-size: var(--text-lg);
+		margin-block-start: var(--space-md);
+	}
+
+	p,
+	li {
+		overflow-wrap: break-word;
+	}
+
+	p {
+		margin-block: 0 var(--space-sm);
+		max-width: var(--measure);
+	}
+
+	ul,
+	ol {
+		margin-block: 0 var(--space-sm);
+		padding-inline-start: var(--space-md);
+		max-width: var(--measure);
+	}
+
+	li + li {
+		margin-block-start: var(--space-3xs);
+	}
+
+	li::marker {
+		color: var(--accent);
+	}
+
+	strong {
+		font-weight: var(--weight-bold);
+	}
+
+	a {
+		color: var(--link);
+		text-decoration-thickness: max(1px, 0.06em);
+		text-underline-offset: 0.18em;
+		transition: color var(--transition);
+	}
+
+	a:hover {
+		color: var(--link-hover);
+	}
+
+	/* One focus treatment for everything focusable. --brand-royal is 5.56:1
+	   against white and 5.23:1 against --surface-subtle, comfortably past
+	   R-9.5 AC4's 3:1 for non-text UI on both surfaces the site uses. No
+	   border-radius is set here on purpose: that would reshape the element
+	   itself, not just its ring, and modern engines already follow the
+	   element's own corners when drawing an outline. */
+	:focus-visible {
+		outline: 3px solid var(--focus);
+		outline-offset: 2px;
+	}
+
+	::selection {
+		background: var(--accent-decor-soft);
+		color: var(--brand-navy);
+	}
+
+	/* ---------------------------------------------------------------------
+	   Shared page furniture. Used by more than one page, so it lives here
+	   rather than being duplicated into each page's scoped block.
+	   --------------------------------------------------------------------- */
+
+	/* A decorative gradient rule. Pure decoration: it carries no meaning,
+	   no text sits on it, and it is the only place --accent-decor and
+	   --accent-decor-soft appear. */
+	.accent-rule {
+		display: block;
+		width: 3.5rem;
+		height: 0.25rem;
+		border-radius: var(--radius-pill);
+		background: linear-gradient(
+			90deg,
+			var(--accent) 0%,
+			var(--accent-decor) 55%,
+			var(--accent-decor-soft) 100%
+		);
+	}
+
+	.lede {
+		font-size: var(--text-md);
+		line-height: var(--leading-normal);
+		color: var(--ink-muted);
+		max-width: var(--measure-narrow);
+	}
+
+	/* Solid call-to-action. White on --brand-royal is 5.56:1 (R-9.5 AC2).
+	   --brand-bright would be 3.62:1 and fail, which is precisely why the
+	   fill is wired to --accent and not to --accent-decor. */
+	.btn {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2xs);
+		background: var(--accent);
+		color: var(--on-brand);
+		font-weight: var(--weight-bold);
+		font-size: var(--text-base);
+		line-height: 1.2;
+		text-decoration: none;
+		padding: var(--space-xs) var(--space-md);
+		border-radius: var(--radius-pill);
+		border: 1px solid transparent;
+		transition:
+			background-color var(--transition),
+			box-shadow var(--transition),
+			transform var(--transition);
+	}
+
+	.btn:hover {
+		background: var(--accent-strong);
+		color: var(--on-brand);
+		box-shadow: var(--shadow-md);
+	}
+
+	.btn:active {
+		transform: translateY(1px);
+	}
+
+	.card {
+		background: var(--surface);
+		border: 1px solid var(--line);
+		border-radius: var(--radius-lg);
+		padding: clamp(1.25rem, 3vw, 1.75rem);
+		box-shadow: var(--shadow-sm);
+	}
+
+	.prose {
+		max-width: var(--measure);
+	}
+
+	.prose > :first-child {
+		margin-block-start: 0;
+	}
+
+	.prose p {
+		margin-block: 0 var(--space-sm);
+	}
+
+	.prose h2 {
+		margin-block-start: var(--space-xl);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		*,
+		*::before,
+		*::after {
+			transition-duration: 0.01ms !important;
+			animation-duration: 0.01ms !important;
+		}
+	}
+</style>
+
+<style>
+	:root {
+		color-scheme: light;
 	}
 
 	.wrap {
-		max-width: 72rem;
+		max-width: var(--wrap-max);
 		margin-inline: auto;
-		padding-inline: 1.25rem;
+		padding-inline: var(--gutter);
 	}
 
 	.skip-link {
@@ -227,35 +563,39 @@ const year = new Date().getFullYear();
 		left: -9999px;
 		top: 0;
 		background: var(--accent);
-		color: #fff;
-		padding: 0.75rem 1rem;
+		color: var(--on-brand);
+		font-weight: var(--weight-bold);
+		text-decoration: none;
+		padding: var(--space-xs) var(--space-sm);
+		border-radius: var(--radius-sm);
 		z-index: 100;
 	}
 
 	.skip-link:focus {
-		left: 0.5rem;
-		top: 0.5rem;
+		left: var(--space-2xs);
+		top: var(--space-2xs);
 	}
 
 	header {
-		border-bottom: 1px solid var(--border);
+		background: var(--surface);
+		border-bottom: 1px solid var(--line);
 	}
 
 	.header-inner {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding-block: 1rem;
-		gap: 1rem;
+		padding-block: var(--space-sm);
+		gap: var(--space-sm);
 		flex-wrap: wrap;
 	}
 
 	.brand {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: var(--space-2xs);
 		text-decoration: none;
-		color: var(--brand-navy);
+		color: var(--heading);
 	}
 
 	.brand-mark {
@@ -267,78 +607,99 @@ const year = new Date().getFullYear();
 	.wordmark {
 		font-weight: var(--weight-logo);
 		font-size: 1.125rem;
-		letter-spacing: -0.01em;
-		color: var(--brand-navy);
+		letter-spacing: var(--tracking-snug);
+		color: var(--heading);
 	}
 
 	.brand-dot {
-		color: var(--brand-royal);
+		color: var(--accent);
 	}
 
+	/* The gap shrinks with the viewport so all four primary links still fit
+	   on one row at 320px. At a flat 1.5rem the last one wrapped to a line
+	   of its own, which read as a stray item rather than a nav. */
 	nav ul {
 		list-style: none;
 		display: flex;
-		gap: 1.5rem;
+		gap: clamp(0.85rem, 3vw, 1.5rem);
 		margin: 0;
 		padding: 0;
+		max-width: none;
 		flex-wrap: wrap;
 	}
 
-	nav a {
-		color: var(--ink);
-		text-decoration: none;
+	nav li + li {
+		margin-block-start: 0;
 	}
 
-	nav a:hover,
-	nav a:focus-visible {
-		text-decoration: underline;
+	header nav a {
+		color: var(--ink-muted);
+		font-size: var(--text-sm);
+		font-weight: var(--weight-bold);
+		text-decoration: none;
+		padding-block: var(--space-3xs);
+		border-block-end: 2px solid transparent;
+	}
+
+	header nav a:hover,
+	header nav a:focus-visible {
+		color: var(--link-hover);
 	}
 
 	/*
 	 * Current-page indication must not rely on colour alone (R-5.1 AC1/AC3
 	 * and the "not by colour alone" note in PLAN-001). aria-current="page"
-	 * carries the semantic signal for assistive tech; font-weight and the
-	 * underline carry it visually for sighted users regardless of colour
-	 * perception.
+	 * carries the semantic signal for assistive tech; the weight and the
+	 * 2px rule carry it visually for sighted users regardless of colour
+	 * perception. The rule is --brand-royal at 5.56:1 against the header's
+	 * white background, so it also clears R-9.5 AC4's 3:1 for informative
+	 * non-text UI.
 	 */
-	nav a[aria-current='page'] {
+	header nav a[aria-current='page'] {
 		color: var(--accent);
-		font-weight: 600;
-		text-decoration: underline;
-		text-underline-offset: 0.25em;
+		font-weight: var(--weight-bold);
+		border-block-end-color: var(--accent);
 	}
 
 	main {
 		flex: 1;
-		padding-block: 2.5rem;
+		padding-block: var(--space-section);
 	}
 
 	footer {
-		border-top: 1px solid var(--border);
-		color: var(--muted);
-		font-size: 0.875rem;
+		background: var(--surface-subtle);
+		border-top: 1px solid var(--line);
+		color: var(--ink-muted);
+		font-size: var(--text-sm);
 	}
 
 	.footer-inner {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding-block: 1.5rem;
-		gap: 1rem;
+		padding-block: var(--space-lg);
+		gap: var(--space-sm);
 		flex-wrap: wrap;
 	}
 
+	.footer-inner p {
+		margin: 0;
+		max-width: none;
+	}
+
 	.footer-inner nav ul {
-		gap: 1rem;
+		gap: var(--space-sm);
 	}
 
 	.footer-inner a {
-		color: var(--muted);
+		color: var(--link);
+		font-weight: var(--weight-bold);
+		text-decoration: none;
 	}
 
-	a:focus-visible,
-	button:focus-visible {
-		outline: 2px solid var(--accent);
-		outline-offset: 2px;
+	.footer-inner a:hover,
+	.footer-inner a:focus-visible {
+		color: var(--link-hover);
+		text-decoration: underline;
 	}
 </style>
