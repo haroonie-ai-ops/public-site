@@ -41,7 +41,13 @@ export default defineConfig({
 			// and must never join this fast, deployment-independent pre-merge
 			// gate (R-7.8 AC6). They run only under
 			// playwright.production.config.ts (`npm run test:production`).
-			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts|production-security\.spec\.ts|csp-nonce-failsafe\.spec\.ts|service-icons\.spec\.ts|\.manual\.spec\.ts/,
+			//
+			// Matched by PATTERN (`production-*.spec.ts`), not by listing each
+			// filename. R-6.4's smoke suite was added in Wave 7 and silently
+			// joined this gate because the list named only its sibling - 24
+			// test instances would have hit live production on every pre-merge
+			// run. The naming convention is now the contract.
+			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts|production-[a-z-]+\.spec\.ts|csp-nonce-failsafe\.spec\.ts|service-icons\.spec\.ts|\.manual\.spec\.ts/,
 		},
 		{
 			name: 'firefox',
@@ -51,7 +57,13 @@ export default defineConfig({
 			// and must never join this fast, deployment-independent pre-merge
 			// gate (R-7.8 AC6). They run only under
 			// playwright.production.config.ts (`npm run test:production`).
-			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts|production-security\.spec\.ts|csp-nonce-failsafe\.spec\.ts|service-icons\.spec\.ts|\.manual\.spec\.ts/,
+			//
+			// Matched by PATTERN (`production-*.spec.ts`), not by listing each
+			// filename. R-6.4's smoke suite was added in Wave 7 and silently
+			// joined this gate because the list named only its sibling - 24
+			// test instances would have hit live production on every pre-merge
+			// run. The naming convention is now the contract.
+			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts|production-[a-z-]+\.spec\.ts|csp-nonce-failsafe\.spec\.ts|service-icons\.spec\.ts|\.manual\.spec\.ts/,
 		},
 		{
 			name: 'webkit',
@@ -61,7 +73,13 @@ export default defineConfig({
 			// and must never join this fast, deployment-independent pre-merge
 			// gate (R-7.8 AC6). They run only under
 			// playwright.production.config.ts (`npm run test:production`).
-			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts|production-security\.spec\.ts|csp-nonce-failsafe\.spec\.ts|service-icons\.spec\.ts|\.manual\.spec\.ts/,
+			//
+			// Matched by PATTERN (`production-*.spec.ts`), not by listing each
+			// filename. R-6.4's smoke suite was added in Wave 7 and silently
+			// joined this gate because the list named only its sibling - 24
+			// test instances would have hit live production on every pre-merge
+			// run. The naming convention is now the contract.
+			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts|production-[a-z-]+\.spec\.ts|csp-nonce-failsafe\.spec\.ts|service-icons\.spec\.ts|\.manual\.spec\.ts/,
 		},
 		{
 			name: 'static-preview',

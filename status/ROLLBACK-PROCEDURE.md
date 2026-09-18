@@ -93,23 +93,31 @@ Same operation, targeting the id recorded in step 1. Verify the same way.
 | Visitor-visible regression | **None** — the two builds are byte-identical |
 | Post-recovery health | All six routes 200; 3 service icons; brand tokens serving; CSP present |
 
-### What the drill proved
+### Second drill, 2026-09-18 — timed against a visible target
 
-The rollback mechanism works, and roll-forward restores the exact prior
-pointer.
+The first attempt could not measure propagation, because the dashboard's
+"previous deployment" was byte-identical to the build it replaced. Repeated
+against a target that differs visibly:
 
-### What it did not prove, stated plainly
+| | |
+|---|---|
+| Rolled to | `7f1215c2-c1c5-4dfe-8cbb-d53f4a7263f5` (`7692f41`, PR #17, pre-service-icons) |
+| Signal | `service-icon` count on `/services/`: **3 → 0**, and back |
+| Rollback issued | 07:49 EDT / 11:49 UTC |
+| Rollback observed live | 11:50:07 UTC — **≤ ~67s**, a ceiling: it had already completed before the first sample |
+| Roll-forward observed live | **11:51:14 UTC**, sampling every 3s from 11:51:26 — transition caught inside a **≤ 48s** window |
+| Restored to | `eeb20b43-…` (`e589e8c`) — `canonical_deployment` MATCH |
+| Under rollback | all routes still 200; a clean older build, not a broken state |
 
-**Propagation time against AC1's 10-minute bound was not measured.** The
-rollback target was byte-identical to the current build, so there was no
-observable transition to time. AC1's substantive claim — "the prior
-deployment serves within 10 minutes" — therefore remains **unmeasured**, and
-this drill should not be recorded as having closed it.
+**R-6.5 AC1 is satisfied.** Both directions completed roughly an order of
+magnitude inside the 10-minute bound, and — unlike the first attempt — an
+observable signal proves the transition happened rather than it being
+inferred from an unchanged page.
 
-To measure it, roll back to a deployment with a visible difference. The
-nearest one is `7f1215c2-c1c5-4dfe-8cbb-d53f4a7263f5` (`7692f41`, PR #17),
-which predates the service icons: the signal is `service-icon` count 3 → 0
-and back.
+Both figures are **upper bounds**, not precise durations: each is the gap
+between a human action and the next poll that saw it. The measurement is
+sufficient to settle a 10-minute criterion and is deliberately not stated
+more precisely than the method supports.
 
 ### The finding worth keeping
 
@@ -119,4 +127,7 @@ rollback had not worked — when it had. The inverse is more dangerous: you
 could believe you had rolled back a bad deployment while still serving it.
 
 That is why step 3 above verifies the deployment id rather than the page,
-and it is the single most useful thing this drill produced.
+and it is the single most useful thing these drills produced. **It took a
+drill whose first attempt failed to measure anything to surface it** — a
+procedure written from theory would have said "roll back, then check the
+site."

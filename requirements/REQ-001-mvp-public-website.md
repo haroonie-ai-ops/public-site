@@ -419,13 +419,16 @@ block publication.
   `status/ROLLBACK-PROCEDURE.md` — and was drilled on production with owner
   authorisation. The rollback mechanism and the roll-forward both work, and
   the exact prior pointer was restored.
-  **AC1's 10-minute claim is NOT yet satisfied, and is deliberately not
-  recorded as such:** the rollback target was byte-identical to the build it
-  replaced, so no observable transition existed to time. Measuring it
-  requires rolling back to a build with a visible difference — the nearest
-  is `7f1215c2` (`7692f41`, pre-service-icons), where the signal is a
-  `service-icon` count of 3 → 0. Until that runs, AC1 is **partially
-  verified**: procedure documented and mechanism proven, timing unmeasured.
+  **AC1 is SATISFIED, measured 2026-09-18.** The first attempt could not time
+  anything — the rollback target was byte-identical to the build it replaced,
+  so no observable transition existed. Repeated against `7f1215c2`
+  (`7692f41`, pre-service-icons), where the signal is a `service-icon` count
+  of 3 → 0: rollback live within **≤ ~67s**, roll-forward observed at
+  11:51:14 UTC within a **≤ 48s** window, `canonical_deployment` confirmed
+  MATCH in both directions, and all routes served 200 throughout. Both
+  figures are upper bounds — the gap between a human action and the next
+  poll that saw it — which is sufficient to settle a 10-minute criterion and
+  is deliberately not stated more precisely than the method supports.
 - Note (2026-09-18, the drill's substantive finding): **a rollback must be
   verified by reading `canonical_deployment.id`, never by loading the
   page.** Consecutive deployments are frequently byte-identical (any run of
