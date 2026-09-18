@@ -41,12 +41,68 @@ Compared by Cloudflare record `id`, not by eye:
   would have surfaced on a name carrying nothing, rather than mid-change
   on the name carrying live mail. The token's write grant is now proven
   to work, by this successful create.
-- **R-7.7 AC4** — mail continuity verified at exactly the level **E12**
-  approved: DNS-record-level comparison only. No test email was sent;
-  doing so would itself have been a separate outbound-email escalation.
+- **R-7.7 AC4** — mail continuity verified at DNS-record level, by both
+  halves of the method E12 approved. **Corrected 2026-09-18 (QA-006 Finding
+  12):** this previously read "at exactly the level E12 approved", and it was
+  not. E12's owner decision is recorded verbatim in REQ-001 as
+  *"byte-identical before/after record comparison via the Cloudflare API
+  **plus an external `dig`**"*. Only the API half had been performed, and the
+  same paragraph then conceded, honestly, that those captures "are not an
+  independent third-party observation" — which is what the external half
+  exists to supply. The external half has now been run; see below. No test
+  email was sent, by E12's decision; doing so would itself have been a
+  separate outbound-email escalation.
 - **A9** — the owner's "permanent infrastructure" commitment for the
   mail records is now backed by a before/after record rather than by a
   written undertaking alone.
+
+## External resolution, 2026-09-18T14:47Z
+
+The independent half of E12's approved method, missing until now. Queried
+against a **public resolver (8.8.8.8)**, not the Cloudflare API, so this is
+an observation of what the internet sees rather than of what the zone
+contains — the distinction the "Limits" section below was right to draw about
+the API captures.
+
+```
+MX    haroonie.ai                      -> haroonie-ai.mail.protection.outlook.com  (pref 0)
+TXT   haroonie.ai                      -> "MS=ms54040815"
+TXT   haroonie.ai                      -> "v=spf1 include:spf.protection.outlook.com ~all"
+CNAME autodiscover.haroonie.ai         -> autodiscover.outlook.com
+CNAME enterpriseenrollment.haroonie.ai -> enterpriseenrollment-s.manage.microsoft.com
+CNAME enterpriseregistration.haroonie.ai -> enterpriseregistration.windows.net
+NS    haroonie.ai                      -> alex.ns.cloudflare.com, zoe.ns.cloudflare.com
+```
+
+All six mail records resolve externally with content identical to the R-7.7
+AC1 baseline. **R-7.7 AC4 and R-7.3 AC3 are satisfied on the facts**, by the
+external query both criteria name.
+
+The NS line additionally re-evidences **R-7.1 AC1**'s nameserver clause. The
+zone's *status* was not re-read in the same pass: the credential available to
+that session had no zone-read scope.
+
+## Still open: R-7.7 AC3 — the post-change enumeration
+
+Recorded here rather than left to be rediscovered. AC3 requires a
+post-change enumeration showing the original six byte-identical **plus only
+the new records R-7.2/R-7.3 require**. `WAVE4-post-www-dns-snapshot.json`
+covers only the `www` stage — the six originals plus the `www` CNAME, and no
+apex record. The apex write, the `always_use_https` change and the redirect
+ruleset all post-date it, so the completed change set was never enumerated.
+Neither snapshot carries a timestamp. QA-006 Finding 11.
+
+It stays open because it needs a zone-scoped credential this session did not
+have. One read-only call closes it:
+
+```
+GET https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records?per_page=100
+    Authorization: Bearer $CLOUDFLARE_ZONE_TOKEN
+```
+
+Save the result beside the baseline as `WAVE4-post-change-dns-snapshot.json`
+with the capture time recorded, and diff it against
+`WAVE4-AC1-dns-baseline.json` keyed on record `id`.
 
 ## Limits, stated plainly
 

@@ -14,6 +14,8 @@
     "typecheck": "astro check",
     "lint": "astro check && tsc --noEmit -p tsconfig.json && tsc --noEmit -p functions/tsconfig.json && eslint .",
     "lint:eslint": "astro sync && eslint .",
+    "trace": "node scripts/traceability.mjs",
+    "trace:check": "node scripts/traceability.mjs --check",
     "test": "playwright test",
     "test:ui": "playwright test --ui",
     "test:production": "playwright test --config=playwright.production.config.ts",

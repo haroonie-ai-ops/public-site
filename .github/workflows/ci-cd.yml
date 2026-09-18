@@ -136,6 +136,20 @@ jobs:
         with:
           fetch-depth: 0
 
+      # SCOPE, stated precisely because the previous wording overstated it
+      # (QA-006 Finding 5). gitleaks-action scans only the EVENT'S COMMIT
+      # RANGE on `pull_request` and `push` - and under this repository's
+      # squash-merge style, a push to `main` is one commit. That is a real
+      # per-commit gate and it is what this job is; it is not the "repository
+      # at any commit" scan R-1.4 AC1 asks for. `fetch-depth: 0` above is a
+      # precondition for the range to resolve, not a full scan in itself.
+      #
+      # The full-history half of AC1 is discharged by
+      # .github/workflows/secret-scan-history.yml, which runs the same action
+      # under `schedule`/`workflow_dispatch` - the only triggers under which
+      # it scans everything. It is a SEPARATE workflow deliberately: adding a
+      # schedule to this file would arm a weekly run of a pipeline whose
+      # later jobs deploy.
       - name: gitleaks
         uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
         env:
@@ -182,6 +196,23 @@ jobs:
       # R-6.1 AC2's enforcement.
       - name: Lint (astro check + tsc --noEmit + eslint)
         run: npm run lint
+
+      # R-8.1 — the traceability drift guard, and the thing that makes the
+      # matrix's own claim about itself true.
+      #
+      # The previous matrix stated that "the generator asserts that the
+      # mapping covers exactly the extracted set, so this document cannot
+      # silently drift from the requirement it describes". QA-006 found that
+      # generator was never committed, so the claim could not be checked and
+      # the document's "135 criteria" headline could not be reproduced.
+      #
+      # This fails the build in both directions: an acceptance criterion added
+      # to REQ-001 without a verdict is an un-assessed criterion, and a verdict
+      # for an AC that no longer exists is a row certifying nothing. It also
+      # fails if the matrix was edited by hand, which is how the rows drifted
+      # away from the ACs they name in the first place.
+      - name: Traceability matrix is in step with REQ-001 (R-8.1)
+        run: npm run trace:check
 
       # R-6.1 AC1 — build. Production settings (SITE_ENV unset), proves the
       # exact command R-1.2 documents actually exits 0 in a clean CI runner,

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { allRoutes } from './support/routes';
-import { assertNavigationOk } from './support/cloudflare';
+import { assertNavigationOk, cloudflareChallengeMessage } from './support/cloudflare';
 
 // R-6.4 — post-deployment verification against the LIVE site.
 //
@@ -68,4 +68,117 @@ test.describe('R-6.4 AC1 — post-deployment smoke against the live site', () =>
 		// assertion here would happily pass.
 		await expect(page.locator('svg.service-icon')).toHaveCount(3);
 	});
+});
+
+// R-7.3 AC1/AC2 — the apex redirects to www with a 301, preserving the path.
+//
+// Added by QA-006 Finding 13. These are HTTP-behaviour criteria and the
+// matrix credited them to `status/WAVE4-dns-evidence.md`, a file containing
+// zero HTTP observations - it records the DNS records, which is a different
+// fact. No test in the suite requested the apex host at all. The Tester
+// verified both live by hand and found them correct; what was missing was
+// anything that would notice if they stopped being correct.
+//
+// This belongs in the smoke suite rather than the security one for the same
+// reason the rest of this file does: it asks whether the deployment serves
+// what it should, not whether it serves it safely. A redirect ruleset is a
+// Cloudflare-side configuration that no code change can break and no code
+// change can fix - which is exactly why nothing in the repository would
+// otherwise notice it being edited away in the dashboard.
+const APEX_ORIGIN = PRODUCTION_ORIGIN.replace('://www.', '://');
+
+test.describe('R-7.3 AC1/AC2 — apex to www redirect', () => {
+	// Skipped rather than failed when PRODUCTION_BASE_URL has been pointed at
+	// something that is not the www host (a preview deployment, say): there is
+	// no apex to redirect in that case, and reporting a missing redirect as a
+	// failure would be a false alarm about a configuration that is not under
+	// test.
+	test.skip(
+		APEX_ORIGIN === PRODUCTION_ORIGIN,
+		`${PRODUCTION_ORIGIN} is not the www host, so it has no apex to redirect`,
+	);
+
+	for (const path of ['/', '/services/']) {
+		test(`${APEX_ORIGIN}${path} responds 301 to the www host, path preserved`, async ({ page }) => {
+			const response = await page.goto(`${APEX_ORIGIN}${path}`);
+			assertNavigationOk(response, `${APEX_ORIGIN}${path}`);
+
+			// The final response is the www page; the redirect is one step back
+			// up the chain. Asserted on the chain rather than on the final URL
+			// alone, because landing on the right page says nothing about the
+			// STATUS used to get there - and AC1 names 301 specifically, since a
+			// 302 tells crawlers the apex is the canonical host after all.
+			const hops: { url: string; status: number }[] = [];
+			for (
+				let request = response.request().redirectedFrom();
+				request !== null;
+				request = request.redirectedFrom()
+			) {
+				const hop = await request.response();
+				if (hop) hops.unshift({ url: request.url(), status: hop.status() });
+			}
+
+			expect(
+				hops.length,
+				`${APEX_ORIGIN}${path} was served directly with no redirect; AC1 requires a 301 to www`,
+			).toBeGreaterThan(0);
+			expect(
+				hops[0].status,
+				`AC1 requires a permanent redirect; ${hops[0].url} answered ${hops[0].status}`,
+			).toBe(301);
+
+			// AC2: the path survives the redirect. `/services/` must not land on
+			// the home page.
+			expect(new URL(page.url()).pathname, 'AC2 — the path must be preserved').toBe(path);
+			expect(new URL(page.url()).origin, 'the redirect target must be the www host').toBe(
+				PRODUCTION_ORIGIN,
+			);
+		});
+	}
+});
+
+// R-7.6 AC1 — "Given any in-scope path WITHOUT a trailing slash, When
+// requested, Then it resolves consistently to a single canonical form rather
+// than serving duplicate content at two URLs."
+//
+// Added by the QA-006 re-verification pass. The matrix credited this to
+// "production-smoke.spec.ts + seo-preview.spec.ts — trailing-slash routing",
+// and neither file contained any such assertion: every route in
+// `support/routes.ts` already carries its trailing slash, so nothing had ever
+// requested the un-slashed form. `astro.config.mjs` sets
+// `trailingSlash: 'always'`, which is a configuration, not a verification.
+//
+// WHY THIS IS A PRODUCTION TEST and not a preview one. It was written against
+// the built preview first, and failed: `astro preview` answers `/terms` with
+// a plain 404, while Cloudflare Pages answers it with a 308 to `/terms/`.
+// Both are "not duplicate content", but only one RESOLVES, and R-7.6's own
+// subject is "the Pages project serves the built output with correct
+// routing". The redirect is the host's behaviour, so the host is what has to
+// be asked. Asserting it against `astro preview` would have been a test of
+// the wrong server that happened to be cheaper to run.
+test.describe('R-7.6 AC1 — one canonical URL per page', () => {
+	for (const route of allRoutes.filter((r) => r.path !== '/')) {
+		const unslashed = route.path.replace(/\/$/, '');
+		test(`${unslashed} resolves to the single canonical ${route.path}`, async ({ request }) => {
+			// maxRedirects: 0 so the redirect itself is observable. Following it
+			// would prove only that the visitor lands somewhere sensible, which
+			// is equally true of duplicate content served at both URLs.
+			const response = await request.get(`${PRODUCTION_ORIGIN}${unslashed}`, { maxRedirects: 0 });
+
+			const challenge = cloudflareChallengeMessage(response, unslashed);
+			if (challenge) throw new Error(challenge);
+
+			expect(
+				[301, 308].includes(response.status()),
+				`${unslashed} answered ${response.status()}; AC1 requires it to resolve to one ` +
+					`canonical form, not to serve a second copy of the page`,
+			).toBe(true);
+
+			const location = response.headers()['location'] ?? '';
+			expect(
+				new URL(location, PRODUCTION_ORIGIN).pathname,
+				`${unslashed} must redirect to ${route.path}`,
+			).toBe(route.path);
+		});
+	}
 });

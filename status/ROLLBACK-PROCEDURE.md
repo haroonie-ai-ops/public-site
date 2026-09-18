@@ -105,19 +105,45 @@ against a target that differs visibly:
 | Signal | `service-icon` count on `/services/`: **3 → 0**, and back |
 | Rollback issued | 07:49 EDT / 11:49 UTC |
 | Rollback observed live | 11:50:07 UTC — **≤ ~67s**, a ceiling: it had already completed before the first sample |
-| Roll-forward observed live | **11:51:14 UTC**, sampling every 3s from 11:51:26 — transition caught inside a **≤ 48s** window |
+| Roll-forward observed live | **11:51:14 UTC**. The duration figure previously stated here is **WITHDRAWN** — see the note below |
 | Restored to | `eeb20b43-…` (`e589e8c`) — `canonical_deployment` MATCH |
 | Under rollback | all routes still 200; a clean older build, not a broken state |
 
-**R-6.5 AC1 is satisfied.** Both directions completed roughly an order of
-magnitude inside the 10-minute bound, and — unlike the first attempt — an
-observable signal proves the transition happened rather than it being
-inferred from an unchanged page.
+**R-6.5 AC1 is satisfied**, on the rollback direction, which is the direction
+the criterion is about. It completed roughly an order of magnitude inside the
+10-minute bound, and — unlike the first attempt — an observable signal proves
+the transition happened rather than it being inferred from an unchanged page.
+The roll-forward also completed quickly and the site was verified restored by
+`canonical_deployment` match; what is withdrawn below is the *duration figure*
+for it, not the fact that it happened.
 
-Both figures are **upper bounds**, not precise durations: each is the gap
-between a human action and the next poll that saw it. The measurement is
-sufficient to settle a 10-minute criterion and is deliberately not stated
-more precisely than the method supports.
+The **rollback** figure is an **upper bound**, not a precise duration: it is
+the gap between the human action and the next poll that saw the result, so it
+strictly exceeds the true propagation time. Inflating a measurement and still
+clearing a 10-minute criterion by roughly 9x is valid evidence, and the figure
+is deliberately not stated more precisely than the method supports. QA-006
+examined this reasoning directly and found it sound.
+
+### The roll-forward figure is withdrawn (QA-006 Finding 16)
+
+The row above previously read *"11:51:14 UTC, sampling every 3s from 11:51:26
+— transition caught inside a ≤ 48s window"*. Three numbers that cannot all be
+true: the observation is timestamped **12 seconds before sampling began**, a
+**3-second cadence cannot produce a 48-second window**, and **no roll-forward
+issue time was recorded**, so there is no anchor from which 48s could be
+derived. No raw poll log was retained, so it cannot be reconstructed.
+
+It is withdrawn rather than corrected, because guessing which of the three
+numbers is wrong would be inventing evidence. **The rollback direction's
+≤ ~67s stands and is what satisfies R-6.5 AC1** — that is the direction the
+criterion is about ("Given a bad production deployment... the PRIOR
+deployment serves within 10 minutes"). The roll-forward is the return to
+normal after the drill, not the criterion.
+
+**To restore a roll-forward figure:** re-drill with the poll output retained
+to a file, and record the issue time as well as the observation time. Both
+were captured by hand the first time, which is how the three numbers came
+apart.
 
 ### The finding worth keeping
 

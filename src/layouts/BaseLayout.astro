@@ -137,14 +137,16 @@ const year = new Date().getFullYear();
 // the site is inside a prefers-color-scheme query, which is what keeps
 // R-9.9 AC1's "renders identically in all three" true by construction.
 //
-// ICONS. The icon set replaces the Astro starter favicon.svg AND a
-// favicon.ico that was, despite its extension, a PNG - both shipped
-// unchanged since the layout shell landed. The three SERVICE icons are a
-// different matter: they were requested as E17 item (e) and have not been
-// supplied, so the Services page carries none. No icon is invented here -
-// R-9.4 AC4 wants meaning never carried by an icon alone, and drawing
-// approximations of an unsupplied brand asset is not an implementation
-// decision.
+// ICONS. The icon set replaces a favicon.ico that was, despite its
+// extension, a PNG, and the Astro starter favicon.svg - the .ico went in the
+// brand wave, the .svg only in QA-006 remediation, because the head was
+// re-pointed at the mark instead of the file being replaced. See the
+// comment on the icon link below.
+//
+// The three SERVICE icons were requested as E17 item (e), supplied, and
+// adopted 2026-09-18; service-icons.spec.ts covers them. (This comment
+// previously recorded them as unsupplied, which stopped being true when
+// E17 closed.)
 // --------------------------------------------------------------------------
 ---
 
@@ -152,7 +154,28 @@ const year = new Date().getFullYear();
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<link rel="icon" type="image/svg+xml" href="/brand/haroonie-logo-mark.svg" />
+		{/*
+		  R-9.7 AC1 names /favicon.svg specifically, and R-9.9 AC4 requires the
+		  mark to stay legible against dark browser chrome via the internal
+		  prefers-color-scheme rule the Astro starter had. Both point at the same
+		  file, so this declares it rather than /brand/haroonie-logo-mark.svg.
+
+		  QA-006 Findings 6 and 7 are why. The brand wave re-pointed this link at
+		  the mark and left /favicon.svg holding Astro's triangle - so the URL the
+		  criterion names served another project's logo from a commercial site's
+		  well-known path, while the file that WAS declared carries no dark-scheme
+		  rule at all. /favicon.svg now holds the same artwork as the mark, with
+		  its three colours tokenised so the dark scheme shifts the palette one
+		  step (Royal to Bright, Bright to Light) instead of recolouring it: the
+		  mark's darkest stop #155BEF measures only 2.89:1 on typical dark chrome
+		  (#202124), where #66B4FF reaches 7.31:1.
+
+		  /brand/haroonie-logo-mark.svg keeps its fixed colours deliberately. It
+		  is also the in-page header logo, and R-9.9's MVP position is one light
+		  theme - a dark-scheme rule there would restyle the header on a page that
+		  is not meant to have a dark mode.
+		*/}
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
 		<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
 		<link rel="icon" href="/favicon.ico" sizes="48x48" />

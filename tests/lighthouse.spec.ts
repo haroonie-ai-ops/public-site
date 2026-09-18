@@ -17,6 +17,10 @@ import { LIGHTHOUSE_CDP_PORT } from './support/ports';
 // that one-off production evidence (production home page: Performance 100,
 // LCP ~0.9-1.2s, 0 bytes of JS, both runs comfortably inside budget).
 //
+// It also carries R-5.2 AC3 (CLS < 0.1, added by REQ-001-A3) and the
+// asserted pre-brand baseline comparison required by R-5.2 AC4 / R-7.8 AC4 /
+// R-9.8 AC6. Both were added by QA-006 remediation; see the comments at each.
+//
 // One test only, deliberately — see the `lighthouse` project's comment in
 // playwright.config.ts for why this file must not grow a second test.
 //
@@ -70,37 +74,107 @@ test.describe('home page performance budget (R-5.2 AC1)', () => {
 		expect(Number.isFinite(lcpMs), 'Lighthouse must report an LCP value').toBe(true);
 		expect(lcpMs, 'LCP (ms) must be under 2.5s per R-5.2 AC1').toBeLessThan(2500);
 
+		// R-5.2 AC3 (added by REQ-001-A3) - "Given the home page on a simulated
+		// mobile connection, When audited, Then Cumulative Layout Shift is
+		// under 0.1."
+		//
+		// Added by QA-006 Finding 1. This criterion was marked AUTOMATED in the
+		// R-8.1 traceability matrix against this file, and three separate rows
+		// (R-5.2 AC3, R-9.8 AC3, R-9.2 AC5) credited a CLS budget that did not
+		// exist anywhere in the suite - `grep -rni "cls|layout-shift" tests/`
+		// returned nothing. The criterion was written by the amendment
+		// SPECIFICALLY because the brand introduced the risk it guards (a web
+		// font and, at the time, an intended hero image - the two canonical CLS
+		// sources), and it shipped unguarded.
+		//
+		// Read the same way as LCP above, and for the same reason: an audit
+		// that did not run reports no value, so a missing CLS audit must FAIL
+		// rather than silently compare `undefined`.
+		const cls = lhr.audits['cumulative-layout-shift'].numericValue ?? Number.NaN;
+		expect(Number.isFinite(cls), 'Lighthouse must report a CLS value').toBe(true);
+		expect(cls, 'CLS must be under 0.1 per R-5.2 AC3').toBeLessThan(0.1);
+
 		// R-5.2 AC4 / R-7.8 AC4 / R-9.8 AC6 - one requirement wearing three
 		// numbers: the post-brand result must be COMPARED against the pre-brand
 		// baseline, "with any regression reported rather than silently absorbed
 		// as 'still passing' without a stated comparison".
 		//
-		// Implemented as a comparison printed on EVERY run rather than a
-		// one-off measurement written into a document. A figure recorded by
-		// hand is true on the day and decays silently; this restates the
-		// comparison every time the suite runs, which is what "not silently
-		// absorbed" actually requires.
-		//
 		// Baseline: REQ-001 section 4, "Pre-brand performance baseline", sourced
-		// from PERF-001 as corrected by REQ-001-A2 section 3.3.
-		const BASELINE = { performance: 100, lcpMsUpperBound: 1200 };
+		// from PERF-001 as corrected by REQ-001-A2 section 3.3 - production home
+		// page, Performance 100, LCP ~0.96-1.2s.
+		//
+		// QA-006 Finding 3 rewrote how this is implemented. It was previously a
+		// `console.log` and nothing else, and the comment below it said the
+		// pass/fail bound was "deliberately unchanged". That is the failure mode
+		// the AC exists to prevent: Performance 96 with LCP 2400ms is an
+		// unambiguous regression against 100 / ~1200ms, and it would have
+		// printed the regression into the stdout of a green run. The Tester was
+		// right; a line of log inside a passing test is not a comparison that
+		// can fail.
+		//
+		// So the comparison is now ASSERTED, against a deliberately wide
+		// tolerance that is still far tighter than AC1's own bound. The
+		// tolerance is a judgement, and it is stated rather than implied:
+		// Lighthouse's composite score moves a point or two on shared hardware,
+		// and LCP under `simulate` throttling is the more stable of the two, so
+		// the score gets 3 points of slack and LCP gets 600ms - 50% above the
+		// LOOSEST end of the recorded baseline range. A drift large enough to
+		// matter breaks the gate; run-to-run noise does not.
+		const BASELINE = {
+			performance: 100,
+			// The recorded range is ~0.96-1.2s. Both ends are kept because the
+			// previous code used only `1200` - the loosest end - and then
+			// reported the result as "roughly 290ms BETTER", an improvement that
+			// mostly measured the choice of baseline end (QA-006 Finding 3.3).
+			// The comparison below is stated against BOTH ends so the reader is
+			// not handed the flattering one.
+			lcpMsBest: 960,
+			lcpMsWorst: 1200,
+		};
+		const TOLERANCE = { performancePoints: 3, lcpMs: 600 };
+
 		const performance = Math.round((lhr.categories.performance.score ?? 0) * 100);
 		const deltaScore = performance - BASELINE.performance;
-		const deltaLcp = Math.round(lcpMs - BASELINE.lcpMsUpperBound);
+		const deltaLcpWorst = Math.round(lcpMs - BASELINE.lcpMsWorst);
+		const deltaLcpBest = Math.round(lcpMs - BASELINE.lcpMsBest);
 
 		// eslint-disable-next-line no-console -- deliberate: this IS the stated comparison the three ACs require, not debug output.
 		console.log(
-			`R-9.8 AC6 baseline comparison - Performance ${performance} vs ${BASELINE.performance} ` +
-				`(${deltaScore >= 0 ? '+' : ''}${deltaScore}); LCP ${Math.round(lcpMs)}ms vs ` +
-				`<=${BASELINE.lcpMsUpperBound}ms (${deltaLcp >= 0 ? '+' : ''}${deltaLcp}ms). ` +
+			`R-9.8 AC6 baseline comparison (LOCAL BUILT OUTPUT, not the production ` +
+				`hostname - see below) - Performance ${performance} vs ${BASELINE.performance} ` +
+				`(${deltaScore >= 0 ? '+' : ''}${deltaScore}); LCP ${Math.round(lcpMs)}ms vs a ` +
+				`baseline range of ${BASELINE.lcpMsBest}-${BASELINE.lcpMsWorst}ms ` +
+				`(${deltaLcpBest >= 0 ? '+' : ''}${deltaLcpBest}ms against the best end, ` +
+				`${deltaLcpWorst >= 0 ? '+' : ''}${deltaLcpWorst}ms against the worst); ` +
+				`CLS ${cls.toFixed(3)} against a pre-brand page that had no font and no image. ` +
 				`Site's own JS unchanged at 0 bytes (asserted separately by cross-browser.spec.ts).`,
 		);
 
-		// The pass/fail bound stays R-5.2 AC1's (>=95, <2500ms), deliberately
-		// unchanged. Tightening it to the baseline itself would trade real
-		// flakiness for no real protection: Lighthouse scores vary run to run
-		// on shared hardware, and a 99-vs-100 delta is noise, not a regression.
-		// What these three ACs ask for is that the comparison be STATED, and it
-		// now is - on every run, in the log, whether it passed or not.
+		expect(
+			performance,
+			`Performance ${performance} has regressed more than ${TOLERANCE.performancePoints} ` +
+				`points below the pre-brand baseline of ${BASELINE.performance} (REQ-001 section 4). ` +
+				`R-5.2 AC1's own floor of 95 is separate and also applies.`,
+		).toBeGreaterThanOrEqual(BASELINE.performance - TOLERANCE.performancePoints);
+
+		expect(
+			lcpMs,
+			`LCP ${Math.round(lcpMs)}ms has regressed more than ${TOLERANCE.lcpMs}ms beyond the ` +
+				`loosest end of the pre-brand baseline range (${BASELINE.lcpMsWorst}ms). ` +
+				`R-5.2 AC1's own ceiling of 2500ms is separate and also applies.`,
+		).toBeLessThanOrEqual(BASELINE.lcpMsWorst + TOLERANCE.lcpMs);
+
+		// WHAT THIS TEST STILL DOES NOT DO, stated rather than left to be
+		// rediscovered (QA-006 Finding 3.2): R-9.8 AC6 and R-7.8 AC4 name the
+		// PRODUCTION HOSTNAME. This project runs against `previewBaseURL` - the
+		// local built static output - because that is where a pre-merge gate
+		// can run deterministically and without a deployment. The figures above
+		// are therefore a local-vs-production comparison, not like-for-like.
+		//
+		// The production half of AC6 is discharged separately and by
+		// measurement, not by this file: see status/PERF-002-post-brand-
+		// production-audit.md. The matrix rows for AC6 cite that document; this
+		// file is cited only for the ongoing local regression gate it actually
+		// is.
 	});
 });

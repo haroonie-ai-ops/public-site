@@ -204,6 +204,21 @@ export default tseslint.config(
 	},
 
 	// ---------------------------------------------------------------
+	// scripts/ holds command-line tools, not shipped code. Their entire
+	// purpose is to print to a terminal - the traceability generator
+	// reports what it wrote and why a check failed, and the production
+	// Lighthouse audit's output IS its result. `no-console` is on for the
+	// rest of the repository because a stray log in a page or a spec is
+	// almost always debris; here it is the interface.
+	// ---------------------------------------------------------------
+	{
+		files: ['scripts/**/*.mjs'],
+		rules: {
+			'no-console': 'off',
+		},
+	},
+
+	// ---------------------------------------------------------------
 	// Cloudflare Pages Functions run on workerd, not Node: no `process`,
 	// no `Buffer`, but the full web platform including `crypto`.
 	// ---------------------------------------------------------------
