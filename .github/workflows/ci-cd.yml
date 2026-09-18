@@ -109,10 +109,27 @@ jobs:
       - name: Install dependencies (npm ci)
         run: npm ci
 
-      # R-6.1 AC1 — lint. astro check + tsc --noEmit (no separate ESLint
-      # config exists yet in this project; this is the real static-analysis
-      # coverage the codebase has today, wired up rather than stubbed).
-      - name: Lint (astro check + tsc --noEmit)
+      # R-6.1 AC1 — lint. Four gates in one chained script: `astro check`,
+      # `tsc --noEmit` over the site's tsconfig, `tsc --noEmit` over the
+      # Pages Function's tsconfig, then `eslint .`.
+      #
+      # Through Waves 1-6 this step was type-checking only. QA-003 Finding 1
+      # recorded that as an unresolved requirements ambiguity — the AC's
+      # letter satisfied, its substance narrower than "lint" conventionally
+      # promises. Resolved 2026-09-17 by owner decision (quoted in full at
+      # the top of eslint.config.mjs): add a real linter. ESLint is additive
+      # — the type-check passes are unchanged and still gate this step.
+      #
+      # Any one of the four exiting non-zero fails this step, which fails
+      # the `validate` job, which skips both deploy jobs via `needs:
+      # validate` and reports the PR red against the `main` ruleset's
+      # required status check.
+      #
+      # The job's `name:` above is deliberately NOT changed: it is the
+      # literal string registered in ruleset 23484592's
+      # `required_status_checks`, and renaming it would silently detach
+      # R-6.1 AC2's enforcement.
+      - name: Lint (astro check + tsc --noEmit + eslint)
         run: npm run lint
 
       # R-6.1 AC1 — build. Production settings (SITE_ENV unset), proves the
