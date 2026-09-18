@@ -61,7 +61,46 @@ test.describe('home page performance budget (R-5.2 AC1)', () => {
 		// throwing); LCP is a separate numeric audit, not a category score, so
 		// it needs its own explicit assertion here per AC1's "under 2.5
 		// seconds" clause.
-		const lcpMs = lhr.audits['largest-contentful-paint'].numericValue;
+		// `numericValue` is `number | undefined` in Lighthouse's own types: an
+		// audit that did not run reports no value. Narrowed explicitly rather
+		// than asserted away, and the narrowing doubles as a real check - a
+		// missing LCP audit now FAILS instead of silently comparing undefined,
+		// which is what the previous single toBeLessThan() would have done.
+		const lcpMs = lhr.audits['largest-contentful-paint'].numericValue ?? Number.NaN;
+		expect(Number.isFinite(lcpMs), 'Lighthouse must report an LCP value').toBe(true);
 		expect(lcpMs, 'LCP (ms) must be under 2.5s per R-5.2 AC1').toBeLessThan(2500);
+
+		// R-5.2 AC4 / R-7.8 AC4 / R-9.8 AC6 - one requirement wearing three
+		// numbers: the post-brand result must be COMPARED against the pre-brand
+		// baseline, "with any regression reported rather than silently absorbed
+		// as 'still passing' without a stated comparison".
+		//
+		// Implemented as a comparison printed on EVERY run rather than a
+		// one-off measurement written into a document. A figure recorded by
+		// hand is true on the day and decays silently; this restates the
+		// comparison every time the suite runs, which is what "not silently
+		// absorbed" actually requires.
+		//
+		// Baseline: REQ-001 section 4, "Pre-brand performance baseline", sourced
+		// from PERF-001 as corrected by REQ-001-A2 section 3.3.
+		const BASELINE = { performance: 100, lcpMsUpperBound: 1200 };
+		const performance = Math.round((lhr.categories.performance.score ?? 0) * 100);
+		const deltaScore = performance - BASELINE.performance;
+		const deltaLcp = Math.round(lcpMs - BASELINE.lcpMsUpperBound);
+
+		// eslint-disable-next-line no-console -- deliberate: this IS the stated comparison the three ACs require, not debug output.
+		console.log(
+			`R-9.8 AC6 baseline comparison - Performance ${performance} vs ${BASELINE.performance} ` +
+				`(${deltaScore >= 0 ? '+' : ''}${deltaScore}); LCP ${Math.round(lcpMs)}ms vs ` +
+				`<=${BASELINE.lcpMsUpperBound}ms (${deltaLcp >= 0 ? '+' : ''}${deltaLcp}ms). ` +
+				`Site's own JS unchanged at 0 bytes (asserted separately by cross-browser.spec.ts).`,
+		);
+
+		// The pass/fail bound stays R-5.2 AC1's (>=95, <2500ms), deliberately
+		// unchanged. Tightening it to the baseline itself would trade real
+		// flakiness for no real protection: Lighthouse scores vary run to run
+		// on shared hardware, and a 99-vs-100 delta is noise, not a regression.
+		// What these three ACs ask for is that the comparison be STATED, and it
+		// now is - on every run, in the log, whether it passed or not.
 	});
 });

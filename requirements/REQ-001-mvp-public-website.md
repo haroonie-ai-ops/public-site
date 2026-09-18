@@ -277,10 +277,26 @@ collections in the repository, not from hard-coded markup in components.
   Then it disallows all crawling, while the production host does not.
 
 **R-4.5** Analytics is cookieless, so no consent banner is required.
+**AMENDED 2026-09-18 — owner decision: MVP ships with NO analytics.**
 - AC1 — Given a first-time visitor, When any page loads, Then no cookie is
-  written and no consent banner appears.
-- AC2 — Given a page view, When it occurs, Then it is recorded in the
-  analytics dashboard.
+  written and no consent banner appears. **Still in force, and satisfied —
+  but note WHY**, because the reason changed: it passes because the site
+  collects nothing at all, not because a cookieless analytics product was
+  chosen well. Verified: zero tracking scripts, and a CSP that is `'self'`
+  throughout with no third-party origin in any directive.
+- AC2 — ~~Given a page view, When it occurs, Then it is recorded in the
+  analytics dashboard.~~ **STRUCK.** Found by the R-8.1 traceability matrix:
+  unimplementable as written, because no analytics product is installed and
+  no dashboard exists. It had never been raised as an escalation or a scope
+  cut — it simply sat there reading as a requirement.
+
+  Adding analytics now would not be a gap-fill but a scope decision with
+  real consequences: a third-party origin on a site whose CSP admits none, a
+  Privacy Policy change, and a fresh look at **A4**, which the owner
+  confirmed on the basis that the only personal data in scope is what a
+  visitor puts in an email. Striking the criterion states the true position
+  instead of carrying an obligation nobody intends to meet. Analytics
+  remains available as a scoped future addition with its own approval.
 
 ### R-5 — Accessibility, performance and compatibility
 
@@ -537,6 +553,20 @@ E15, the disclosed trust-dependency. Verbatim: *"Approve e14"*, then
   `/cdn-cgi/challenge-platform/`, When the CSP is inspected, Then that
   path resolves under `'self'` (same-origin) — the specific allowance
   Cloudflare's documentation states this feature requires.
+- AC1e — **VERIFICATION LIMITATION ACCEPTED by the owner, 2026-09-18.** The
+  fallback branch's logic is unit-tested (`csp-module.spec.ts` asserts the
+  fallback policy is byte-identical to the pre-amendment static CSP, never
+  `'unsafe-inline'`, never a nonce). What is NOT verified is whether the real
+  Functions runtime ever reaches that branch:
+  `tests/csp-nonce-failsafe.spec.ts` self-skips, because forcing the error
+  needs a project-level Cloudflare Pages environment variable that would put
+  every in-flight preview deployment into the fail-safe path at once. The
+  clean fix is a second, throwaway Pages project scoped to this one test —
+  a new cloud resource for a single assertion about a fail-safe that
+  degrades strictness rather than availability. Accepted as a disclosed
+  limitation for MVP rather than closed; revisit if the Function ever grows
+  beyond minting a nonce. The spec skips loudly rather than silently, so the
+  gap stays visible in every run.
 - AC1e — Given the Pages Function fails to execute for any reason
   (unhandled exception, runtime error, timeout), When the response is
   nonetheless served, Then it still carries a `Content-Security-Policy` at
