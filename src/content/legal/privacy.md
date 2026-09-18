@@ -64,8 +64,8 @@ is the one in effect.
 
 This website is operated by:
 
-haroonie.ai LLC
-2501 Chatham Rd, Suite N
+haroonie.ai LLC<br />
+2501 Chatham Rd, Suite N<br />
 Springfield, IL 62704, USA
 
 You can contact us about anything in this policy, including to exercise the

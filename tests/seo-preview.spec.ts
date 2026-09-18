@@ -1,9 +1,9 @@
 import { execSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test, expect } from '@playwright/test';
 import { allRoutes } from './support/routes';
+import { makeBuildOutDir, removeBuildOutDir } from './support/build-output';
 
 // These checks run only against the `static-preview` project (see
 // playwright.config.ts), which serves the real `astro build` output via
@@ -58,7 +58,7 @@ test.describe('non-indexable preview builds (R-4.4)', () => {
 	test.describe.configure({ mode: 'serial' });
 
 	test('a build with SITE_ENV=preview disallows all crawling in its robots.txt', async () => {
-		const outDir = mkdtempSync(join(tmpdir(), 'haroonie-preview-robots-'));
+		const outDir = makeBuildOutDir();
 		try {
 			execSync(`npm run build -- --outDir "${outDir}"`, {
 				cwd: process.cwd(),
@@ -79,7 +79,7 @@ test.describe('non-indexable preview builds (R-4.4)', () => {
 			const robots = readFileSync(join(outDir, 'robots.txt'), 'utf-8');
 			expect(robots).toContain('Disallow: /');
 		} finally {
-			rmSync(outDir, { recursive: true, force: true });
+			removeBuildOutDir(outDir);
 		}
 	});
 
@@ -88,7 +88,7 @@ test.describe('non-indexable preview builds (R-4.4)', () => {
 	// production. This must never flip the other way (a typo'd/unrecognised
 	// value must still de-index) — see the sibling test below.
 	test('a build with SITE_ENV=Production (mixed case) still allows crawling', async () => {
-		const outDir = mkdtempSync(join(tmpdir(), 'haroonie-preview-robots-'));
+		const outDir = makeBuildOutDir();
 		try {
 			execSync(`npm run build -- --outDir "${outDir}"`, {
 				cwd: process.cwd(),
@@ -101,12 +101,12 @@ test.describe('non-indexable preview builds (R-4.4)', () => {
 			expect(robots).not.toContain('Disallow: /');
 			expect(robots).toContain('Sitemap: https://www.haroonie.ai/sitemap-index.xml');
 		} finally {
-			rmSync(outDir, { recursive: true, force: true });
+			removeBuildOutDir(outDir);
 		}
 	});
 
 	test('a build with an unrecognised SITE_ENV value still disallows crawling (fails safe)', async () => {
-		const outDir = mkdtempSync(join(tmpdir(), 'haroonie-preview-robots-'));
+		const outDir = makeBuildOutDir();
 		try {
 			execSync(`npm run build -- --outDir "${outDir}"`, {
 				cwd: process.cwd(),
@@ -118,7 +118,7 @@ test.describe('non-indexable preview builds (R-4.4)', () => {
 			const robots = readFileSync(join(outDir, 'robots.txt'), 'utf-8');
 			expect(robots).toContain('Disallow: /');
 		} finally {
-			rmSync(outDir, { recursive: true, force: true });
+			removeBuildOutDir(outDir);
 		}
 	});
 
@@ -133,7 +133,7 @@ test.describe('non-indexable preview builds (R-4.4)', () => {
 	// edit changes the workflow's literal string without updating this
 	// test, this is what catches the drift.
 	test('a build with SITE_ENV=prelaunch (the production E6 gate) disallows all crawling', async () => {
-		const outDir = mkdtempSync(join(tmpdir(), 'haroonie-preview-robots-'));
+		const outDir = makeBuildOutDir();
 		try {
 			execSync(`npm run build -- --outDir "${outDir}"`, {
 				cwd: process.cwd(),
@@ -145,7 +145,7 @@ test.describe('non-indexable preview builds (R-4.4)', () => {
 			const robots = readFileSync(join(outDir, 'robots.txt'), 'utf-8');
 			expect(robots).toContain('Disallow: /');
 		} finally {
-			rmSync(outDir, { recursive: true, force: true });
+			removeBuildOutDir(outDir);
 		}
 	});
 
@@ -172,7 +172,7 @@ test.describe('non-indexable preview builds (R-4.4)', () => {
 			original,
 		);
 
-		const outDir = mkdtempSync(join(tmpdir(), 'haroonie-r28-proof-'));
+		const outDir = makeBuildOutDir();
 		try {
 			writeFileSync(contentPath, modified);
 			execSync(`npm run build -- --outDir "${outDir}"`, {
@@ -185,7 +185,7 @@ test.describe('non-indexable preview builds (R-4.4)', () => {
 			expect(html).toContain(proofHeading);
 		} finally {
 			writeFileSync(contentPath, original);
-			rmSync(outDir, { recursive: true, force: true });
+			removeBuildOutDir(outDir);
 		}
 	});
 });

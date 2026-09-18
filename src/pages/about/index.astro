@@ -1,11 +1,18 @@
 ---
 // About (REQ-001 R-2.3). Bio copy comes from the `about` content
-// collection (R-2.8). R-2.3 AC1 requires "owner-approved biography content
-// … with no placeholder markers" — that cannot be true until the owner
-// supplies real biography copy (E6); see status/STATUS.md and
-// status/placeholder-content.md. This page renders whatever the collection
-// currently holds (today: a clearly-marked placeholder) rather than
-// pretending the AC passes.
+// collection (R-2.8).
+//
+// 2026-09-17: the owner supplied the biography (E6), so this page now
+// renders real, approved copy; the collection's `placeholder` flag stays
+// wired up so the notice reappears automatically if that ever changes.
+//
+// BRAND APPLICATION (R-9.1, R-9.5). The h1 is the owner's chosen tagline
+// rather than a generic label, so it is set as display type — navy at
+// 12.40:1 — and the biography is set one step up from body size at a
+// constrained measure, which is what makes a single long paragraph
+// readable rather than a wall. The prose colour stays --ink (17.99:1); the
+// muted ramp is reserved for supporting text, not for the page's only
+// substantive copy.
 import { getEntry, render } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import PlaceholderNotice from '../../components/PlaceholderNotice.astro';
@@ -16,21 +23,34 @@ const { Content } = await render(about);
 ---
 
 <BaseLayout title="About — haroonie.ai" description={about.data.metaDescription}>
+	<span class="accent-rule" aria-hidden="true"></span>
 	<h1>{about.data.heading}</h1>
 
 	{about.data.placeholder && <PlaceholderNotice />}
 
-	<div class="bio">
+	<div class="bio prose">
 		<Content />
 	</div>
 </BaseLayout>
 
 <style>
+	h1 {
+		margin-block-start: var(--space-md);
+		max-width: 20ch;
+	}
+
 	.bio {
-		max-width: 42rem;
+		max-width: var(--measure);
 	}
 
 	.bio :global(p) {
-		margin-block: 1rem;
+		font-size: var(--text-md);
+		line-height: var(--leading-relaxed);
+		margin-block: 0 var(--space-md);
+		max-width: none;
+	}
+
+	.bio :global(p:last-child) {
+		margin-block-end: 0;
 	}
 </style>

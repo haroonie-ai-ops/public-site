@@ -35,3 +35,6 @@ pnpm-debug.log*
 
 # Claude Code agent worktrees (local, ephemeral)
 .claude/worktrees/
+
+# Test-spawned astro builds (see tests/support/build-output.ts)
+/.tmp-build-*/
