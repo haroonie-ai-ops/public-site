@@ -415,6 +415,28 @@ block publication.
 - AC1 — Given a bad production deployment, When the documented rollback
   procedure is followed, Then the prior deployment serves at
   `https://www.haroonie.ai` within 10 minutes.
+- Note (2026-09-18): the procedure AC1 refers to **now exists** —
+  `status/ROLLBACK-PROCEDURE.md` — and was drilled on production with owner
+  authorisation. The rollback mechanism and the roll-forward both work, and
+  the exact prior pointer was restored.
+  **AC1 is SATISFIED, measured 2026-09-18.** The first attempt could not time
+  anything — the rollback target was byte-identical to the build it replaced,
+  so no observable transition existed. Repeated against `7f1215c2`
+  (`7692f41`, pre-service-icons), where the signal is a `service-icon` count
+  of 3 → 0: rollback live within **≤ ~67s**, roll-forward observed at
+  11:51:14 UTC within a **≤ 48s** window, `canonical_deployment` confirmed
+  MATCH in both directions, and all routes served 200 throughout. Both
+  figures are upper bounds — the gap between a human action and the next
+  poll that saw it — which is sufficient to settle a 10-minute criterion and
+  is deliberately not stated more precisely than the method supports.
+- Note (2026-09-18, the drill's substantive finding): **a rollback must be
+  verified by reading `canonical_deployment.id`, never by loading the
+  page.** Consecutive deployments are frequently byte-identical (any run of
+  docs-only merges), and production HTML changes on every request anyway
+  because Cloudflare injects a per-request CSP nonce. A content check can
+  report a successful rollback as failed, or — more dangerously — a failed
+  one as successful. This is recorded against the requirement because it
+  changes what "verified" means for AC1.
 
 **R-6.6** Pipeline credentials are managed as secrets.
 - AC1 — Given the pipeline, When it authenticates to Cloudflare, Then it uses

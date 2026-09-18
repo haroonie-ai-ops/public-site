@@ -32,6 +32,12 @@
 #                      because R-7.8 explicitly requires a post-deployment
 #                      gate and none existed yet for it to attach to
 #                      additively (R-7.8 AC6).
+#                      As of Wave 7 this job ALSO runs R-6.4's smoke suite
+#                      (production-smoke.spec.ts): all six routes 200, the
+#                      home primary heading present, and a coarse staleness
+#                      check. R-6.4 asks whether the site is up at all, which
+#                      a deploy can fail while satisfying every R-7.8
+#                      security assertion.
 #
 # R-6.1 AC2's enforcement half ("cannot be merged") is NOT implemented here.
 # It requires branch protection / a repository ruleset with a required
@@ -357,7 +363,7 @@ jobs:
             --branch=main
 
   post-deploy-verify:
-    name: Verify production hostname (R-7.8, REQ-001-A2)
+    name: Verify production hostname (R-6.4 smoke + R-7.8 security)
     needs: deploy-production
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -411,26 +417,38 @@ jobs:
       # this commit (deferred to Wave 7 per PLAN-001) — the interim guidance
       # below is the Cloudflare Pages dashboard's own rollback feature and
       # API, not a wrapper this program has built or verified.
+      # R-6.4 AC2 and R-7.8 AC5 both require that a failing post-deploy run
+      # record a rollback recommendation rather than merely log a failure.
       - name: Record rollback recommendation on failure
         if: failure()
         run: |
           {
-            echo "## Production verification FAILED (R-7.8 / REQ-001-A2)"
+            echo "## Production verification FAILED (R-6.4 smoke / R-7.8 security)"
             echo ""
-            echo "The post-deployment production-hostname suite failed against"
-            echo "https://www.haroonie.ai/ after deploying commit \`${{ github.sha }}\`."
-            echo "This can mean a CSP regression, a missing security header, or a"
-            echo "JS-transfer/console-error regression on the real production"
-            echo "hostname — R-7.5 AC2 and R-7.8 AC1 are explicit acceptance"
-            echo "criteria, not soft warnings."
+            echo "The post-deployment suite failed against https://www.haroonie.ai/"
+            echo "after deploying commit \`${{ github.sha }}\`."
             echo ""
-            echo "RECOMMENDED ACTION: roll back the Cloudflare Pages production"
-            echo "deployment to the last known-good deployment. R-6.5's own"
-            echo "documented rollback procedure does not exist yet (deferred to"
-            echo "Wave 7); in the interim, use the Cloudflare dashboard"
-            echo "(Workers & Pages -> haroonie-ai-public-site -> Deployments ->"
-            echo "select the last known-good deployment -> Rollback to this"
-            echo "deployment), or the Cloudflare API's"
-            echo "\`POST /accounts/{account_id}/pages/projects/haroonie-ai-public-site/deployments/{deployment_id}/rollback\`"
-            echo "endpoint."
+            echo "WHICH QUESTION FAILED matters, so read the report before acting:"
+            echo "- production-smoke.spec.ts (R-6.4) - the site is down, a route did"
+            echo "  not return 200, or a page served without its own content."
+            echo "- production-security.spec.ts (R-7.8) - the site is up, but a CSP"
+            echo "  regression, a missing header, or a console/JS-transfer regression"
+            echo "  occurred. R-7.5 AC2 and R-7.8 AC1 are acceptance criteria, not"
+            echo "  soft warnings."
+            echo ""
+            echo "BEFORE ROLLING BACK, rule out a false alarm. Cloudflare Bot Fight"
+            echo "Mode challenges non-browser clients from GitHub runner IPs and has"
+            echo "twice produced a red job on a healthy site (QA-005 Finding 3). The"
+            echo "suite self-diagnoses this: a challenge failure names itself in the"
+            echo "error text. If every failure is a challenge, the site is fine."
+            echo ""
+            echo "RECOMMENDED ACTION: follow status/ROLLBACK-PROCEDURE.md, which is"
+            echo "documented and has been drilled on production (R-6.5 - both"
+            echo "directions well inside the 10-minute bound)."
+            echo ""
+            echo "DO NOT verify a rollback by loading the page. Consecutive"
+            echo "deployments are frequently byte-identical, and production HTML"
+            echo "changes on every request because Cloudflare injects a per-request"
+            echo "CSP nonce. Verify canonical_deployment.id via the dashboard or API."
+            echo "That is the drill's main finding, and it has already misled once."
           } >> "$GITHUB_STEP_SUMMARY"

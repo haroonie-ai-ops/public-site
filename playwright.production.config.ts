@@ -1,7 +1,13 @@
 import { defineConfig, devices } from '@playwright/test';
 
-// REQ-001-A2 / R-7.8 — production-hostname verification, deliberately a
-// SEPARATE config from playwright.config.ts's build-output suites.
+// Production-hostname verification, deliberately a SEPARATE config from
+// playwright.config.ts's build-output suites. Covers two requirements that
+// ask different questions of the same deployment:
+//   R-6.4 (production-smoke.spec.ts)    — is the site up, did it serve?
+//   R-7.8 (production-security.spec.ts) — does the CSP hold on the real host?
+// They share this config because they share one expensive precondition, a
+// real browser against the real hostname, and because R-6.4 AC2's rollback
+// recommendation is the same job-level mechanism R-7.8 already triggers.
 //
 // QA-005 Finding 2: every existing suite targets build output or the
 // `pages.dev` origin, never the real Cloudflare zone proxy — which is
@@ -18,7 +24,7 @@ import { defineConfig, devices } from '@playwright/test';
 // or serve.
 export default defineConfig({
 	testDir: './tests',
-	testMatch: /production-security\.spec\.ts|csp-nonce-failsafe\.spec\.ts/,
+	testMatch: /production-smoke\.spec\.ts|production-security\.spec\.ts|csp-nonce-failsafe\.spec\.ts/,
 	fullyParallel: true,
 	forbidOnly: !!process.env.CI,
 	retries: process.env.CI ? 2 : 0,
