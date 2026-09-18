@@ -484,6 +484,24 @@ default in the other direction.
 ### Probe 4 (informational) — `404.astro`'s description string not in the
 placeholder register
 
+**RESOLVED 2026-09-18 — owner decision: it is final copy.** Verbatim:
+*"QA-002 Probe 4 — the 404 page's copy, it's the final copy."*
+
+So "The page you're looking for doesn't exist or has moved." is approved
+text, **not** a placeholder, and no row is added to
+`status/placeholder-content.md`. This matters beyond the sentence itself:
+the owner's condition for lifting production's `robots.txt` gate is that the
+register be empty or every remaining row expressly waived, and this was the
+one visitor-facing string that had gone through neither the E6 supply route
+nor the register. The register is now complete rather than complete-minus-
+one-unlogged-item.
+
+Recorded against R-2.6 in `requirements/REQ-001-mvp-public-website.md` too,
+so a reader of the requirement does not have to find this review to learn
+the copy was approved rather than merely never questioned.
+
+The original finding follows, unchanged.
+
 Not changed. The Tester correctly identified this as a Business Analyst
 question, not an Engineer one: whether "The page you're looking for
 doesn't exist or has moved." is intended as final copy or should be logged

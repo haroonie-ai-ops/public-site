@@ -182,6 +182,21 @@ primary call to action.
 **R-2.6 404** — a custom not-found page.
 - AC1 — Given a request to a non-existent path, When the response returns,
   Then HTTP status is 404 and the branded 404 page renders with a link home.
+- Note (2026-09-18, owner decision): the page's body and meta-description
+  text — "The page you're looking for doesn't exist or has moved." — is
+  **approved final copy**, not a placeholder. Verbatim: *"QA-002 Probe 4 —
+  the 404 page's copy, it's the final copy."* Raised as QA-002 Probe 4
+  during Wave 2a and open since: it was the one visitor-facing string that
+  had passed through neither the E6 supply route nor
+  `status/placeholder-content.md`, so nobody could tell whether its absence
+  from the register meant "approved" or "overlooked". It meant approved.
+- Note (2026-09-18, recorded not resolved): this page's copy is hard-coded
+  in `src/pages/404.astro` rather than sourced from a content collection,
+  which is the only page for which that is true. R-2.8 requires page copy to
+  originate from Markdown or content collections. Whether a 404's short
+  fixed string counts as "page copy" under R-2.8 is a live reading; the
+  owner's decision above settles that the words are approved, not where they
+  live. Flagged rather than silently fixed or silently ignored.
 
 **R-2.7 Navigation and footer** — consistent across all pages.
 - AC1 — Given any page, When rendered, Then the header exposes links to Home,
