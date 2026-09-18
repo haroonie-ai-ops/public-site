@@ -361,6 +361,25 @@ block publication.
   up-to-date), `non_fast_forward`, and `deletion` protection. AC2 is
   satisfiable exactly as originally written; the enforcement clause was
   never amended away.
+- Note (2026-09-17) — what "lint" in AC1 means. From Wave 3 to Wave 6 the
+  `lint` step was `astro check && tsc --noEmit` (twice, once per tsconfig):
+  genuine, gating static analysis, but type-checking rather than linting.
+  `status/QA-003-wave3-tester-review.md` **Finding 1** raised this as a
+  requirements ambiguity — the AC's letter satisfied, its substance narrower
+  than "lint" conventionally promises — and asked for a recorded decision
+  rather than an assumption, noting that either answer was acceptable.
+  **Resolved 2026-09-17 by owner decision.** Verbatim: *"QA-003 Finding 1 —
+  'lint' means type-checking, have @engineer add a real linter now."* The
+  owner chose the substantive option: close the gap by adding a linter, not
+  by narrowing the AC's wording. AC1's text is therefore **unchanged** — it
+  always meant what it says, and the implementation has been brought up to
+  it. As of this date `npm run lint` is `astro check && tsc --noEmit -p
+  tsconfig.json && tsc --noEmit -p functions/tsconfig.json && eslint .`;
+  the type-check passes are retained unaltered and ESLint is additive, not a
+  replacement. Tooling, rule selection, the rules deliberately left off and
+  the reason for each are recorded in `eslint.config.mjs`. The `validate`
+  job's name is unchanged, so AC2's `required_status_checks` binding to
+  "Install, lint, build, Playwright" is unaffected.
 
 **R-6.2** Pull requests receive an isolated preview deployment.
 - AC1 — Given a pull request whose checks pass, When CI completes, Then a

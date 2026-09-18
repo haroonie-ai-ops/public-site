@@ -1,6 +1,105 @@
 # Workstream Status — haroonie.ai Public Website
 
-Last updated: 2026-09-17 — **Brand APPLIED across all six pages. PR open on
+Last updated: 2026-09-18 — **A real linter is in the pipeline. QA-003
+Finding 1 CLOSED by owner decision. PR #20 open on
+`chore/eslint-real-linter`, green, not merged (`main` is protected).**
+
+The longest-open requirements ambiguity in the program is settled. QA-003
+Finding 1, raised 2026-09-12, observed that R-6.1 AC1's "lint" was
+implemented as `astro check && tsc --noEmit` — the AC's letter satisfied,
+its substance narrower than "lint" conventionally promises — and asked for
+a recorded decision rather than an assumption, noting either answer was
+acceptable.
+
+**Owner decision, 2026-09-17, verbatim:** *"QA-003 Finding 1 — 'lint' means
+type-checking, have @engineer add a real linter now."*
+
+The owner chose the substantive option. **R-6.1 AC1's text is unchanged** —
+the implementation was brought up to the criterion, not the criterion
+narrowed to the implementation. `npm run lint` is now `astro check && tsc
+--noEmit -p tsconfig.json && tsc --noEmit -p functions/tsconfig.json &&
+eslint .`; both type-check passes are retained unaltered and ESLint is
+additive. ESLint 10 + typescript-eslint 8 (type-aware on `.ts`) +
+eslint-plugin-astro 3 + eslint-plugin-jsx-a11y-x, covering all 50 authored
+source files with 31 accessibility rules active on `.astro`. All
+devDependencies; the site still ships **0 bytes** of its own JavaScript.
+
+**The gate is proven, not asserted.** A throwaway branch (PR #21, closed
+unmerged, branch deleted) carried one file with two accessibility defects
+and nothing else. Run `35304513527`, raw job log, on a real GitHub-hosted
+runner: `astro check` reported **0 errors and 0 warnings across all 50
+files** and `tsc --noEmit` printed nothing on either tsconfig, then ESLint
+reported 2 errors and the step exited 1. `Build` skipped, **the Playwright
+suite never ran**, `validate` failed, `deploy-preview` skipped via `needs:
+validate`. The control is PR #20's own run `35304480465` — identical
+commits without the probe file — which passes the same lint step and runs
+the full suite green. That single log is the substance gap Finding 1
+described, and its closure.
+
+**What the first run found: 12 problems in 5 files, none of which six waves
+of type-checking had reason to surface.** All fixed at source — no blanket
+disables, no file-wide suppressions, no weakened assertions (R-8.3 AC1):
+
+1. A literal **U+200B ZERO WIDTH SPACE** inside an authored comment in
+   `src/components/ServiceIcon.astro`, invisible in every editor and diff
+   view this program has used.
+2. **Five `async` test bodies with no `await` in them**
+   (`tests/seo-preview.spec.ts`) — all five drive synchronous `execSync`/
+   `readFileSync`, verified individually rather than assumed.
+3. **Four unsafe reads of an `any` escaping `JSON.parse()`** inside the
+   R-4.3 JSON-LD assertions (`tests/seo.spec.ts:75-78`) — type checking was
+   silently switched off *inside an assertion*, which is precisely the
+   class `tsc` cannot report, because `any` is well-typed. Narrowed to
+   `Record<string, unknown>`; the three expectations are unchanged.
+4. **Two `eslint-disable` directives written before this project had a
+   linter**, against rules it had never enabled — they read as reviewed
+   exceptions while suppressing nothing. Resolved opposite ways on their
+   merits: `no-await-in-loop` stays off (it flags 18 correct sequential
+   `page.goto` sites) and its directive was demoted to a plain comment;
+   `no-console` is now on (zero new findings repo-wide), making the
+   deliberate R-5.2 AC2 evidence trail a real exemption.
+   `reportUnusedDisableDirectives` is set to `error` so this cannot
+   silently recur.
+
+**Engineering verification.** `npm run lint` 0 errors. `npm test` **415
+passed / 16 skipped / 0 failed** — the exact pre-change baseline — locally
+and, authoritatively, in CI run `35305258450` on the final rebased head
+(`16 skipped / 415 passed (3.2m)`, read from the raw job log). Lighthouse
+Performance **100** against a threshold of 95. Site's own JavaScript 0
+bytes. Built `dist/` grepped for program document IDs, requirement IDs,
+escalation IDs and internal role names before pushing: **no matches**
+(QA-004 constraint).
+
+**One local failure, classified and recorded rather than omitted.** The
+third local full run (after the second rebase) reported 414 passed / 1
+failed: `[cross-browser-webkit] /terms/ has no horizontal overflow at
+1920px wide`. **Classification: ENVIRONMENTAL, not a product or automation
+defect.** The error captured in the Playwright evidence is
+`browserContext.newPage: Target page, context or browser has been closed` —
+a browser-launch failure, so the overflow assertion never executed and
+nothing about layout was actually measured. Diagnosis: the machine was down
+to ~3.7 GB free virtual memory with 22 concurrent `node` processes from
+parallel agent runs, plus orphaned WebKit processes from earlier runs — the
+same class of problem as QA-002 Finding 2's orphaned `astro preview`. An
+immediate re-run of the same spec and project reproduced it (5 failures,
+all the identical launch error, none an assertion); a second re-run passed
+**18/18**. CI ran the identical commits green three times on clean Linux
+runners. No assertion was touched, no retry count changed, and no test was
+skipped or quarantined to make this go away.
+
+**Recorded, not assumed.** The owner's verbatim instruction is written into
+`status/QA-003-wave3-tester-review.md` Finding 1 (as a resolution block
+above the Finding's original, unaltered text) and into
+`requirements/REQ-001-mvp-public-website.md` R-6.1. **For the Business
+Analyst:** REQ-001's wording is yours — this records an owner decision, it
+does not author a requirement, and the R-6.1 note should be confirmed as
+reading the way you intend.
+
+**Awaiting:** independent QA review, then the owner's merge of PR #20.
+
+---
+
+Prior update, 2026-09-17 — **Brand APPLIED across all six pages. PR open on
 `feat/brand-apply-palette-type-scale`, not merged (`main` is protected).**
 
 The brand foundation merged earlier today (`bac4c42`) shipped tokens, the

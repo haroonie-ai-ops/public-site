@@ -73,6 +73,50 @@ Cloudflare (all probes were GET). No git push/merge was attempted.
 
 ### Finding 1 — "lint" is type-checking, not a linter; the AC's letter is satisfied, its likely intent is not fully
 
+> **RESOLVED 2026-09-17 — owner decision. Verbatim:**
+>
+> > "QA-003 Finding 1 — 'lint' means type-checking, have @engineer add a
+> > real linter now."
+>
+> The owner closed this ambiguity by choosing the substantive option: add a
+> real linter, rather than amend R-6.1 AC1's wording to mean type-checking.
+> The Tester's recommendation — that what mattered was a recorded decision
+> rather than an assumption — is satisfied by this note plus the matching
+> note on R-6.1 in `requirements/REQ-001-mvp-public-website.md`.
+>
+> **What was implemented.** ESLint 10 with `eslint-plugin-astro`,
+> `typescript-eslint` (type-aware rules on `.ts`), and 31 accessibility
+> rules via `eslint-plugin-jsx-a11y-x`, appended to `npm run lint`. The two
+> `tsc --noEmit` passes and `astro check` are **retained unchanged** — the
+> Tester's assessment that they catch real problems and genuinely gate the
+> pipeline was accepted, so the linter is additive rather than a swap. All
+> ESLint packages are devDependencies; the site still ships 0 bytes of its
+> own JavaScript (R-5.2 AC2).
+>
+> **The finding's premise, confirmed empirically.** This review argued the
+> type-check chain's substance was narrower than "lint" promises. That was
+> measured rather than left as an argument: against a deliberate
+> accessibility violation in an authored `.astro` file (an `<img>` with no
+> `alt`, an `<a href="#">`), `tsc --noEmit` exits 0 silently and `astro
+> check` reports 0 errors and 0 warnings, while `eslint .` reports 2 errors
+> and `npm run lint` exits 1. The gap this finding described was real and is
+> now closed.
+>
+> **What the first run found.** 12 problems across 5 files, none of which
+> six waves of type-checking had any reason to surface: a literal U+200B
+> ZERO WIDTH SPACE in an authored comment; five `async` test bodies with no
+> `await` in them; four unsafe reads of an `any` escaping from
+> `JSON.parse()` inside the R-4.3 structured-data assertions; and two
+> `eslint-disable` directives written against rules this project had never
+> enabled, which read as reviewed exceptions while suppressing nothing. All
+> 12 were fixed at source. Nothing was blanket-disabled, no file-wide
+> suppression was added, and no assertion was weakened (R-8.3 AC1). One
+> rule, `no-await-in-loop`, was deliberately not enabled — it flags 18
+> correct sequential `page.goto` sites — and that exclusion is recorded with
+> its reason in `eslint.config.mjs` rather than left implicit.
+>
+> The Finding's original text is preserved unaltered below.
+
 **Classification:** Requirements ambiguity (not a product, test, or automation defect) · **Severity: Low — informational, for the Business Analyst, not a blocker**
 
 - **Scenario:** R-6.1 AC1 requires "install, build, lint and the Playwright suite" to all execute.

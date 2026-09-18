@@ -61,7 +61,12 @@ test.describe('R-7.5 AC1c (manual) — 20 consecutive production nonces are uniq
 	}) => {
 		const nonces: string[] = [];
 		for (let i = 0; i < SAMPLE_SIZE; i += 1) {
-			// eslint-disable-next-line no-await-in-loop -- deliberately sequential: proves per-request generation, not batch/cached.
+			// Deliberately sequential: proves per-request generation, not
+			// batch/cached. (This was written as an `eslint-disable-next-line
+			// no-await-in-loop` before this project had a linter. `no-await-in-loop`
+			// is deliberately not enabled — see eslint.config.mjs for why — so the
+			// directive was inert and has been demoted to the plain comment its
+			// content always was.)
 			const response = await page.goto(cacheBustedUrl(PRODUCTION_ORIGIN + '/', i), { waitUntil: 'commit' });
 			assertNavigationOk(response, `/ (request ${i})`);
 			const csp = (await response.headersArray()).find((h) => h.name.toLowerCase() === 'content-security-policy')

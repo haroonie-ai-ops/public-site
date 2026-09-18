@@ -57,7 +57,7 @@ test.describe('non-indexable preview builds (R-4.4)', () => {
 	// that without weakening any assertion.
 	test.describe.configure({ mode: 'serial' });
 
-	test('a build with SITE_ENV=preview disallows all crawling in its robots.txt', async () => {
+	test('a build with SITE_ENV=preview disallows all crawling in its robots.txt', () => {
 		const outDir = makeBuildOutDir();
 		try {
 			execSync(`npm run build -- --outDir "${outDir}"`, {
@@ -87,7 +87,7 @@ test.describe('non-indexable preview builds (R-4.4)', () => {
 	// pipeline that sets an unexpected case doesn't accidentally de-index
 	// production. This must never flip the other way (a typo'd/unrecognised
 	// value must still de-index) — see the sibling test below.
-	test('a build with SITE_ENV=Production (mixed case) still allows crawling', async () => {
+	test('a build with SITE_ENV=Production (mixed case) still allows crawling', () => {
 		const outDir = makeBuildOutDir();
 		try {
 			execSync(`npm run build -- --outDir "${outDir}"`, {
@@ -105,7 +105,7 @@ test.describe('non-indexable preview builds (R-4.4)', () => {
 		}
 	});
 
-	test('a build with an unrecognised SITE_ENV value still disallows crawling (fails safe)', async () => {
+	test('a build with an unrecognised SITE_ENV value still disallows crawling (fails safe)', () => {
 		const outDir = makeBuildOutDir();
 		try {
 			execSync(`npm run build -- --outDir "${outDir}"`, {
@@ -132,7 +132,7 @@ test.describe('non-indexable preview builds (R-4.4)', () => {
 	// (already covered by the SITE_ENV=staging test above) — if a future
 	// edit changes the workflow's literal string without updating this
 	// test, this is what catches the drift.
-	test('a build with SITE_ENV=prelaunch (the production E6 gate) disallows all crawling', async () => {
+	test('a build with SITE_ENV=prelaunch (the production E6 gate) disallows all crawling', () => {
 		const outDir = makeBuildOutDir();
 		try {
 			execSync(`npm run build -- --outDir "${outDir}"`, {
@@ -160,7 +160,7 @@ test.describe('non-indexable preview builds (R-4.4)', () => {
 	// concurrently-running build's shared `.astro/.prerender` cache; the
 	// content file is restored in `finally` even if the assertion throws,
 	// so a failure here can't corrupt the working tree for other tests.
-	test('editing only a Markdown content file changes the rendered page after a rebuild', async () => {
+	test('editing only a Markdown content file changes the rendered page after a rebuild', () => {
 		const contentPath = join(process.cwd(), 'src/content/home/index.md');
 		const original = readFileSync(contentPath, 'utf-8');
 		const proofHeading = `R-2.8 proof heading ${Date.now()}`;
