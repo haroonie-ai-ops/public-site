@@ -2,6 +2,18 @@
 // Privacy Policy (REQ-001 R-2.5 AC1). Structured fields (dataCollected,
 // lawfulBasis, retentionPeriod, rightsProcedure) and copy come from the
 // `legal` content collection (R-2.8), keyed by slug "privacy".
+//
+// BRAND APPLICATION (R-9.1, R-9.5). Legal prose is read, not scanned, so
+// the whole page is held to one narrow measure and the section headings
+// are stepped down rather than up — a policy is a document, and making its
+// four required sections shout would not make them clearer. Body copy is
+// --ink at 17.99:1 throughout; nothing on this page uses the muted ramp,
+// because everything here is substantive.
+//
+// The four sections R-2.5 AC1 requires are separated by a hairline in
+// --line rather than by colour blocks, so their visual grouping never
+// becomes the thing carrying the meaning — each still has a real <h2>
+// inside a labelled <section>.
 import { getEntry, render } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 
@@ -12,40 +24,78 @@ const { Content } = await render(privacy);
 ---
 
 <BaseLayout title={`${title} — haroonie.ai`} description={metaDescription}>
-	<h1>{title}</h1>
+	<div class="legal">
+		<span class="accent-rule" aria-hidden="true"></span>
+		<h1>{title}</h1>
 
-	<div class="intro">
-		<Content />
+		<div class="intro prose">
+			<Content />
+		</div>
+
+		<section aria-labelledby="data-collected-heading">
+			<h2 id="data-collected-heading">What data we collect</h2>
+			<p>{dataCollected}</p>
+		</section>
+
+		<section aria-labelledby="lawful-basis-heading">
+			<h2 id="lawful-basis-heading">Lawful basis</h2>
+			<p>{lawfulBasis}</p>
+		</section>
+
+		<section aria-labelledby="retention-heading">
+			<h2 id="retention-heading">Retention period</h2>
+			<p>{retentionPeriod}</p>
+		</section>
+
+		<section aria-labelledby="rights-heading">
+			<h2 id="rights-heading">Your data protection rights</h2>
+			<p>{rightsProcedure}</p>
+		</section>
 	</div>
-
-	<section aria-labelledby="data-collected-heading">
-		<h2 id="data-collected-heading">What data we collect</h2>
-		<p>{dataCollected}</p>
-	</section>
-
-	<section aria-labelledby="lawful-basis-heading">
-		<h2 id="lawful-basis-heading">Lawful basis</h2>
-		<p>{lawfulBasis}</p>
-	</section>
-
-	<section aria-labelledby="retention-heading">
-		<h2 id="retention-heading">Retention period</h2>
-		<p>{retentionPeriod}</p>
-	</section>
-
-	<section aria-labelledby="rights-heading">
-		<h2 id="rights-heading">Your data protection rights</h2>
-		<p>{rightsProcedure}</p>
-	</section>
 </BaseLayout>
 
 <style>
-	section {
-		max-width: 42rem;
-		margin-block-end: 1.75rem;
+	.legal {
+		max-width: var(--measure);
 	}
 
-	section h2 {
-		font-size: 1.125rem;
+	.legal h1 {
+		margin-block: var(--space-md) var(--space-md);
+		font-size: var(--text-2xl);
+	}
+
+	.legal section {
+		margin-block-start: var(--space-lg);
+		padding-block-start: var(--space-lg);
+		border-block-start: 1px solid var(--line);
+	}
+
+	.legal section h2 {
+		margin-block: 0 var(--space-2xs);
+		font-size: var(--text-lg);
+	}
+
+	.legal p {
+		max-width: none;
+		margin-block: 0 var(--space-sm);
+	}
+
+	.legal p:last-child {
+		margin-block-end: 0;
+	}
+
+	/* Headings inside the Markdown intro (e.g. "Who we are") get the same
+	   hairline separation as the four structured sections below, so the
+	   page reads as one document rather than two stacked ones. */
+	.intro :global(h2) {
+		margin-block: var(--space-lg) var(--space-2xs);
+		padding-block-start: var(--space-lg);
+		border-block-start: 1px solid var(--line);
+		font-size: var(--text-lg);
+	}
+
+	.intro :global(p) {
+		max-width: none;
+		margin-block: 0 var(--space-sm);
 	}
 </style>

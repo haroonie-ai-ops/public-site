@@ -2,6 +2,14 @@
 // Visible, auditable marker for pages that do not yet carry final copy.
 // REQ-001 §1.3: no placeholder may reach production. This component makes
 // that easy to grep for (`PlaceholderNotice`) and easy to see on the page.
+//
+// R-9.1 AC2: the amber warning colours below were three raw hex literals
+// in this component, which is exactly what AC2 forbids — a brand change
+// could never have reached them. They now come from --warn-* in the token
+// source in BaseLayout.astro. The brand sheet defines no status palette at
+// all (it is a logo sheet, not a design system), so these are carried over
+// unchanged rather than re-invented; moving them into the token source is
+// what makes them changeable in one place when a status palette is decided.
 ---
 
 <p class="placeholder-notice" data-placeholder="true">
@@ -11,11 +19,12 @@
 
 <style>
 	.placeholder-notice {
-		border: 1px dashed #b45309;
-		background: #fffbeb;
-		color: #7c2d12;
-		padding: 0.75rem 1rem;
-		border-radius: 0.25rem;
-		font-size: 0.9rem;
+		max-width: var(--measure);
+		border: 1px dashed var(--warn-line);
+		background: var(--warn-surface);
+		color: var(--warn-ink);
+		padding: var(--space-xs) var(--space-sm);
+		border-radius: var(--radius-sm);
+		font-size: var(--text-sm);
 	}
 </style>

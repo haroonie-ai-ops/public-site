@@ -4,6 +4,25 @@
 // src/content/services/, each rendered with its title (frontmatter
 // heading) and body (description). Adding, removing or editing a service
 // is a Markdown-only change — this file never hard-codes an entry.
+//
+// BRAND APPLICATION (R-9.1, R-9.4, R-9.5). Each entry is a card with a
+// decorative gradient bar across its top edge. That bar is the only place
+// --accent-decor / --accent-decor-soft appear on this page: it carries no
+// text and no meaning, so the 3.62:1 and 2.20:1 ratios that bar those two
+// colours from body text do not apply to it. Headings are --brand-navy at
+// 12.40:1 and descriptions inherit --ink at 17.99:1.
+//
+// The grid is auto-fit rather than a fixed three columns deliberately —
+// the collection is defined as two to six entries, so a layout pinned to
+// today's three would break the moment a fourth Markdown file lands, which
+// is exactly the coupling R-2.8 exists to prevent.
+//
+// NO SERVICE ICONS. R-9.4 adopts three service icons; they were requested
+// as E17 item (e) and have not been supplied. Nothing is invented to fill
+// the gap — the cards are complete without them, and R-9.4 AC4 requires
+// that a missing icon never cost meaning or shift layout, which is trivially
+// true when none is rendered. Dropping icons into the accent bar later
+// changes this file only.
 import { getCollection, getEntry, render } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import PlaceholderNotice from '../../components/PlaceholderNotice.astro';
@@ -20,6 +39,7 @@ const rendered = await Promise.all(
 ---
 
 <BaseLayout title="Services — haroonie.ai" description={pageMeta.data.metaDescription}>
+	<span class="accent-rule" aria-hidden="true"></span>
 	<h1>Services</h1>
 
 	{anyPlaceholder && <PlaceholderNotice />}
@@ -28,6 +48,7 @@ const rendered = await Promise.all(
 		{
 			rendered.map(({ entry, Content }) => (
 				<li class="service-entry">
+					<span class="service-entry-bar" aria-hidden="true" />
 					<h2>{entry.data.title}</h2>
 					<Content />
 				</li>
@@ -36,48 +57,75 @@ const rendered = await Promise.all(
 	</ul>
 
 	<p class="cta-block">
-		<a class="cta-primary" href="/contact/">Discuss your project</a>
+		<a class="btn" href="/contact/">Discuss your project</a>
 	</p>
 </BaseLayout>
 
 <style>
+	h1 {
+		margin-block-start: var(--space-md);
+	}
+
 	.service-list {
 		list-style: none;
 		margin: 0;
 		padding: 0;
+		max-width: none;
 		display: grid;
-		gap: 1.5rem;
-		margin-block: 1.5rem 2rem;
+		gap: var(--space-md);
+		grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+		margin-block: var(--space-xl) var(--space-section);
 	}
 
 	.service-entry {
-		border: 1px solid var(--border);
-		border-radius: 0.5rem;
-		padding: 1.25rem 1.5rem;
+		position: relative;
+		margin: 0;
+		overflow: hidden;
+		background: var(--surface);
+		border: 1px solid var(--line);
+		border-radius: var(--radius-lg);
+		padding: clamp(1.25rem, 3vw, 1.75rem);
+		box-shadow: var(--shadow-sm);
+		transition:
+			border-color var(--transition),
+			box-shadow var(--transition);
+	}
+
+	.service-entry:hover {
+		border-color: var(--accent-decor);
+		box-shadow: var(--shadow-md);
+	}
+
+	/* Decoration only — see this file's frontmatter note on why the two
+	   low-contrast brand colours are allowed here and nowhere else. */
+	.service-entry-bar {
+		position: absolute;
+		inset-block-start: 0;
+		inset-inline: 0;
+		height: 0.25rem;
+		background: linear-gradient(
+			90deg,
+			var(--accent) 0%,
+			var(--accent-decor) 55%,
+			var(--accent-decor-soft) 100%
+		);
 	}
 
 	.service-entry h2 {
-		margin-block-start: 0;
-		font-size: 1.25rem;
+		margin-block: 0 var(--space-2xs);
+		font-size: var(--text-lg);
+	}
+
+	.service-entry :global(p) {
+		margin-block: 0;
+		max-width: none;
+		color: var(--ink-muted);
 	}
 
 	.cta-block {
-		border-top: 1px solid var(--border);
-		padding-block-start: 1.5rem;
-	}
-
-	.cta-primary {
-		display: inline-block;
-		background: var(--accent);
-		color: #fff;
-		text-decoration: none;
-		font-weight: 600;
-		padding: 0.75rem 1.5rem;
-		border-radius: 0.375rem;
-	}
-
-	.cta-primary:hover,
-	.cta-primary:focus-visible {
-		text-decoration: underline;
+		margin: 0;
+		max-width: none;
+		padding-block-start: var(--space-lg);
+		border-block-start: 1px solid var(--line);
 	}
 </style>

@@ -4,6 +4,12 @@
 // Terms content beyond the general R-2 rules (reachable from footer nav,
 // renders without console errors, responsive) — see R-2.5 AC2 for the
 // footer-link requirement, covered by BaseLayout.
+//
+// BRAND APPLICATION (R-9.1, R-9.5). Deliberately identical in treatment to
+// the Privacy page: same measure, same heading steps, same hairline
+// separation. Two legal documents that look like two different documents
+// would be a brand defect, not a variation — and the shared type system in
+// BaseLayout is what makes matching them cost nothing.
 import { getEntry, render } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 
@@ -13,18 +19,34 @@ const { Content } = await render(terms);
 ---
 
 <BaseLayout title={`${terms.data.title} — haroonie.ai`} description={terms.data.metaDescription}>
-	<h1>{terms.data.title}</h1>
-	<div class="body">
-		<Content />
+	<div class="legal">
+		<span class="accent-rule" aria-hidden="true"></span>
+		<h1>{terms.data.title}</h1>
+		<div class="body prose">
+			<Content />
+		</div>
 	</div>
 </BaseLayout>
 
 <style>
-	.body {
-		max-width: 42rem;
+	.legal {
+		max-width: var(--measure);
+	}
+
+	.legal h1 {
+		margin-block: var(--space-md) var(--space-md);
+		font-size: var(--text-2xl);
 	}
 
 	.body :global(p) {
-		margin-block: 1rem;
+		max-width: none;
+		margin-block: 0 var(--space-sm);
+	}
+
+	.body :global(h2) {
+		margin-block: var(--space-lg) var(--space-2xs);
+		padding-block-start: var(--space-lg);
+		border-block-start: 1px solid var(--line);
+		font-size: var(--text-lg);
 	}
 </style>
