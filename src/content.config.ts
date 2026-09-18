@@ -104,23 +104,6 @@ const contact = defineCollection({
 		phone: z.string().optional(),
 		/** Human-readable rendering of `phone` (e.g. "(312) 970-9638"). */
 		phoneDisplay: z.string().optional(),
-		/**
-		 * Booking link URL — actionable (R-2.4 AC1).
-		 *
-		 * OPTIONAL as of 2026-09-17. R-2.4 AC1's booking-link clause is
-		 * under an explicit, interim owner waiver (see REQ-001 R-2.4) because
-		 * no scheduling account exists yet and the reserved `/booking` path
-		 * resolves to a 404 — publishing a dead link failed AC1's
-		 * "actionable" requirement anyway. Omitting both fields renders no
-		 * booking link at all rather than a broken one.
-		 *
-		 * To restore the link when a scheduling URL exists: set both fields
-		 * in src/content/contact/index.md. No component change is needed —
-		 * the page renders the link whenever they are present.
-		 */
-		bookingUrl: z.string().optional(),
-		/** Accessible name of the booking link. Required whenever bookingUrl is set. */
-		bookingLabel: z.string().optional(),
 		/** Short intro line above the form fields. */
 		formIntro: z.string(),
 		metaDescription: z.string(),

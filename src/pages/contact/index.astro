@@ -6,13 +6,9 @@
 // (R-3.1) is Wave 5, blocked on E4 (a transactional email credential); do
 // not add validation, an action endpoint, or a submit handler here.
 //
-// Booking link (2026-09-17): rendered only when both `bookingUrl` and
-// `bookingLabel` are set. They are currently unset — R-2.4 AC1's
-// booking-link clause is under an explicit interim owner waiver (REQ-001
-// R-2.4), because no scheduling account exists and the reserved `/booking`
-// path 404s. A dead link failed AC1's "actionable" requirement anyway, so
-// no link is rendered rather than a broken one. Setting both fields in the
-// content file restores it with no change here.
+// No booking link. R-2.4 AC1's booking clause was struck by owner decision
+// on 2026-09-18, not waived, so nothing here renders one and no restore path
+// is kept. Enquiry routes are the published email and telephone.
 //
 // QA-004-class remediation (sweep, PRODUCT_DEFECT, High): this note used
 // to also live as a raw HTML comment in the markup below, which — unlike
@@ -52,7 +48,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 
 const contact = await getEntry('contact', 'index');
 if (!contact) throw new Error('Missing required "contact" content collection entry.');
-const { heading, email, phone, phoneDisplay, bookingUrl, bookingLabel, formIntro, metaDescription } = contact.data;
+const { heading, email, phone, phoneDisplay, formIntro, metaDescription } = contact.data;
 ---
 
 <BaseLayout title="Contact — haroonie.ai" description={metaDescription}>
@@ -71,14 +67,6 @@ const { heading, email, phone, phoneDisplay, bookingUrl, bookingLabel, formIntro
 					<li>
 						<span class="method-label">Phone</span>
 						<a class="method-value" href={`tel:${phone}`}>{phoneDisplay}</a>
-					</li>
-				)}
-				{bookingUrl && bookingLabel && (
-					<li>
-						{/* No label span here on purpose: bookingLabel is itself the
-						    owner-supplied phrase for this row, and inventing a second
-						    label to sit above it would be new visitor-facing copy. */}
-						<a class="method-value" href={bookingUrl} target="_blank" rel="noopener noreferrer">{bookingLabel}</a>
 					</li>
 				)}
 			</ul>
