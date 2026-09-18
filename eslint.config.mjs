@@ -83,6 +83,15 @@ export default tseslint.config(
 			'blob-report/**',
 			'playwright/.cache/**',
 			'.tmp-build-*/**',
+			// Agent worktrees are full copies of this repository living inside
+			// it. Without this, `eslint .` walks into every one and reports
+			// findings against code that is not on the current branch and may
+			// be many commits stale - 369 errors from 13 worktrees when this
+			// was found, none of them from real source. CI never saw it
+			// because it checks out fresh, which is exactly why local and CI
+			// disagreed: the one place a developer runs lint by hand was the
+			// one place it was unusable.
+			'.claude/**',
 		],
 	},
 
