@@ -330,7 +330,27 @@ trading name are the same, so it carried no information), and the state/ZIP
 comma is removed per standard US postal convention. Street, suite, city,
 state, ZIP and country are otherwise exactly as you supplied them.
 
-### 5.3 ⚠️ This changes a standing assumption — REQ-001 A4
+### 5.3 RESOLVED — REQ-001 A4 re-examined and confirmed
+
+**Owner decision, 2026-09-18.** Verbatim: *"'A4 stands' → zero work."*
+
+A4 was raised here because it was adopted before any entity information
+existed, and the entity then turned out to be a US (Illinois) LLC. The owner
+has re-examined it and confirmed it holds. No policy text changes; the
+Privacy Policy's GDPR framing is already consistent with A4.
+
+Recorded against A4 itself in REQ-001, with the verification that the
+policy's factual claims are true of the build — no cookies, no analytics, no
+third-party origins, and a contact form that does not submit. **The decision
+is scoped to that state:** wiring R-3.1's form (Wave 5, E4) would start
+moving personal data through a real pipeline, and A4 is worth re-testing
+then rather than inheriting this answer.
+
+The original analysis follows, unchanged, as the record of why it was asked.
+
+---
+
+#### Original analysis — REQ-001 A4
 
 REQ-001 assumption **A4** states UK/EU GDPR applies, and the current
 Privacy Policy (`src/content/legal/privacy.md`) was drafted against it — its
