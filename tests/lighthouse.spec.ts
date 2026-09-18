@@ -61,7 +61,13 @@ test.describe('home page performance budget (R-5.2 AC1)', () => {
 		// throwing); LCP is a separate numeric audit, not a category score, so
 		// it needs its own explicit assertion here per AC1's "under 2.5
 		// seconds" clause.
-		const lcpMs = lhr.audits['largest-contentful-paint'].numericValue;
+		// `numericValue` is `number | undefined` in Lighthouse's own types: an
+		// audit that did not run reports no value. Narrowed explicitly rather
+		// than asserted away, and the narrowing doubles as a real check - a
+		// missing LCP audit now FAILS instead of silently comparing undefined,
+		// which is what the previous single toBeLessThan() would have done.
+		const lcpMs = lhr.audits['largest-contentful-paint'].numericValue ?? Number.NaN;
+		expect(Number.isFinite(lcpMs), 'Lighthouse must report an LCP value').toBe(true);
 		expect(lcpMs, 'LCP (ms) must be under 2.5s per R-5.2 AC1').toBeLessThan(2500);
 
 		// R-5.2 AC4 / R-7.8 AC4 / R-9.8 AC6 - one requirement wearing three

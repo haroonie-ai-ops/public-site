@@ -123,6 +123,13 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      # gitleaks-action uploads its findings as SARIF to code scanning, so
+      # anything it detects lands in the Security tab rather than only in a
+      # job log a failing build buries. That upload needs this scope: with
+      # `contents: read` alone the scan itself passed but the
+      # `github-advanced-security` check went red on the upload, which reads
+      # exactly like a found secret and is not one.
+      security-events: write
     steps:
       - name: Checkout (full history — a shallow clone cannot scan commits)
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
