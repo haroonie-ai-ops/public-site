@@ -25,13 +25,80 @@ const isCurrent = (href: string) =>
 	href === '/' ? currentPath === '/' : currentPath.startsWith(href);
 
 const year = new Date().getFullYear();
+
+// --------------------------------------------------------------------------
+// Brand foundation. This is Astro frontmatter and is NEVER emitted to the
+// client - deliberately. The QA-004 regression test in seo-preview.spec.ts
+// fails the build if a program document ID reaches shipped HTML, and an
+// earlier draft of this change put these notes in HTML and CSS comments:
+// that test caught the leak in the built output, which is exactly the class
+// of defect it was written for. Internal IDs belong here only.
+//
+// TYPOGRAPHY. Manrope is self-hosted from public/fonts as a single variable
+// woff2 - 24KB covers the whole 200-800 axis, so weights 400/700/800 cost
+// one request. Self-hosting is deliberate: Google Fonts would require
+// widening BOTH style-src and font-src, two directives and neither of them
+// script-src, which U16 rules out. font-src 'self' already permits a
+// same-origin font, so the CSP is untouched. The SIL OFL 1.1 licence ships
+// alongside the font at public/fonts/manrope-OFL.txt.
+//
+// The preload carries crossorigin even though the font is same-origin: font
+// fetches are CORS-mode, so a preload without it is discarded and the file
+// is fetched twice.
+//
+// TOKENS. :root is the single source for every brand value; no component
+// declares a raw colour or font-family. Contrast against white:
+//   --brand-navy   12.40:1  any text, including AAA
+//   --brand-royal   5.56:1  body text, links, solid buttons with white labels
+//   --brand-bright  3.62:1  LARGE text and non-text UI only
+//   --brand-light   2.20:1  decoration only, never text
+//
+// CONTRAST, learned the hard way in this very change: .brand-dot (the ".ai")
+// was first set in --brand-bright, matching the brand sheet. axe failed it on
+// all six routes in both engines. At 18px bold the wordmark is 13.5pt, just
+// under WCAG's 14pt-bold large-text threshold, so it needs 4.5:1 and reaches
+// only 3.61:1. It now uses --brand-royal at 5.56:1, visually near-identical
+// and conforming. This is precisely the "one token between conforming and
+// not" case the amendment warned about; --brand-bright stays valid for
+// genuinely large display type.
+//
+// HEADER (owner decision, 2026-09-17). The header pairs the logo MARK with
+// the wordmark as real HTML text rather than one lockup SVG: the text stays
+// selectable, translatable and sharp at any zoom, and the link's accessible
+// name comes from the text itself, so it is satisfied by the markup rather
+// than worked around with aria-label. It also sidesteps a defect in the
+// supplied lockups - SVG referenced via <img> cannot load external fonts, so
+// a lockup would have rendered the wordmark in a fallback face.
+//
+// The mark carries explicit width/height (intrinsic 120x120) so its box is
+// reserved before load and the header cannot shift.
+//
+// THEME. color-scheme was "light dark", which advertised a dark mode this
+// build never had - --paper was hard-coded #ffffff regardless. MVP is
+// light-only, so the declaration now matches reality.
+//
+// ICONS. The icon set replaces the Astro starter favicon.svg AND a
+// favicon.ico that was, despite its extension, a PNG - both shipped
+// unchanged since the layout shell landed.
+// --------------------------------------------------------------------------
 ---
 
 <html lang="en">
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<link rel="icon" type="image/svg+xml" href="/brand/haroonie-logo-mark.svg" />
+		<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+		<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+		<link rel="icon" href="/favicon.ico" sizes="48x48" />
+		<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+		<link
+			rel="preload"
+			href="/fonts/manrope-variable.woff2"
+			as="font"
+			type="font/woff2"
+			crossorigin
+		/>
 		<meta name="generator" content={Astro.generator} />
 		<SeoHead
 			title={title}
@@ -45,7 +112,17 @@ const year = new Date().getFullYear();
 		<a class="skip-link" href="#main-content">Skip to main content</a>
 		<header>
 			<div class="wrap header-inner">
-				<a class="wordmark" href="/">haroonie.ai</a>
+				<a class="brand" href="/">
+					<img
+						class="brand-mark"
+						src="/brand/haroonie-logo-mark.svg"
+						alt=""
+						width="120"
+						height="120"
+						decoding="async"
+					/>
+					<span class="wordmark">haroonie<span class="brand-dot">.ai</span></span>
+				</a>
 				<nav aria-label="Primary">
 					<ul>
 						{
@@ -85,13 +162,36 @@ const year = new Date().getFullYear();
 	</body>
 </html>
 
+<style is:global>
+	@font-face {
+		font-family: 'Manrope';
+		src: url('/fonts/manrope-variable.woff2') format('woff2');
+		font-weight: 200 800;
+		font-style: normal;
+		font-display: swap;
+	}
+
+	:root {
+		--brand-navy: #0a2a87;
+		--brand-royal: #155bef;
+		--brand-bright: #2e83ff;
+		--brand-light: #66b4ff;
+		--brand-bg: #f5f8ff;
+
+		--font-sans: 'Manrope', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+		--weight-body: 400;
+		--weight-heading: 700;
+		--weight-logo: 800;
+	}
+</style>
+
 <style>
 	:root {
-		color-scheme: light dark;
+		color-scheme: light;
 		--ink: #14171a;
 		--paper: #ffffff;
 		--muted: #5b6470;
-		--accent: #2452ff;
+		--accent: var(--brand-royal);
 		--border: #e2e5ea;
 	}
 
@@ -106,12 +206,8 @@ const year = new Date().getFullYear();
 	}
 
 	body {
-		font-family:
-			system-ui,
-			-apple-system,
-			'Segoe UI',
-			Roboto,
-			sans-serif;
+		font-family: var(--font-sans);
+		font-weight: var(--weight-body);
 		color: var(--ink);
 		background: var(--paper);
 		display: flex;
@@ -154,11 +250,29 @@ const year = new Date().getFullYear();
 		flex-wrap: wrap;
 	}
 
-	.wordmark {
-		font-weight: 700;
-		font-size: 1.125rem;
+	.brand {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
 		text-decoration: none;
-		color: var(--ink);
+		color: var(--brand-navy);
+	}
+
+	.brand-mark {
+		width: 1.75rem;
+		height: 1.75rem;
+		flex: none;
+	}
+
+	.wordmark {
+		font-weight: var(--weight-logo);
+		font-size: 1.125rem;
+		letter-spacing: -0.01em;
+		color: var(--brand-navy);
+	}
+
+	.brand-dot {
+		color: var(--brand-royal);
 	}
 
 	nav ul {
