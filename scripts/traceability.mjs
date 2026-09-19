@@ -40,7 +40,7 @@ const MEANING = {
 	[C]: 'Enforced by pipeline or platform configuration',
 	[B]: 'Cannot be verified yet, by an owner-acknowledged dependency',
 	[L]: 'Cannot be verified; the owner accepted the limitation rather than calling it a pass',
-	[D]: 'Verified, and the product deliberately departs from the AC as written — needs an owner decision',
+	[D]: 'Verified, and the product deliberately departs from the AC as written. Each row states whether the owner has ruled on it',
 	[X]: 'Struck, or governs something that does not exist. Not counted as verified',
 	[G]: '**Not verified, and not covered by any verdict above**',
 };
@@ -89,7 +89,7 @@ const MAP = {
 	'R-4.2 AC1': [A, 'seo-preview.spec.ts — the sitemap index is served and lists every public page, excluding the 404. Measured on the built output, which is the artefact the production host serves.'],
 	'R-4.2 AC2': [A, 'seo-preview.spec.ts — /robots.txt returns 200 as text/plain and references the sitemap. Corrected here: the previous row described AC1.'],
 	'R-4.3 AC1': [A, 'seo.spec.ts — the home page carries a valid Organization/ProfessionalService JSON-LD block with the company name and canonical URL.'],
-	'R-4.4 AC1': [D, 'The preview half is asserted: seo-preview.spec.ts builds four SITE_ENV variants, including a fail-safe on an unrecognised value. The production half is NOT met today — production serves `Disallow: /` under SITE_ENV=prelaunch, a deliberate owner gate before go-live. QA-006 Finding 15. Exit condition: at go-live SITE_ENV flips and AC1 becomes true; this row must be re-checked then, since it will start passing at exactly the moment nobody is looking at it.'],
+	'R-4.4 AC1': [D, 'OWNER-ACCEPTED 2026-09-19 ("#4 option A") with a recorded exit condition; AC1\'s text is unchanged. First clause, asserted: seo-preview.spec.ts builds four SITE_ENV variants, including a fail-safe on an unrecognised value, and every non-production variant disallows crawling. Second clause ("while the production host does not") is FALSE today by deliberate choice — production runs SITE_ENV=prelaunch and serves `Disallow: /`, verified live 2026-09-19. QA-006 Finding 15. EXIT CONDITION: the deviation ends when SITE_ENV is changed at go-live, at which point the clause becomes true and both this row and REQ-001\'s note must be struck. Written down because the row would otherwise start passing by itself at exactly the moment nobody is re-reading it, and a silently-corrected criterion is indistinguishable from one that was never checked.'],
 	'R-4.5 AC1': [M, 'Owner amendment 2026-09-18. In force and satisfied, with the reason recorded: it passes because the site collects nothing at all, not because a cookieless product was chosen.'],
 	'R-4.5 AC2': [X, 'STRUCK by owner amendment 2026-09-18 — unimplementable as written (no analytics product, no dashboard). Adding analytics is a scope decision touching the CSP, the Privacy Policy and A4, not a gap-fill.'],
 
@@ -100,7 +100,7 @@ const MAP = {
 	'R-5.1 AC4': [A, 'accessibility.spec.ts — axe `image-alt` is a serious-impact rule and runs on all six routes; ESLint jsx-a11y alt-text gates the source at build time.'],
 	'R-5.1 AC5': [A, 'contrast.spec.ts — every text pairing measured against the R-9.5 thresholds, plus the explicit prohibition on #2E83FF/#66B4FF as body-text foreground.'],
 	'R-5.1 AC6': [A, 'contrast.spec.ts — the hero text is measured against the ACTUAL RENDERED PIXELS behind it at 320px, 768px and 1920px, by screenshotting the page with that text blanked and reading the worst pixel in each box. Previously credited to a brand-tokens.spec.ts test that did not exist; no test in the suite used a 768px viewport at all.'],
-	'R-5.2 AC1': [D, 'Two hosts, two answers, and the criterion names the production one. Built output: Performance 100, LCP 912ms — asserted continuously by lighthouse.spec.ts. PRODUCTION: Performance 83/83/92 across three runs on 2026-09-18, against a floor of 95 — see status/PERF-002-post-brand-production-audit.md. LCP passes on both (900-1112ms). The cause is measured and is not the brand: Cloudflare Bot Fight Mode\'s JS Detections script, 20,576 bytes, contributing 351-695ms of Total Blocking Time. Needs an owner decision; three options are set out in PERF-002.'],
+	'R-5.2 AC1': [A, 'RESOLVED 2026-09-19 by owner amendment ("#1 amend AC1"). AC1 now has two clauses, because two hosts legitimately answer differently. Clause (a), the built output at Performance >= 95 and LCP < 2.5s: ASSERTED CONTINUOUSLY by lighthouse.spec.ts, measuring 100 and 912ms. Clause (b), the production hostname at Performance >= 80 and LCP < 2.5s: measured on demand by the committed scripts/production-lighthouse.mjs and recorded dated in status/PERF-002-post-brand-production-audit.md — 83/83/92 and 900-1112ms on 2026-09-19. Clause (b) rests on a dated measurement, not a continuous assertion, and that is stated here rather than left to be inferred from the AUTOMATED label. The 80 floor sits below the worst observed run and detects growth in the cost of Cloudflare\'s JS Detections script (20,576 bytes, 351-695ms TBT), which is the entire difference between the two hosts; the site\'s own JavaScript remains 0 bytes. No assertion was weakened: clause (a) keeps AC1\'s original 95 verbatim, and clause (b) is a floor where there was previously no production measurement at all.'],
 	'R-5.2 AC2': [A, 'cross-browser.spec.ts (built output, three engines) + production-security.spec.ts (the production hostname, per R-7.8 AC3). Production measures 20.5KB uncompressed against a 50KB budget.'],
 	'R-5.2 AC3': [A, 'lighthouse.spec.ts — reads `cumulative-layout-shift` and asserts < 0.1. Added by QA-006 Finding 1: no CLS assertion existed anywhere in the suite, and three rows credited one. Measured 0.000 on the built output and 0.000 on production.'],
 	'R-5.2 AC4': [A, 'lighthouse.spec.ts — the comparison against the pre-brand baseline is now ASSERTED (Performance within 3 points, LCP within 600ms of the baseline range), not printed. QA-006 Finding 3: it was a `console.log` inside a test whose pass/fail bound was explicitly left unchanged, so a Performance-96 / LCP-2400ms regression would have printed itself into a green run. The production-hostname half is R-9.8 AC6.'],
@@ -295,7 +295,7 @@ function render(criteria) {
 	w('Three verdicts are new, and they exist because the old five could not express the truth without distorting it:');
 	w();
 	w(`- **${L}** — the owner accepted that something cannot be verified. That is a legitimate position; calling it MANUAL, as the previous matrix did, put an unverified criterion inside the "verified" count.`);
-	w(`- **${D}** — the criterion was checked and the product deliberately does something else. Neither a pass nor a gap: it needs an owner decision, and hiding it under either verdict loses that.`);
+	w(`- **${D}** — the criterion was checked and the product deliberately does something else. Neither a pass nor a gap: it is an owner call, and hiding it under either verdict loses that. A ruling does not remove the row — it records what was decided and, where the departure is temporary, the condition that ends it.`);
 	w(`- **${X}** — struck, or governing something that does not exist. Counting inapplicable criteria as verified is what turns an honest scope change into an inflated compliance number.`);
 	w();
 	w('**What this matrix still does not do:** it records where verification lives, not how good it is. A row marked AUTOMATED means a named test asserts the criterion. Where a check is weaker than its criterion implies, the row says so.');
@@ -338,7 +338,7 @@ function render(criteria) {
 	section(
 		D,
 		'Deviations — verified, and not conforming',
-		'Each of these was checked and the product deliberately does something other than what the AC says. They are listed separately from gaps because nothing is unknown about them: what is missing is an owner decision to amend the criterion or change the product.',
+		'Each of these was checked and the product deliberately does something other than what the AC says. They are listed separately from gaps because nothing is unknown about them. Each row states whether the owner has ruled: a ruled deviation names the decision and, where it is temporary, the condition that ends it; an unruled one is still waiting.',
 	);
 	section(
 		L,
