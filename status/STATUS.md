@@ -1,8 +1,87 @@
 # Workstream Status — haroonie.ai Public Website
 
-Last updated: 2026-09-18 — **A real linter is in the pipeline. QA-003
-Finding 1 CLOSED by owner decision. PR #20 open on
-`chore/eslint-real-linter`, green, not merged (`main` is protected).**
+Last updated: 2026-09-18 — **QA-006 remediation complete. The traceability
+matrix is rebuilt from scratch and is now reproducible. Two decisions are
+waiting on the owner, and one of them is that R-5.2 AC1 does not pass on
+production.**
+
+## QA-006 remediation — branch `fix/qa006-remediation`
+
+QA-006 found Wave 7 **not fit for Acceptance as presented**: the product was
+in good shape, the document certifying it was not. Every blocking item on its
+Path to Acceptance is closed, and the root cause it identified — *"the matrix
+was assembled by reading what a test was for rather than what it asserts"* —
+was accepted rather than argued with. All 135 rows were re-derived from the
+AC text and the assertions.
+
+**Six criteria that were marked AUTOMATED with nothing behind them now have
+tests.** The CLS budget (R-5.2 AC3, added by A3 *because* the brand
+introduced the risk, and shipped unguarded) and five of the six contrast
+criteria. `tests/contrast.spec.ts` measures every text pairing on every route
+against its real composited backdrop, asserts the palette prohibition as a
+value, checks every solid-filled CTA against its own fill, and — for R-9.5
+AC3 / R-5.1 AC6 — screenshots the hero with its text blanked and reads the
+**actual pixels** behind each glyph box at 320/768/1920. `tests/support/png.ts`
+is a ~120-line PNG reader written for that, rather than taking a dependency on
+an image toolchain to read four bytes per pixel.
+
+**The one PRODUCT_DEFECT is fixed.** `/favicon.svg` was the unmodified Astro
+starter, live in production, while the row was marked AUTOMATED against a
+test of the `<head>`. It now holds the brand mark's own geometry with its
+palette tokenised and a `prefers-color-scheme` block, and the `<head>`
+declares that file — so R-9.7 AC1 and R-9.9 AC4 are both about an icon
+browsers actually fetch.
+
+**The matrix is reproducible.** `scripts/traceability.mjs` is committed,
+extracts all 135 ACs from REQ-001, refuses to run if the mapping and the
+requirement disagree in either direction, and is gated in CI by `npm run
+trace:check`. The previous generator lived in a temp directory and was never
+committed, which made the document's own "cannot silently drift" claim
+uncheckable.
+
+**135 criteria: 119 verified · 3 blocked · 1 accepted limitation · 4
+deviations · 7 struck · 1 gap.** Higher than the old "0 gaps" because three
+new verdicts stop three categories hiding inside passing ones.
+
+### Two decisions for the owner
+
+**1. R-5.2 AC1 does not pass on the production hostname.** Running the audit
+R-9.8 AC6 has always required — and which had never been run — gives
+Performance **83 / 83 / 92** across three runs against a floor of 95. LCP
+(900–1112 ms) and CLS (0.000) pass comfortably. The cause is measured and is
+**not the brand**: Cloudflare Bot Fight Mode's JS Detections script, **20,576
+bytes**, contributing 351–695 ms of Total Blocking Time. REQ-001-A2 §3.3
+records that script at ~938 bytes; it is 22x that now, and nothing in the
+repository would have noticed, because the 50 KB byte budget it is checked
+against is still green. Three options are set out in
+`status/PERF-002-post-brand-production-audit.md`. No Cloudflare setting was
+touched.
+
+**2. R-7.4 AC2 requires HSTS to be present; the site deliberately omits it,
+and a test asserts the omission.** Found by this re-verification pass, not by
+QA-006. The row was marked AUTOMATED — a test credited for a criterion whose
+opposite it asserts. HSTS is one of the three zone settings QA-005 recorded
+as untouched on purpose, and enabling it is hard to reverse. Either enable
+it, or amend AC2 to record that it is deliberately absent and why.
+
+Two further deviations need an owner amendment but nothing else: **R-9.2
+AC4** (one variable font on a 200-800 axis versus the AC's "exactly three
+weights" — very likely the better engineering outcome, so the AC is what
+should move) and **R-4.4 AC1** (production serves `Disallow: /` under the
+`prelaunch` gate; the AC's second clause becomes true at go-live, which is
+exactly when nobody will re-check it).
+
+**One gap remains open: R-7.7 AC3.** The post-change DNS enumeration covers
+only the `www` stage — the apex write, `always_use_https` and the redirect
+ruleset all post-date it. One read-only zone call closes it; the credential
+available to this session has no zone-read scope. The exact command is in
+`status/WAVE4-dns-evidence.md`.
+
+---
+
+## Wave 7 — a real linter is in the pipeline
+
+QA-003 Finding 1 CLOSED by owner decision. PR #20 merged.
 
 The longest-open requirements ambiguity in the program is settled. QA-003
 Finding 1, raised 2026-09-12, observed that R-6.1 AC1's "lint" was

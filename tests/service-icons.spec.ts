@@ -43,6 +43,39 @@ test.describe('service icons are decorative and accessible (R-9.4)', () => {
 		}
 	});
 
+	test('AC2 — no icon anywhere is unaccompanied by visible text', async ({ page }) => {
+		// AC2 governs icons that are NOT accompanied by visible text: those must
+		// carry a purposeful accessible name. Every icon on this site sits beside
+		// a heading, so AC2 is satisfied VACUOUSLY - there is no icon it reaches.
+		//
+		// That is a legitimate pass and it was recorded as one, but the matrix
+		// credited it to AC1's duplicate-announcement test (QA-006 Finding 10),
+		// which is a different criterion. The honest automation for a vacuous
+		// criterion is to assert its ANTECEDENT: prove there is no unaccompanied
+		// icon. If one is ever added, this fails, and AC2 has to be satisfied for
+		// real rather than staying green on an assumption nobody rechecked.
+		await page.goto('/services/');
+
+		const unaccompanied = await page.evaluate(() =>
+			Array.from(document.querySelectorAll('svg.service-icon, svg[aria-hidden], img'))
+				.filter((el) => {
+					// The icon's accompanying text is whatever visible text its
+					// nearest container renders alongside it.
+					const container = el.closest('li, a, button, figure, section, div');
+					if (!container) return true;
+					const text = (container.textContent ?? '').trim();
+					return text.length === 0;
+				})
+				.map((el) => `${el.tagName.toLowerCase()}.${String(el.getAttribute('class') ?? '')}`),
+		);
+
+		expect(
+			unaccompanied,
+			'an icon now renders with no visible text beside it; R-9.4 AC2 requires it to have a ' +
+				`purposeful accessible name, and nothing asserts that yet:\n  ${unaccompanied.join('\n  ')}`,
+		).toEqual([]);
+	});
+
 	test('AC3 — icons add no JavaScript and no extra requests', async ({ page }) => {
 		const scriptRequests: string[] = [];
 		const iconRequests: string[] = [];

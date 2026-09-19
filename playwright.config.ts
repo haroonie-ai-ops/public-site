@@ -47,7 +47,7 @@ export default defineConfig({
 			// joined this gate because the list named only its sibling - 24
 			// test instances would have hit live production on every pre-merge
 			// run. The naming convention is now the contract.
-			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts|production-[a-z-]+\.spec\.ts|keyboard-focus\.spec\.ts|csp-nonce-failsafe\.spec\.ts|service-icons\.spec\.ts|\.manual\.spec\.ts/,
+			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts|production-[a-z-]+\.spec\.ts|keyboard-focus\.spec\.ts|contrast\.spec\.ts|[\\/]icons\.spec\.ts|brand-identity\.spec\.ts|csp-nonce-failsafe\.spec\.ts|service-icons\.spec\.ts|\.manual\.spec\.ts/,
 		},
 		{
 			name: 'firefox',
@@ -63,7 +63,7 @@ export default defineConfig({
 			// joined this gate because the list named only its sibling - 24
 			// test instances would have hit live production on every pre-merge
 			// run. The naming convention is now the contract.
-			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts|production-[a-z-]+\.spec\.ts|keyboard-focus\.spec\.ts|csp-nonce-failsafe\.spec\.ts|service-icons\.spec\.ts|\.manual\.spec\.ts/,
+			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts|production-[a-z-]+\.spec\.ts|keyboard-focus\.spec\.ts|contrast\.spec\.ts|[\\/]icons\.spec\.ts|brand-identity\.spec\.ts|csp-nonce-failsafe\.spec\.ts|service-icons\.spec\.ts|\.manual\.spec\.ts/,
 		},
 		{
 			name: 'webkit',
@@ -79,7 +79,7 @@ export default defineConfig({
 			// joined this gate because the list named only its sibling - 24
 			// test instances would have hit live production on every pre-merge
 			// run. The naming convention is now the contract.
-			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts|production-[a-z-]+\.spec\.ts|keyboard-focus\.spec\.ts|csp-nonce-failsafe\.spec\.ts|service-icons\.spec\.ts|\.manual\.spec\.ts/,
+			testIgnore: /seo-preview\.spec\.ts|cross-browser\.spec\.ts|lighthouse\.spec\.ts|production-[a-z-]+\.spec\.ts|keyboard-focus\.spec\.ts|contrast\.spec\.ts|[\\/]icons\.spec\.ts|brand-identity\.spec\.ts|csp-nonce-failsafe\.spec\.ts|service-icons\.spec\.ts|\.manual\.spec\.ts/,
 		},
 		{
 			name: 'static-preview',
@@ -96,7 +96,25 @@ export default defineConfig({
 			// Audit, Settings) as unreachable interactive elements, and raced
 			// the HMR client's reload. Neither exists in the build a visitor
 			// gets. A spec about what ships must run against what ships.
-			testMatch: /seo-preview\.spec\.ts|service-icons\.spec\.ts|keyboard-focus\.spec\.ts/,
+			// contrast.spec.ts joins it for a third variant of the same reason:
+			// its R-9.5 AC3 group SCREENSHOTS the page and reads the pixels
+			// behind the hero text. Astro's dev toolbar paints itself into that
+			// screenshot, and dev-only markup would shift the very boxes being
+			// sampled. Contrast must be measured on the bytes Cloudflare Pages
+			// serves.
+			// icons.spec.ts is matched as `[\\/]icons\.spec\.ts`, anchored on the
+			// path separator: bare `icons\.spec\.ts` also matches
+			// service-icons.spec.ts, and a pattern that silently covers a second
+			// file is how R-6.4's suite joined the pre-merge gate by accident.
+			// Both belong here, so the overlap changes nothing today - it is
+			// anchored so it cannot start mattering later.
+			// icons.spec.ts joins it because R-9.7's criteria are HTTP facts
+			// about files in public/ - status, content type, transferred bytes -
+			// and `astro preview` serves those the way Cloudflare Pages does.
+			// brand-identity.spec.ts joins it because R-9.2 AC2 asserts that NO
+			// external origin is requested, and `astro dev` injects its own HMR
+			// client - a dev-only request that never ships.
+			testMatch: /seo-preview\.spec\.ts|service-icons\.spec\.ts|keyboard-focus\.spec\.ts|contrast\.spec\.ts|[\\/]icons\.spec\.ts|brand-identity\.spec\.ts/,
 		},
 		// Wave 6 (R-5.3): cross-browser layout/console-error pass, one project
 		// per engine, all against the built static output via `previewBaseURL`
