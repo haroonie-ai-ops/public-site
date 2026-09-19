@@ -1,6 +1,6 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Response } from '@playwright/test';
 import { allRoutes } from './support/routes';
-import { assertNavigationOk, cloudflareChallengeMessage } from './support/cloudflare';
+import { assertNavigationOk } from './support/cloudflare';
 
 // R-6.4 — post-deployment verification against the LIVE site.
 //
@@ -87,6 +87,28 @@ test.describe('R-6.4 AC1 — post-deployment smoke against the live site', () =>
 // otherwise notice it being edited away in the dashboard.
 const APEX_ORIGIN = PRODUCTION_ORIGIN.replace('://www.', '://');
 
+/**
+ * The redirect hops a navigation passed through, oldest first.
+ *
+ * Playwright exposes the chain backwards from the final response, so this
+ * walks `redirectedFrom()` and reverses it. Both redirect criteria below need
+ * the STATUS of the hop, not just where the browser ended up: landing on the
+ * right page is equally true of duplicate content served at two URLs, and of
+ * a 302 that tells crawlers the other URL is still canonical.
+ */
+async function redirectChain(response: Response): Promise<{ url: string; status: number }[]> {
+	const hops: { url: string; status: number }[] = [];
+	for (
+		let request = response.request().redirectedFrom();
+		request !== null;
+		request = request.redirectedFrom()
+	) {
+		const hop = await request.response();
+		if (hop) hops.unshift({ url: request.url(), status: hop.status() });
+	}
+	return hops;
+}
+
 test.describe('R-7.3 AC1/AC2 — apex to www redirect', () => {
 	// Skipped rather than failed when PRODUCTION_BASE_URL has been pointed at
 	// something that is not the www host (a preview deployment, say): there is
@@ -108,15 +130,7 @@ test.describe('R-7.3 AC1/AC2 — apex to www redirect', () => {
 			// alone, because landing on the right page says nothing about the
 			// STATUS used to get there - and AC1 names 301 specifically, since a
 			// 302 tells crawlers the apex is the canonical host after all.
-			const hops: { url: string; status: number }[] = [];
-			for (
-				let request = response.request().redirectedFrom();
-				request !== null;
-				request = request.redirectedFrom()
-			) {
-				const hop = await request.response();
-				if (hop) hops.unshift({ url: request.url(), status: hop.status() });
-			}
+			const hops = await redirectChain(response);
 
 			expect(
 				hops.length,
@@ -156,29 +170,49 @@ test.describe('R-7.3 AC1/AC2 — apex to www redirect', () => {
 // routing". The redirect is the host's behaviour, so the host is what has to
 // be asked. Asserting it against `astro preview` would have been a test of
 // the wrong server that happened to be cheaper to run.
+//
+// WHY BROWSER NAVIGATION, NOT request.get(). This test shipped using
+// `request.get(..., { maxRedirects: 0 })` and turned the post-deploy gate red
+// on its first real run: 15 failures, 5 routes x 3 engines, every one an
+// HTTP 403 with `cf-mitigated=challenge`. The site was entirely healthy - the
+// other 57 assertions in this job passed, including the apex 301 immediately
+// above, which uses `page.goto()`.
+//
+// That is QA-005 Finding 3 exactly, in a file whose own header already
+// explains it: Cloudflare's Bot Fight Mode challenges non-browser HTTP
+// clients from GitHub runner IPs. `APIRequestContext` is such a client. It
+// passed locally only because a residential IP is not challenged, which is
+// the specific way this failure mode hides during development.
+//
+// The redirect chain is read the same way the apex test reads it: navigate,
+// then walk back up `redirectedFrom()`. That observes the 308 itself - not
+// merely where the visitor lands, which would be equally true of duplicate
+// content served at both URLs - while being a real browser the whole way.
 test.describe('R-7.6 AC1 — one canonical URL per page', () => {
 	for (const route of allRoutes.filter((r) => r.path !== '/')) {
 		const unslashed = route.path.replace(/\/$/, '');
-		test(`${unslashed} resolves to the single canonical ${route.path}`, async ({ request }) => {
-			// maxRedirects: 0 so the redirect itself is observable. Following it
-			// would prove only that the visitor lands somewhere sensible, which
-			// is equally true of duplicate content served at both URLs.
-			const response = await request.get(`${PRODUCTION_ORIGIN}${unslashed}`, { maxRedirects: 0 });
+		test(`${unslashed} resolves to the single canonical ${route.path}`, async ({ page }) => {
+			const response = await page.goto(`${PRODUCTION_ORIGIN}${unslashed}`);
+			assertNavigationOk(response, `${PRODUCTION_ORIGIN}${unslashed}`);
 
-			const challenge = cloudflareChallengeMessage(response, unslashed);
-			if (challenge) throw new Error(challenge);
+			const hops = await redirectChain(response);
 
 			expect(
-				[301, 308].includes(response.status()),
-				`${unslashed} answered ${response.status()}; AC1 requires it to resolve to one ` +
-					`canonical form, not to serve a second copy of the page`,
+				hops.length,
+				`${unslashed} was served directly with no redirect; AC1 requires it to resolve to ` +
+					`one canonical form, not to serve a second copy of the page`,
+			).toBeGreaterThan(0);
+
+			// 308 in practice (Cloudflare Pages), 301 accepted: both are
+			// permanent, which is what stops a crawler indexing two URLs.
+			expect(
+				[301, 308].includes(hops[0].status),
+				`${hops[0].url} answered ${hops[0].status}; AC1 needs a permanent redirect`,
 			).toBe(true);
 
-			const location = response.headers()['location'] ?? '';
-			expect(
-				new URL(location, PRODUCTION_ORIGIN).pathname,
-				`${unslashed} must redirect to ${route.path}`,
-			).toBe(route.path);
+			expect(new URL(page.url()).pathname, `${unslashed} must resolve to ${route.path}`).toBe(
+				route.path,
+			);
 		});
 	}
 });

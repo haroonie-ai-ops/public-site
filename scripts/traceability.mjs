@@ -397,8 +397,14 @@ for (const { key } of criteria) {
 const rendered = render(criteria);
 
 if (process.argv.includes('--check')) {
+	// Line endings are normalised on both sides before comparing. The file is
+	// written with LF and is LF in the repository, but git's autocrlf gives a
+	// Windows checkout a CRLF working tree - so a byte comparison reported the
+	// matrix as out of date on every Windows machine while passing in CI. A
+	// gate that cries wolf locally is a gate people learn to bypass.
+	const normalise = (text) => text.split('\r\n').join('\n');
 	const onDisk = readFileSync(OUT_PATH, 'utf8');
-	if (onDisk !== rendered) {
+	if (normalise(onDisk) !== normalise(rendered)) {
 		console.error(
 			`${OUT_PATH} is out of date. Run \`npm run trace\` and commit the result — ` +
 				'do not edit the matrix by hand.',
