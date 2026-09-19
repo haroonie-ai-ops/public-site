@@ -74,6 +74,17 @@ test.describe('home page performance budget (R-5.2 AC1)', () => {
 		expect(Number.isFinite(lcpMs), 'Lighthouse must report an LCP value').toBe(true);
 		expect(lcpMs, 'LCP (ms) must be under 2.5s per R-5.2 AC1').toBeLessThan(2500);
 
+		// AC1 was amended by the owner on 2026-09-19 into two clauses, and this
+		// file is clause (a): the BUILT OUTPUT at Performance >= 95, which is
+		// the site's own performance and is unaffected by anything Cloudflare
+		// injects at the edge. Clause (b) is the production hostname at >= 80,
+		// measured on demand by scripts/production-lighthouse.mjs and recorded
+		// in status/PERF-002.
+		//
+		// The 95 here is AC1's ORIGINAL number, kept verbatim. The amendment
+		// added a floor where there had been no production measurement at all;
+		// it did not lower this one (R-8.3 AC1).
+
 		// R-5.2 AC3 (added by REQ-001-A3) - "Given the home page on a simulated
 		// mobile connection, When audited, Then Cumulative Layout Shift is
 		// under 0.1."
@@ -176,5 +187,12 @@ test.describe('home page performance budget (R-5.2 AC1)', () => {
 		// production-audit.md. The matrix rows for AC6 cite that document; this
 		// file is cited only for the ongoing local regression gate it actually
 		// is.
+		//
+		// That measurement, once taken, found the production hostname scoring
+		// 83-92 against what was then a single floor of 95 - the whole gap
+		// attributable to Cloudflare's JS Detections script, not to anything
+		// built here. The owner amended AC1 into two clauses rather than
+		// disable the bot-mitigation control. This comment is the reason the
+		// two hosts are allowed to answer differently.
 	});
 });

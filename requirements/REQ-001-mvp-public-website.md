@@ -275,6 +275,27 @@ collections in the repository, not from hard-coded markup in components.
 **R-4.4** Preview and staging hosts must not be indexed.
 - AC1 — Given any `*.pages.dev` preview URL, When `/robots.txt` is requested,
   Then it disallows all crawling, while the production host does not.
+- Note to AC1 (2026-09-19) — **recorded deviation, with an exit condition.**
+  AC1's text is **unchanged**. The first clause holds and is asserted:
+  `tests/seo-preview.spec.ts` builds four `SITE_ENV` variants, including a
+  fail-safe on an unrecognised value, and every non-production variant
+  disallows crawling.
+  The second clause — *"while the production host does not"* — is **false
+  today, by deliberate owner choice**. Production runs `SITE_ENV=prelaunch`
+  and serves `User-agent: * / Disallow: /`, so the site is not indexed while
+  it is pre-launch. Verified live 2026-09-19.
+  **Owner decision, 2026-09-19, verbatim: *"#4 option A"*** — record the
+  deviation with an explicit exit condition and keep the gate, rather than
+  going live to make the clause true.
+  **EXIT CONDITION.** This deviation ends when `SITE_ENV` is changed from
+  `prelaunch` at go-live. At that moment AC1's second clause becomes true and
+  this note must be struck. It is written down because that is the failure
+  mode worth guarding against: the row would start passing by itself, at
+  exactly the moment nobody is re-reading it, and a silently-corrected
+  criterion is indistinguishable from one that was never checked.
+  **Go-live checklist for this row:** flip `SITE_ENV`, confirm
+  `https://www.haroonie.ai/robots.txt` no longer disallows crawling, confirm a
+  `*.pages.dev` preview still does, then delete this note.
 
 **R-4.5** Analytics is cookieless, so no consent banner is required.
 **AMENDED 2026-09-18 — owner decision: MVP ships with NO analytics.**
@@ -321,9 +342,43 @@ collections in the repository, not from hard-coded markup in components.
   cover, not a restatement of AC1.
 
 **R-5.2** Performance budget.
-- AC1 — Given the production home page on a simulated mobile connection, When
-  audited, Then Lighthouse Performance is at least 95 and Largest Contentful
-  Paint is under 2.5 seconds.
+- AC1 — **AMENDED 2026-09-19 by owner decision.** Given the home page on a
+  simulated mobile connection, When audited, Then:
+  - **(a) against the built static output** — Lighthouse Performance is at
+    least **95** and Largest Contentful Paint is under 2.5 seconds. This is
+    the site's own performance, and it is asserted continuously by
+    `tests/lighthouse.spec.ts` on every run.
+  - **(b) against the production hostname** — Lighthouse Performance is at
+    least **80** and Largest Contentful Paint is under 2.5 seconds. Measured
+    on demand by `scripts/production-lighthouse.mjs` and recorded with a date,
+    per R-9.8 AC6.
+- Note to AC1 (2026-09-19) — **why the two floors differ, and why that is not
+  a weakened assertion.** AC1 originally stated one floor of 95. Running the
+  audit R-9.8 AC6 has always required — and which had never been run until
+  QA-006 remediation forced it — measured the production hostname at
+  Performance **83 / 83 / 92** across three consecutive runs, against 100 on
+  the built output from the same machine in the same session. LCP (900–1112
+  ms) and CLS (0.000) passed on both.
+  The entire difference is measured and attributed: Cloudflare Bot Fight
+  Mode's JavaScript Detections script, **20,576 bytes**, contributing
+  351–695 ms of Total Blocking Time. The site's own JavaScript remains 0
+  bytes (R-9.8 AC7). No part of the brand, the build or the content moved any
+  metric; see `status/PERF-002-post-brand-production-audit.md`.
+  **Owner decision, 2026-09-19, verbatim: *"#1 amend AC1"*** — selecting the
+  option that keeps the bot-mitigation control and states the production floor
+  separately, rather than disabling JS Detections to recover the score.
+  The 80 floor is deliberately set **below the worst observed run (83)**, with
+  headroom for runner and network variance. It is a **regression detector for
+  the edge script's cost**, not a performance target: the site's own
+  performance is guarded by clause (a) at 95, which is unaffected by anything
+  Cloudflare injects at the edge. If clause (b) ever fails, the question it
+  asks is "has the edge script's cost grown?", and the answer is a Cloudflare
+  configuration question, not a code one.
+  **Not a weakening under R-8.3 AC1.** No assertion was reduced: clause (a)
+  retains AC1's original 95 verbatim and is asserted more often than before,
+  and clause (b) is a floor where previously there was **no production
+  measurement at all**. The criterion gained coverage; it did not lose
+  strength.
 - AC2 — Given any page, When loaded, Then total transferred JavaScript is
   under 50 KB compressed.
 - Note (2026-09-16, REQ-001-A2 §3.3 — corrects recorded evidence, not

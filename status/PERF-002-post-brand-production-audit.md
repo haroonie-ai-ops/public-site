@@ -3,10 +3,15 @@
 **Raised:** 2026-09-18
 **Author:** Engineer, during QA-006 remediation
 **Discharges:** R-9.8 AC6, R-7.8 AC4 — the production-hostname half
-**Headline:** **R-5.2 AC1's Performance clause does not pass on production.**
-Three consecutive runs scored **83, 83, 92** against a floor of 95 and a
+**Headline:** **R-5.2 AC1's Performance clause did not pass on production.**
+Three consecutive runs scored **83, 83, 92** against a then-floor of 95 and a
 pre-brand baseline of 100. LCP, CLS and the JavaScript byte budget all pass
-comfortably. The cause is not the brand.
+comfortably. The cause is not the brand: it is Cloudflare's own bot-mitigation
+script.
+
+**Status: RESOLVED 2026-09-19** — the owner amended AC1 into a build-output
+floor of 95 and a production floor of 80, keeping the bot control. See the
+"RESOLVED" section below.
 
 ---
 
@@ -54,6 +59,11 @@ would be audited as if it were the site.
 Local built output, same machine, same session, for comparison:
 **Performance 100, LCP 912 ms, CLS 0.000.**
 
+A fourth run, taken immediately after the amendment landed, scored
+**Performance 84, LCP 1103 ms, CLS 0.000 — PASS against clause (b)**. Four
+observations now sit at 83, 83, 84, 92, which is the spread the 80 floor was
+chosen to sit beneath.
+
 ## What is actually causing it, measured
 
 The site's own JavaScript is still 0 bytes. The production page loads exactly
@@ -98,7 +108,41 @@ have moved — LCP, CLS, byte weight — is at or better than baseline. The
 delta is entirely attributable to an edge feature that was already enabled
 before the brand shipped and has since grown.
 
-## What this needs from the owner, and what it does not
+## RESOLVED — owner decision, 2026-09-19
+
+**Option (1): accept and amend.** Owner instruction, verbatim: *"#1 amend
+AC1"*.
+
+R-5.2 AC1 now has two clauses, and REQ-001 carries the full reasoning:
+
+| Clause | Host | Floor | How it is verified |
+|---|---|---|---|
+| **(a)** | built static output | Performance **>= 95**, LCP < 2.5s | asserted continuously by `tests/lighthouse.spec.ts` |
+| **(b)** | production hostname | Performance **>= 80**, LCP < 2.5s | measured on demand by `scripts/production-lighthouse.mjs`, recorded dated here |
+
+**Why 80.** It sits below the worst run observed on 2026-09-19 (83), with
+headroom for runner and network variance. It is a **regression detector for
+the edge script's cost**, not a performance target — the site's own
+performance is guarded by clause (a) at 95, which nothing Cloudflare injects
+can affect. If clause (b) ever fails, the question it asks is "has the edge
+script grown?", and the answer is a Cloudflare configuration question rather
+than a code one.
+
+**This is not a weakened assertion (R-8.3 AC1).** Clause (a) keeps AC1's
+original 95 verbatim and is asserted more often than before. Clause (b) is a
+floor where there had been **no production measurement at all** — the audit
+in this document is the first one ever run. The criterion gained coverage; it
+did not lose strength.
+
+**Bot Fight Mode and JS Detections both remain enabled.** The owner declined
+option (2). Nothing in Cloudflare was changed to produce or to resolve this.
+
+**Still worth knowing:** the 22x drift in the injected script's size
+(~938 bytes recorded in REQ-001-A2, 20,576 bytes measured here) went
+unnoticed because R-5.2 AC2's byte budget is 50 KB and stayed green
+throughout. Clause (b) is now the thing that would catch a repeat.
+
+## The options as they stood, and what each would have cost
 
 **Not an Engineer decision.** The fix, if the owner wants one, is a
 Cloudflare zone setting: Bot Fight Mode / JS Detections. QA-005 recorded the
@@ -121,11 +165,10 @@ Three routes, for the owner:
    production and is recorded as failing. Honest, and the least useful of the
    three, because a criterion known to fail stops being read.
 
-Recommendation: **(1)**. The site is fast — 900 ms LCP on mobile emulation
-through a real CDN is a good number — and the score is measuring a security
-feature's cost, not a performance defect. Option (2) trades a real control
-for a number. But this is the owner's to decide; it is recorded here, not
-acted on.
+Recommendation was **(1)**, and (1) is what the owner chose. The site is fast
+— 900 ms LCP on mobile emulation through a real CDN is a good number — and
+the score was measuring a security feature's cost, not a performance defect.
+Option (2) would have traded a real control for a number.
 
 ## Re-running this
 

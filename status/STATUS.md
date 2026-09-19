@@ -800,9 +800,11 @@ without touching any existing one.
    headed sections sourced from `src/content/legal/privacy.md`'s typed
    frontmatter fields. Footer links to both (AC2) were already wired in
    Wave 2a's `BaseLayout` and are unchanged. Both pages' policy *bodies* are
-   agent-drafted boilerplate — logged as P13/P14, not marked
-   `placeholder: true` in schema because neither invents a REQ-001 §1.3-
-   banned fact, but still pending owner/legal sign-off before go-live.
+   agent-drafted boilerplate, not marked `placeholder: true` in schema
+   because neither invents a REQ-001 §1.3-banned fact. **Owner read and
+   approved them as-is on 2026-09-19** — logged as P18 in the placeholder
+   register. This was the one go-live blocker that needed a human rather
+   than an engineer, and it is closed.
 6. **R-2.6 (404) / R-2.7 (nav/footer)** were verified still passing with
    the new page content in place — no change was needed to either; the
    existing `tests/smoke.spec.ts` suite (unmodified assertions) continues

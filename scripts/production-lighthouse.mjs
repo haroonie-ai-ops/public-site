@@ -94,8 +94,13 @@ try {
 		`FCP                 ${Math.round(fcp)} ms`,
 		`TBT                 ${Math.round(tbt)} ms`,
 		'',
-		`R-5.2 AC1 bounds    Performance >= 95: ${performance >= 95 ? 'PASS' : 'FAIL'}; LCP < 2500 ms: ${lcp < 2500 ? 'PASS' : 'FAIL'}`,
+		`R-5.2 AC1(b)       Performance >= 80: ${performance >= 80 ? 'PASS' : 'FAIL'}; LCP < 2500 ms: ${lcp < 2500 ? 'PASS' : 'FAIL'}`,
 		`R-5.2 AC3 bound     CLS < 0.1: ${cls < 0.1 ? 'PASS' : 'FAIL'}`,
+		'',
+		'AC1(b) is the PRODUCTION floor, amended by the owner on 2026-09-19 and set',
+		'below the worst run observed that day (83). It detects growth in the edge',
+		"script's cost, not the site's own performance - that is AC1(a)'s floor of 95",
+		'against the built output, asserted continuously by tests/lighthouse.spec.ts.',
 	];
 
 	console.log(lines.join('\n'));
